@@ -5,6 +5,9 @@ import sqlite3
 import websockets
 import asyncio
 from datetime import datetime
+import os
+from http.server import SimpleHTTPRequestHandler
+from socketserver import TCPServer
 
 # Disable Paramiko's internal logging
 paramiko.util.log_to_file("/dev/null")  # You can also use "nul" for Windows if needed
@@ -117,6 +120,18 @@ class HoneyPotSSHServer:
         finally:
             transport.close()
 
+# HTTP server to serve the index.html
+class HTTPServer:
+    def __init__(self, port=80):
+        self.port = port
+
+    def start(self):
+        os.chdir('.')  # Make sure to change the directory to where index.html is located
+        handler = SimpleHTTPRequestHandler
+        with TCPServer(('0.0.0.0', self.port), handler) as httpd:
+            print(f"Serving index.html on port {self.port}...")
+            httpd.serve_forever()
+
 if __name__ == "__main__":
     # Set up database before starting the honeypot server
     setup_database()
@@ -124,6 +139,9 @@ if __name__ == "__main__":
     # Start WebSocket server in background
     threading.Thread(target=lambda: asyncio.run(websocket_server())).start()
     
+    # Start HTTP server to serve the index.html on port 80
+    threading.Thread(target=lambda: HTTPServer(port=80).start()).start()
+
     # Start the honeypot server
     honeypot = HoneyPotSSHServer()
     honeypot.start()
