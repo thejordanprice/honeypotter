@@ -1,9 +1,34 @@
 import paramiko
 import socket
 import threading
+import sqlite3
+from datetime import datetime
 
 # Disable Paramiko's internal logging
 paramiko.util.log_to_file("/dev/null")  # You can also use "nul" for Windows if needed
+
+# Database setup
+def setup_database():
+    conn = sqlite3.connect('honeypot.db')
+    c = conn.cursor()
+    c.execute('''CREATE TABLE IF NOT EXISTS login_attempts (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    username TEXT,
+                    password TEXT,
+                    client_ip TEXT,
+                    timestamp DATETIME)''')
+    conn.commit()
+    conn.close()
+
+# Function to log attempts into the SQLite database
+def log_login_attempt(username, password, client_ip):
+    conn = sqlite3.connect('honeypot.db')
+    c = conn.cursor()
+    timestamp = datetime.now()
+    c.execute("INSERT INTO login_attempts (username, password, client_ip, timestamp) VALUES (?, ?, ?, ?)",
+              (username, password, client_ip, timestamp))
+    conn.commit()
+    conn.close()
 
 class HoneyPotServer(paramiko.ServerInterface):
     def __init__(self, client_ip):
@@ -12,8 +37,11 @@ class HoneyPotServer(paramiko.ServerInterface):
         self.client_ip = client_ip
 
     def check_auth_password(self, username, password):
-        # Log login attempts with username, password, and client IP
+        # Log login attempts with username, password, and client IP to database
         print(f"Login attempt from {self.client_ip}: Username: {username}, Password: {password}")
+        
+        # Log to database
+        log_login_attempt(username, password, self.client_ip)
         
         # Always authenticate successfully
         self.username = username
@@ -65,5 +93,9 @@ class HoneyPotSSHServer:
             transport.close()
 
 if __name__ == "__main__":
+    # Set up database before starting the honeypot server
+    setup_database()
+    
+    # Start the honeypot server
     honeypot = HoneyPotSSHServer()
     honeypot.start()
