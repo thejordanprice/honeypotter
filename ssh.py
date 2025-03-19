@@ -2,6 +2,8 @@ import paramiko
 import socket
 import threading
 import sqlite3
+import websockets
+import asyncio
 from datetime import datetime
 
 # Disable Paramiko's internal logging
@@ -30,6 +32,29 @@ def log_login_attempt(username, password, client_ip):
     conn.commit()
     conn.close()
 
+    # Notify WebSocket clients about the new login attempt
+    asyncio.run(broadcast_login_attempt(username, password, client_ip, timestamp))
+
+# WebSocket server
+clients = []
+
+async def register(websocket):
+    clients.append(websocket)
+    try:
+        await websocket.wait_closed()
+    finally:
+        clients.remove(websocket)
+
+async def broadcast_login_attempt(username, password, client_ip, timestamp):
+    message = f"Login attempt: Username: {username}, Password: {password}, IP: {client_ip}, Time: {timestamp}"
+    if clients:
+        await asyncio.gather(*[client.send(message) for client in clients])
+
+async def websocket_server():
+    async with websockets.serve(register, "localhost", 8765):
+        await asyncio.Future()  # Run forever
+
+# HoneyPotServer and HoneyPotSSHServer class
 class HoneyPotServer(paramiko.ServerInterface):
     def __init__(self, client_ip):
         self.username = None
@@ -40,7 +65,7 @@ class HoneyPotServer(paramiko.ServerInterface):
         # Log login attempts with username, password, and client IP to database
         print(f"Login attempt from {self.client_ip}: Username: {username}, Password: {password}")
         
-        # Log to database
+        # Log to database and notify WebSocket clients
         log_login_attempt(username, password, self.client_ip)
         
         # Always authenticate successfully
@@ -95,6 +120,9 @@ class HoneyPotSSHServer:
 if __name__ == "__main__":
     # Set up database before starting the honeypot server
     setup_database()
+
+    # Start WebSocket server in background
+    threading.Thread(target=lambda: asyncio.run(websocket_server())).start()
     
     # Start the honeypot server
     honeypot = HoneyPotSSHServer()
