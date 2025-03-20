@@ -2,7 +2,7 @@
 from fastapi import FastAPI, WebSocket, Depends, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from sqlalchemy.orm import Session
 import json
 from typing import List
@@ -60,6 +60,15 @@ def get_attempts(db: Session = Depends(get_db)):
     """Get all login attempts."""
     attempts = db.query(LoginAttempt).order_by(LoginAttempt.timestamp.desc()).all()
     return [attempt.to_dict() for attempt in attempts]
+
+@app.get("/api/export/ips")
+def export_ips(db: Session = Depends(get_db)):
+    """Export all unique IP addresses that have attempted to connect."""
+    ips = db.query(LoginAttempt.client_ip).distinct().all()
+    ip_list = "\n".join([ip[0] for ip in ips])
+    return PlainTextResponse(ip_list, headers={
+        "Content-Disposition": "attachment; filename=attempted_ips.txt"
+    })
 
 async def broadcast_attempt(attempt: dict):
     """Broadcast a login attempt to all connected clients."""
