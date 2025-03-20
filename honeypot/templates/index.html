@@ -374,12 +374,13 @@
         }
 
         function filterAttempts(attempts) {
-            const searchTerm = searchInput.value.toLowerCase();
+            const searchTerm = searchInput.value.toLowerCase().trim();
             const filterValue = filterSelect.value;
             const now = new Date();
 
             return attempts.filter(attempt => {
-                const matchesSearch = 
+                // If no search term, consider it a match
+                const matchesSearch = searchTerm === '' || 
                     attempt.username.toLowerCase().includes(searchTerm) ||
                     attempt.client_ip.includes(searchTerm) ||
                     attempt.password.toLowerCase().includes(searchTerm);
@@ -389,14 +390,19 @@
 
                 switch (filterValue) {
                     case 'lastHour':
-                        matchesFilter = (now - timestamp) <= 3600000;
+                        matchesFilter = (now - timestamp) <= (60 * 60 * 1000); // 1 hour in milliseconds
                         break;
                     case 'today':
-                        matchesFilter = timestamp.toDateString() === now.toDateString();
+                        matchesFilter = now.toDateString() === timestamp.toDateString();
                         break;
                     case 'thisWeek':
-                        const weekAgo = new Date(now - 7 * 24 * 60 * 60 * 1000);
+                        const weekAgo = new Date(now);
+                        weekAgo.setDate(now.getDate() - 7);
                         matchesFilter = timestamp >= weekAgo;
+                        break;
+                    case 'all':
+                    default:
+                        matchesFilter = true;
                         break;
                 }
 
