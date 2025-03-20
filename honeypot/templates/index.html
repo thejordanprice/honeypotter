@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SSH Honeypot Monitor</title>
+    <title>SSH Honeypot</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -26,20 +26,29 @@
     </style>
 </head>
 <body class="bg-gray-100">
-    <div class="container mx-auto px-4 py-8">
-        <header class="mb-8">
-            <div class="flex justify-between items-center">
-                <div>
-                    <h1 class="text-3xl font-bold text-gray-800">SSH Honeypot Monitor</h1>
-                    <p class="text-gray-600">Real-time monitoring of SSH login attempts</p>
-                    <div id="connectionStatus" class="mt-2 text-sm"></div>
+    <!-- Replace the existing header with this navbar -->
+    <nav class="bg-white shadow-lg mb-8">
+        <div class="container mx-auto px-4">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center">
+                    <h1 class="text-xl font-semibold text-gray-800">SSH Honeypot</h1>
+                    <div class="ml-4 px-3 py-1 bg-green-100 rounded-full hidden sm:block">
+                        <span id="connectionStatus" class="text-sm"></span>
+                    </div>
                 </div>
-                <button id="exportIPs" class="bg-gray-50 hover:bg-gray-100 text-gray-800 font-semibold py-2 px-4 rounded-lg shadow transition-colors">
-                    Export IP List
-                </button>
+                <div class="flex items-center space-x-4">
+                    <div class="text-sm text-gray-600">
+                        Total Attempts: <span id="totalAttempts" class="font-semibold">0</span>
+                    </div>
+                    <button id="exportIPs" class="bg-gray-50 hover:bg-gray-100 text-gray-800 text-sm font-semibold py-2 px-4 rounded-lg shadow transition-colors">
+                        Export IP List
+                    </button>
+                </div>
             </div>
-        </header>
+        </div>
+    </nav>
 
+    <div class="container mx-auto px-4 pb-8">
         <!-- Map Section -->
         <div class="bg-white rounded-lg shadow p-6 mb-8">
             <h2 class="text-xl font-semibold mb-4">Attack Origins</h2>
@@ -252,6 +261,9 @@
             const filteredAttempts = filterAttempts(attempts);
             const totalItems = filteredAttempts.length;
             
+            // Update total attempts in navbar
+            document.getElementById('totalAttempts').textContent = attempts.length;
+            
             // Calculate pagination
             const startIndex = (currentPage - 1) * itemsPerPage;
             const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
@@ -367,18 +379,39 @@
         );
 
         function updateCharts() {
-            // Update attempts over time chart
-            const hourlyData = {};
+            // Update attempts over time chart - show total attempts per day
+            const dailyData = {};
             attempts.forEach(attempt => {
-                const hour = new Date(attempt.timestamp).toLocaleString('en-US', {
-                    hour: 'numeric',
-                    hour12: true
+                const day = new Date(attempt.timestamp).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric'
                 });
-                hourlyData[hour] = (hourlyData[hour] || 0) + 1;
+                dailyData[day] = (dailyData[day] || 0) + 1;
             });
 
-            attemptsChart.data.labels = Object.keys(hourlyData).slice(-12);
-            attemptsChart.data.datasets[0].data = Object.values(hourlyData).slice(-12);
+            // Convert to arrays and ensure we show the last 7 days
+            const today = new Date();
+            const last7Days = Array.from({length: 7}, (_, i) => {
+                const date = new Date(today);
+                date.setDate(date.getDate() - i);
+                return date.toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric'
+                });
+            }).reverse();
+
+            const data = last7Days.map(day => dailyData[day] || 0);
+
+            attemptsChart.data.labels = last7Days;
+            attemptsChart.data.datasets[0] = {
+                label: 'Total Attempts',
+                data: data,
+                borderColor: 'rgb(75, 192, 192)',
+                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                fill: true,
+                tension: 0.4
+            };
+            attemptsChart.options.scales.y.ticks.stepSize = Math.max(1, Math.ceil(Math.max(...data) / 5));
             attemptsChart.update();
 
             // Update username distribution chart
