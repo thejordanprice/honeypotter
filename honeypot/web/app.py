@@ -62,13 +62,16 @@ def get_attempts(db: Session = Depends(get_db)):
     return [attempt.to_dict() for attempt in attempts]
 
 @app.get("/api/export/ips")
-def export_ips(db: Session = Depends(get_db)):
+def export_ips(db: Session = Depends(get_db), download: bool = False):
     """Export all unique IP addresses that have attempted to connect."""
     ips = db.query(LoginAttempt.client_ip).distinct().all()
     ip_list = "\n".join([ip[0] for ip in ips])
-    return PlainTextResponse(ip_list, headers={
-        "Content-Disposition": "attachment; filename=attempted_ips.txt"
-    })
+    
+    if download:
+        return PlainTextResponse(ip_list, headers={
+            "Content-Disposition": "attachment; filename=attempted_ips.txt"
+        })
+    return PlainTextResponse(ip_list)
 
 async def broadcast_attempt(attempt: dict):
     """Broadcast a login attempt to all connected clients."""

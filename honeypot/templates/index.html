@@ -32,7 +32,7 @@
             <div class="flex justify-between items-center h-16">
                 <div class="flex items-center">
                     <h1 class="text-xl font-semibold text-gray-800">SSH Honeypot</h1>
-                    <div class="ml-4 px-3 py-1 bg-green-100 rounded-full hidden sm:block">
+                    <div class="ml-4 px-3 py-1 rounded-full hidden sm:block" id="connectionStatusContainer">
                         <span id="connectionStatus" class="text-sm"></span>
                     </div>
                 </div>
@@ -41,7 +41,7 @@
                         Total Attempts: <span id="totalAttempts" class="font-semibold">0</span>
                     </div>
                     <button id="exportIPs" class="bg-gray-50 hover:bg-gray-100 text-gray-800 text-sm font-semibold py-2 px-4 rounded-lg shadow transition-colors">
-                        Export IP List
+                        Attack Log
                     </button>
                 </div>
             </div>
@@ -155,8 +155,10 @@
         let socket = null;
 
         function updateConnectionStatus(status, isError = false) {
+            const container = document.getElementById('connectionStatusContainer');
             connectionStatus.textContent = status;
-            connectionStatus.className = `mt-2 text-sm ${isError ? 'text-red-600' : 'text-green-600'}`;
+            container.className = `ml-4 px-3 py-1 rounded-full hidden sm:block ${isError ? 'bg-red-100' : 'bg-green-100'}`;
+            connectionStatus.className = `text-sm ${isError ? 'text-red-600' : 'text-green-600'}`;
         }
 
         function connectWebSocket() {
@@ -433,22 +435,9 @@
         connectWebSocket();
 
         // Add this before the closing script tag
-        document.getElementById('exportIPs').addEventListener('click', async () => {
-            try {
-                const response = await fetch('/api/export/ips');
-                const blob = await response.blob();
-                const downloadUrl = window.URL.createObjectURL(blob);
-                const link = document.createElement('a');
-                link.href = downloadUrl;
-                link.download = "attempted_ips.txt";
-                
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                window.URL.revokeObjectURL(downloadUrl);
-            } catch (error) {
-                console.error('Failed to export IP addresses:', error);
-            }
+        document.getElementById('exportIPs').addEventListener('click', () => {
+            // Open in new tab
+            window.open('/api/export/ips', '_blank');
         });
     </script>
 </body>
