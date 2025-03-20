@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SSH Honeypot Monitor</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .chart-container {
+            position: relative;
+            height: 300px;
+            width: 100%;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto px-4 py-8">
+        <header class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-800">SSH Honeypot Monitor</h1>
+            <p class="text-gray-600">Real-time monitoring of SSH login attempts</p>
+            <div id="connectionStatus" class="mt-2 text-sm"></div>
+        </header>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-xl font-semibold mb-4">Statistics</h2>
+                <div class="chart-container">
+                    <canvas id="attemptsChart"></canvas>
+                </div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-xl font-semibold mb-4">Top Usernames</h2>
+                <div class="chart-container">
+                    <canvas id="usernamesChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow">
+            <div class="p-4 border-b border-gray-200">
+                <h2 class="text-xl font-semibold">Recent Login Attempts</h2>
+            </div>
+            <div class="p-4">
+                <div class="flex justify-between mb-4">
+                    <input type="text" id="searchInput" placeholder="Search..." 
+                           class="px-4 py-2 border rounded-lg">
+                    <select id="filterSelect" class="px-4 py-2 border rounded-lg">
+                        <option value="all">All</option>
+                        <option value="lastHour">Last Hour</option>
+                        <option value="today">Today</option>
+                        <option value="thisWeek">This Week</option>
+                    </select>
+                </div>
+                <div id="attempts" class="space-y-4"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const attemptsDiv = document.getElementById("attempts");
+        const searchInput = document.getElementById("searchInput");
+        const filterSelect = document.getElementById("filterSelect");
+        const connectionStatus = document.getElementById("connectionStatus");
+        let attempts = [];
+        let socket = null;
+
+        function updateConnectionStatus(status, isError = false) {
+            connectionStatus.textContent = status;
+            connectionStatus.className = `mt-2 text-sm ${isError ? 'text-red-600' : 'text-green-600'}`;
+        }
+
+        function connectWebSocket() {
+            // Get the current host and port
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws`;
+            
+            updateConnectionStatus('Connecting to WebSocket...');
+            
+            socket = new WebSocket(wsUrl);
+
+            socket.onopen = function() {
+                updateConnectionStatus('Connected to WebSocket');
+                // Load initial data
+                fetch('/api/attempts')
+                    .then(response => response.json())
+                    .then(data => {
+                        attempts = data;
+                        updateUI();
+                        updateCharts();
+                    });
+            };
+
+            socket.onmessage = function(event) {
+                try {
+                    const attempt = JSON.parse(event.data);
+                    attempts.unshift(attempt);
+                    updateUI();
+                    updateCharts();
+                } catch (error) {
+                    console.error('Error processing message:', error);
+                }
+            };
+
+            socket.onerror = function(error) {
+                updateConnectionStatus('WebSocket error: ' + error.message, true);
+                console.error('WebSocket error:', error);
+            };
+
+            socket.onclose = function() {
+                updateConnectionStatus('WebSocket connection closed. Reconnecting...', true);
+                // Attempt to reconnect after 5 seconds
+                setTimeout(connectWebSocket, 5000);
+            };
+        }
+
+        function createAttemptElement(attempt) {
+            return `
+                <div class="bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition-colors">
+                    <div class="flex justify-between">
+                        <span class="font-semibold">${attempt.username}@${attempt.client_ip}</span>
+                        <span class="text-gray-500">${new Date(attempt.timestamp).toLocaleString()}</span>
+                    </div>
+                    <div class="text-gray-600 mt-2">Password: ${attempt.password}</div>
+                </div>
+            `;
+        }
+
+        function filterAttempts(attempts) {
+            const searchTerm = searchInput.value.toLowerCase();
+            const filterValue = filterSelect.value;
+            const now = new Date();
+
+            return attempts.filter(attempt => {
+                const matchesSearch = 
+                    attempt.username.toLowerCase().includes(searchTerm) ||
+                    attempt.client_ip.includes(searchTerm) ||
+                    attempt.password.toLowerCase().includes(searchTerm);
+
+                const timestamp = new Date(attempt.timestamp);
+                let matchesFilter = true;
+
+                switch (filterValue) {
+                    case 'lastHour':
+                        matchesFilter = (now - timestamp) <= 3600000;
+                        break;
+                    case 'today':
+                        matchesFilter = timestamp.toDateString() === now.toDateString();
+                        break;
+                    case 'thisWeek':
+                        const weekAgo = new Date(now - 7 * 24 * 60 * 60 * 1000);
+                        matchesFilter = timestamp >= weekAgo;
+                        break;
+                }
+
+                return matchesSearch && matchesFilter;
+            });
+        }
+
+        function updateUI() {
+            const filteredAttempts = filterAttempts(attempts);
+            attemptsDiv.innerHTML = filteredAttempts
+                .map(attempt => createAttemptElement(attempt))
+                .join('');
+        }
+
+        // Initialize charts
+        const attemptsChart = new Chart(
+            document.getElementById('attemptsChart'),
+            {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Login Attempts',
+                        data: [],
+                        borderColor: 'rgb(75, 192, 192)',
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top'
+                        }
+                    }
+                }
+            }
+        );
+
+        const usernamesChart = new Chart(
+            document.getElementById('usernamesChart'),
+            {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Most Used Usernames',
+                        data: [],
+                        backgroundColor: 'rgb(54, 162, 235)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top'
+                        }
+                    }
+                }
+            }
+        );
+
+        function updateCharts() {
+            // Update attempts over time chart
+            const hourlyData = {};
+            attempts.forEach(attempt => {
+                const hour = new Date(attempt.timestamp).toLocaleString('en-US', {
+                    hour: 'numeric',
+                    hour12: true
+                });
+                hourlyData[hour] = (hourlyData[hour] || 0) + 1;
+            });
+
+            attemptsChart.data.labels = Object.keys(hourlyData).slice(-12);
+            attemptsChart.data.datasets[0].data = Object.values(hourlyData).slice(-12);
+            attemptsChart.update();
+
+            // Update username distribution chart
+            const usernameData = {};
+            attempts.forEach(attempt => {
+                usernameData[attempt.username] = (usernameData[attempt.username] || 0) + 1;
+            });
+
+            const topUsernames = Object.entries(usernameData)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 5);
+
+            usernamesChart.data.labels = topUsernames.map(([username]) => username);
+            usernamesChart.data.datasets[0].data = topUsernames.map(([, count]) => count);
+            usernamesChart.update();
+        }
+
+        // Event listeners for search and filter
+        searchInput.addEventListener('input', updateUI);
+        filterSelect.addEventListener('change', updateUI);
+
+        // Start the WebSocket connection
+        connectWebSocket();
+    </script>
+</body>
+</html> 
