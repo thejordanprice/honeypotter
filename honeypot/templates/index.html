@@ -77,6 +77,19 @@
                     </select>
                 </div>
                 <div id="attempts" class="space-y-4"></div>
+                <div class="mt-4 flex justify-between items-center">
+                    <div class="text-sm text-gray-600">
+                        Showing <span id="startRange">0</span>-<span id="endRange">0</span> of <span id="totalItems">0</span> attempts
+                    </div>
+                    <div class="flex space-x-2">
+                        <button id="prevPage" class="px-3 py-1 bg-gray-100 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed">
+                            Previous
+                        </button>
+                        <button id="nextPage" class="px-3 py-1 bg-gray-100 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed">
+                            Next
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -232,12 +245,60 @@
             });
         }
 
+        let currentPage = 1;
+        const itemsPerPage = 10;
+
         function updateUI() {
             const filteredAttempts = filterAttempts(attempts);
-            attemptsDiv.innerHTML = filteredAttempts
+            const totalItems = filteredAttempts.length;
+            
+            // Calculate pagination
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
+            
+            // Update pagination display
+            document.getElementById('startRange').textContent = totalItems ? startIndex + 1 : 0;
+            document.getElementById('endRange').textContent = endIndex;
+            document.getElementById('totalItems').textContent = totalItems;
+            
+            // Update pagination buttons
+            document.getElementById('prevPage').disabled = currentPage === 1;
+            document.getElementById('nextPage').disabled = endIndex >= totalItems;
+            
+            // Display paginated results
+            const paginatedAttempts = filteredAttempts.slice(startIndex, endIndex);
+            attemptsDiv.innerHTML = paginatedAttempts
                 .map(attempt => createAttemptElement(attempt))
                 .join('');
         }
+
+        // Add pagination event listeners
+        document.getElementById('prevPage').addEventListener('click', () => {
+            if (currentPage > 1) {
+                currentPage--;
+                updateUI();
+            }
+        });
+
+        document.getElementById('nextPage').addEventListener('click', () => {
+            const filteredAttempts = filterAttempts(attempts);
+            const totalPages = Math.ceil(filteredAttempts.length / itemsPerPage);
+            if (currentPage < totalPages) {
+                currentPage++;
+                updateUI();
+            }
+        });
+
+        // Modify existing event listeners to reset pagination
+        searchInput.addEventListener('input', () => {
+            currentPage = 1;
+            updateUI();
+        });
+        
+        filterSelect.addEventListener('change', () => {
+            currentPage = 1;
+            updateUI();
+        });
 
         // Initialize charts
         const attemptsChart = new Chart(
@@ -334,10 +395,6 @@
             usernamesChart.data.datasets[0].data = topUsernames.map(([, count]) => count);
             usernamesChart.update();
         }
-
-        // Event listeners for search and filter
-        searchInput.addEventListener('input', updateUI);
-        filterSelect.addEventListener('change', updateUI);
 
         // Start the WebSocket connection
         connectWebSocket();
