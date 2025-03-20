@@ -26,7 +26,6 @@
     </style>
 </head>
 <body class="bg-gray-100">
-    <!-- Replace the existing header with this navbar -->
     <nav class="bg-white shadow-lg mb-8">
         <div class="container mx-auto px-4">
             <div class="flex justify-between items-center h-16">
@@ -49,7 +48,6 @@
     </nav>
 
     <div class="container mx-auto px-4 pb-8">
-        <!-- Map Section -->
         <div class="bg-white rounded-lg shadow p-6 mb-8">
             <h2 class="text-xl font-semibold mb-4">Attack Origins</h2>
             <div id="map"></div>
@@ -102,6 +100,12 @@
             </div>
         </div>
     </div>
+
+    <footer class="bg-white shadow-lg mt-8 py-4">
+        <div class="container mx-auto px-4 text-center text-gray-600">
+            made with ❤️ by <a href="https://github.com/thejordanprice" class="text-blue-600 hover:text-blue-800 transition-colors" target="_blank">thejordanprice</a>
+        </div>
+    </footer>
 
     <script>
         // Initialize map
@@ -434,7 +438,7 @@
         // Start the WebSocket connection
         connectWebSocket();
 
-        // Add this before the closing script tag
+        // Expo
         document.getElementById('exportIPs').addEventListener('click', () => {
             // Open in new tab
             window.open('/api/export/ips', '_blank');
