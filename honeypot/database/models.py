@@ -1,6 +1,6 @@
 """Database models for the SSH Honeypot."""
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, DateTime, create_engine
+from sqlalchemy import Column, Integer, String, DateTime, Float, create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from honeypot.core.config import DATABASE_URL
@@ -16,6 +16,13 @@ class LoginAttempt(Base):
     password = Column(String, nullable=False)
     client_ip = Column(String, nullable=False)
     timestamp = Column(DateTime, default=datetime.utcnow)
+    
+    # Geolocation fields
+    latitude = Column(Float, nullable=True)
+    longitude = Column(Float, nullable=True)
+    country = Column(String, nullable=True)
+    city = Column(String, nullable=True)
+    region = Column(String, nullable=True)
 
     def to_dict(self):
         """Convert the model instance to a dictionary."""
@@ -24,7 +31,12 @@ class LoginAttempt(Base):
             'username': self.username,
             'password': self.password,
             'client_ip': self.client_ip,
-            'timestamp': self.timestamp.isoformat()
+            'timestamp': self.timestamp.isoformat(),
+            'latitude': self.latitude,
+            'longitude': self.longitude,
+            'country': self.country,
+            'city': self.city,
+            'region': self.region
         }
 
 # Create database engine and session factory

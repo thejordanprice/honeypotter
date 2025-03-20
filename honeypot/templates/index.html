@@ -5,12 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SSH Honeypot Monitor</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
         .chart-container {
             position: relative;
             height: 300px;
             width: 100%;
+        }
+        #map {
+            height: 400px;
+            width: 100%;
+            border-radius: 0.5rem;
+        }
+        .location-popup {
+            font-size: 14px;
+            line-height: 1.4;
         }
     </style>
 </head>
@@ -21,6 +32,12 @@
             <p class="text-gray-600">Real-time monitoring of SSH login attempts</p>
             <div id="connectionStatus" class="mt-2 text-sm"></div>
         </header>
+
+        <!-- Map Section -->
+        <div class="bg-white rounded-lg shadow p-6 mb-8">
+            <h2 class="text-xl font-semibold mb-4">Attack Origins</h2>
+            <div id="map"></div>
+        </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             <div class="bg-white rounded-lg shadow p-6">
@@ -58,6 +75,49 @@
     </div>
 
     <script>
+        // Initialize map
+        const map = L.map('map').setView([20, 0], 2);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Store markers
+        const markers = new Map();
+
+        function updateMap(attempt) {
+            if (attempt.latitude && attempt.longitude) {
+                const key = `${attempt.latitude},${attempt.longitude}`;
+                let marker = markers.get(key);
+                
+                if (!marker) {
+                    marker = {
+                        leaflet: L.marker([attempt.latitude, attempt.longitude]),
+                        attempts: new Set()
+                    };
+                    markers.set(key, marker);
+                    marker.leaflet.addTo(map);
+                }
+
+                marker.attempts.add(attempt);
+                
+                const location = [
+                    attempt.city,
+                    attempt.region,
+                    attempt.country
+                ].filter(Boolean).join(', ');
+
+                const popupContent = `
+                    <div class="location-popup">
+                        <strong>${location}</strong><br>
+                        Total Attempts: ${marker.attempts.size}<br>
+                        Latest: ${attempt.username}@${attempt.client_ip}
+                    </div>
+                `;
+                
+                marker.leaflet.bindPopup(popupContent);
+            }
+        }
+
         const attemptsDiv = document.getElementById("attempts");
         const searchInput = document.getElementById("searchInput");
         const filterSelect = document.getElementById("filterSelect");
@@ -71,7 +131,6 @@
         }
 
         function connectWebSocket() {
-            // Get the current host and port
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const wsUrl = `${protocol}//${window.location.host}/ws`;
             
@@ -81,11 +140,11 @@
 
             socket.onopen = function() {
                 updateConnectionStatus('Connected to WebSocket');
-                // Load initial data
                 fetch('/api/attempts')
                     .then(response => response.json())
                     .then(data => {
                         attempts = data;
+                        attempts.forEach(updateMap);
                         updateUI();
                         updateCharts();
                     });
@@ -95,6 +154,7 @@
                 try {
                     const attempt = JSON.parse(event.data);
                     attempts.unshift(attempt);
+                    updateMap(attempt);
                     updateUI();
                     updateCharts();
                 } catch (error) {
@@ -109,19 +169,27 @@
 
             socket.onclose = function() {
                 updateConnectionStatus('WebSocket connection closed. Reconnecting...', true);
-                // Attempt to reconnect after 5 seconds
                 setTimeout(connectWebSocket, 5000);
             };
         }
 
         function createAttemptElement(attempt) {
+            const location = [
+                attempt.city,
+                attempt.region,
+                attempt.country
+            ].filter(Boolean).join(', ');
+
             return `
                 <div class="bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition-colors">
                     <div class="flex justify-between">
                         <span class="font-semibold">${attempt.username}@${attempt.client_ip}</span>
                         <span class="text-gray-500">${new Date(attempt.timestamp).toLocaleString()}</span>
                     </div>
-                    <div class="text-gray-600 mt-2">Password: ${attempt.password}</div>
+                    <div class="text-gray-600 mt-2">
+                        <div>Password: ${attempt.password}</div>
+                        ${location ? `<div class="text-sm">Location: ${location}</div>` : ''}
+                    </div>
                 </div>
             `;
         }

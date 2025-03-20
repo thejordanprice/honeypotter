@@ -10,6 +10,7 @@ from typing import Optional
 from honeypot.database.models import LoginAttempt, get_db
 from honeypot.web.app import broadcast_attempt
 from honeypot.core.config import HOST, SSH_PORT, LOG_LEVEL
+from honeypot.core.geolocation import geolocation_service
 
 # Configure logging
 logging.basicConfig(
@@ -34,13 +35,21 @@ class HoneypotServer(paramiko.ServerInterface):
         
         logger.info(f"Login attempt from {self.client_ip}: Username: {username}, Password: {password}")
         
+        # Get geolocation data
+        location = geolocation_service.get_location(self.client_ip)
+        
         # Log to database
         try:
             db = next(get_db())
             attempt = LoginAttempt(
                 username=username,
                 password=password,
-                client_ip=self.client_ip
+                client_ip=self.client_ip,
+                latitude=location['latitude'] if location else None,
+                longitude=location['longitude'] if location else None,
+                country=location['country'] if location else None,
+                city=location['city'] if location else None,
+                region=location['region'] if location else None
             )
             db.add(attempt)
             db.commit()
