@@ -112,8 +112,8 @@
             filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7);
         }
 
-        /* Mobile-specific adjustments */
-        @media (max-width: 640px) {
+        /* Mobile and tablet adjustments */
+        @media (max-width: 768px) {
             .chart-container {
                 height: 250px;
             }
@@ -123,8 +123,24 @@
             }
             
             .container {
-                padding-left: 1rem;
-                padding-right: 1rem;
+                padding-left: 0.75rem;
+                padding-right: 0.75rem;
+            }
+            
+            nav .container {
+                max-width: 100%;
+            }
+
+            /* Adjust chart text sizes */
+            .chart-js-render-monitor {
+                font-size: 12px;
+            }
+        }
+
+        /* Custom breakpoint for small devices */
+        @media (min-width: 640px) {
+            .sm\:inline {
+                display: inline;
             }
         }
     </style>
@@ -134,25 +150,25 @@
         <div class="container mx-auto px-4">
             <div class="flex justify-between items-center h-16">
                 <div class="flex items-center">
-                    <h1 class="text-xl font-semibold text-gray-800">SSH Honeypot</h1>
-                    <div class="ml-4 px-3 py-1 rounded-full hidden sm:block" id="connectionStatusContainer">
-                        <span id="connectionStatus" class="text-sm"></span>
+                    <h1 class="text-lg md:text-xl font-semibold text-gray-800">SSH Honeypot</h1>
+                    <div class="ml-2 md:ml-4 px-2 md:px-3 py-1 rounded-full hidden sm:block" id="connectionStatusContainer">
+                        <span id="connectionStatus" class="text-xs md:text-sm"></span>
                     </div>
                 </div>
-                <div class="flex items-center space-x-4">
-                    <button id="darkModeToggle" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                        <svg id="lightIcon" class="w-5 h-5 hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div class="flex items-center gap-2 md:gap-4">
+                    <button id="darkModeToggle" class="p-1.5 md:p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <svg id="lightIcon" class="w-4 h-4 md:w-5 md:h-5 hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
                         </svg>
-                        <svg id="darkIcon" class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg id="darkIcon" class="w-4 h-4 md:w-5 md:h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
                         </svg>
                     </button>
-                    <div class="text-sm text-gray-600 dark:text-gray-300">
-                        Total Attempts: <span id="totalAttempts" class="font-semibold">0</span>
+                    <div class="text-xs md:text-sm text-gray-600 dark:text-gray-300">
+                        <span class="hidden sm:inline">Total </span>Attempts: <span id="totalAttempts" class="font-semibold">0</span>
                     </div>
-                    <button id="exportIPs" class="bg-gray-50 hover:bg-gray-100 text-gray-800 text-sm font-semibold py-2 px-4 rounded-lg shadow transition-colors">
-                        Attack Log
+                    <button id="exportIPs" class="bg-gray-50 hover:bg-gray-100 text-gray-800 text-xs md:text-sm font-semibold py-1.5 md:py-2 px-2 md:px-4 rounded-lg shadow transition-colors">
+                        <span class="hidden md:inline">Attack </span>Log
                     </button>
                 </div>
             </div>
