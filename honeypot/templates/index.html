@@ -107,6 +107,10 @@
         .dark .leaflet-control-attribution a {
             color: #0078A8 !important;
         }
+
+        .dark-tiles {
+            filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7);
+        }
     </style>
 </head>
 <body class="bg-gray-100">
@@ -214,6 +218,9 @@
             document.getElementById('darkIcon').classList.toggle('hidden');
             localStorage.theme = isDark ? 'dark' : 'light';
             
+            // Update map theme
+            setMapTheme(isDark);
+
             // Update chart colors
             const chartTextColor = isDark ? '#f3f4f6' : '#1f2937';
             
@@ -226,11 +233,30 @@
             });
         });
 
-        // Initialize map
+        // Modify map initialization
         const map = L.map('map').setView([20, 0], 2);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        let currentTileLayer;
+
+        const lightTileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap contributors'
-        }).addTo(map);
+        });
+
+        const darkTileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            className: 'dark-tiles'
+        });
+
+        // Function to set the appropriate tile layer
+        function setMapTheme(isDark) {
+            if (currentTileLayer) {
+                map.removeLayer(currentTileLayer);
+            }
+            currentTileLayer = isDark ? darkTileLayer : lightTileLayer;
+            currentTileLayer.addTo(map);
+        }
+
+        // Initial theme setup
+        setMapTheme(document.documentElement.classList.contains('dark'));
 
         // Store markers
         const markers = new Map();
