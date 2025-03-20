@@ -23,10 +23,94 @@
             font-size: 14px;
             line-height: 1.4;
         }
+        /* Dark mode styles */
+        .dark body { @apply bg-gray-900; }
+        .dark nav { @apply bg-gray-800; }
+        .dark h1, .dark h2 { @apply text-white; }
+        .dark .bg-white { @apply bg-gray-800; }
+        .dark .text-gray-800 { @apply text-gray-100; }
+        .dark .text-gray-600 { @apply text-gray-300; }
+        .dark .bg-gray-50 { @apply bg-gray-700; }
+        .dark .hover\:bg-gray-100:hover { @apply hover:bg-gray-600; }
+        .dark .border-gray-200 { @apply border-gray-700; }
+        /* Base transitions for smooth theme switching */
+        * {
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+        /* Dark mode overrides */
+        .dark body { background-color: #1a1a1a; }
+        .dark .bg-white { background-color: #2d2d2d !important; }
+        .dark .bg-gray-100 { background-color: #1a1a1a !important; }
+        .dark .bg-gray-50 { background-color: #3d3d3d !important; }
+        .dark .text-gray-800 { color: #f3f4f6 !important; }
+        .dark .text-gray-600 { color: #d1d5db !important; }
+        .dark .border-gray-200 { border-color: #4b5563 !important; }
+        .dark .shadow { box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.3); }
+        .dark .hover\:bg-gray-100:hover { background-color: #4b5563 !important; }
+
+        /* Fix for dark mode text and icons */
+        .dark * { color: #f3f4f6; }
+        .dark svg { color: #f3f4f6; }
+        .dark a { color: #60a5fa; }
+        .dark a:hover { color: #93c5fd; }
+        .dark input::placeholder { color: #9ca3af; }
+        
+        /* Preserve specific text colors */
+        .dark .text-red-600 { color: #dc2626 !important; }
+        .dark .text-green-600 { color: #059669 !important; }
+        
+        .dark input, 
+        .dark select { 
+            background-color: #3d3d3d !important;
+            color: #f3f4f6 !important;
+            border-color: #4b5563 !important;
+        }
+        .dark button:not(#darkModeToggle) {
+            background-color: #3d3d3d !important;
+            color: #f3f4f6 !important;
+        }
+        .dark button:not(#darkModeToggle):hover {
+            background-color: #4b5563 !important;
+        }
+        .dark #attempts > div {
+            background-color: #3d3d3d !important;
+        }
+        .dark #attempts > div:hover {
+            background-color: #4b5563 !important;
+        }
+
+        /* Chart text color fix */
+        .dark .chart-container {
+            color: #f3f4f6;
+        }
+
+        /* Exclude Leaflet controls from dark mode changes */
+        .dark .leaflet-control-zoom a,
+        .dark .leaflet-control-zoom-in,
+        .dark .leaflet-control-zoom-out,
+        .dark .leaflet-control * {
+            color: #000 !important;
+            background-color: #fff !important;
+        }
+        
+        .dark .leaflet-control-zoom a:hover,
+        .dark .leaflet-control-zoom-in:hover,
+        .dark .leaflet-control-zoom-out:hover {
+            background-color: #f4f4f4 !important;
+        }
+        
+        .dark .leaflet-control-attribution {
+            color: #000 !important;
+            background-color: rgba(255, 255, 255, 0.8) !important;
+        }
+        
+        .dark .leaflet-control-attribution a {
+            color: #0078A8 !important;
+        }
     </style>
 </head>
 <body class="bg-gray-100">
-    <nav class="bg-white shadow-lg mb-8">
+    <nav class="bg-white dark:bg-gray-800 shadow-lg mb-8">
         <div class="container mx-auto px-4">
             <div class="flex justify-between items-center h-16">
                 <div class="flex items-center">
@@ -36,7 +120,15 @@
                     </div>
                 </div>
                 <div class="flex items-center space-x-4">
-                    <div class="text-sm text-gray-600">
+                    <button id="darkModeToggle" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <svg id="lightIcon" class="w-5 h-5 hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                        </svg>
+                        <svg id="darkIcon" class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                        </svg>
+                    </button>
+                    <div class="text-sm text-gray-600 dark:text-gray-300">
                         Total Attempts: <span id="totalAttempts" class="font-semibold">0</span>
                     </div>
                     <button id="exportIPs" class="bg-gray-50 hover:bg-gray-100 text-gray-800 text-sm font-semibold py-2 px-4 rounded-lg shadow transition-colors">
@@ -48,19 +140,19 @@
     </nav>
 
     <div class="container mx-auto px-4 pb-8">
-        <div class="bg-white rounded-lg shadow p-6 mb-8">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-8">
             <h2 class="text-xl font-semibold mb-4">Attack Origins</h2>
             <div id="map"></div>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            <div class="bg-white rounded-lg shadow p-6">
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
                 <h2 class="text-xl font-semibold mb-4">Statistics</h2>
                 <div class="chart-container">
                     <canvas id="attemptsChart"></canvas>
                 </div>
             </div>
-            <div class="bg-white rounded-lg shadow p-6">
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
                 <h2 class="text-xl font-semibold mb-4">Top Usernames</h2>
                 <div class="chart-container">
                     <canvas id="usernamesChart"></canvas>
@@ -68,7 +160,7 @@
             </div>
         </div>
 
-        <div class="bg-white rounded-lg shadow">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow">
             <div class="p-4 border-b border-gray-200">
                 <h2 class="text-xl font-semibold">Recent Login Attempts</h2>
             </div>
@@ -101,13 +193,39 @@
         </div>
     </div>
 
-    <footer class="bg-white shadow-lg mt-8 py-4">
+    <footer class="bg-white dark:bg-gray-800 shadow-lg mt-8 py-4">
         <div class="container mx-auto px-4 text-center text-gray-600">
             made with ❤️ by <a href="https://github.com/thejordanprice" class="text-blue-600 hover:text-blue-800 transition-colors" target="_blank">thejordanprice</a>
         </div>
     </footer>
 
     <script>
+        // Check for saved theme preference or system preference
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+            document.getElementById('lightIcon').classList.remove('hidden');
+            document.getElementById('darkIcon').classList.add('hidden');
+        }
+
+        // Dark mode toggle functionality
+        document.getElementById('darkModeToggle').addEventListener('click', () => {
+            const isDark = document.documentElement.classList.toggle('dark');
+            document.getElementById('lightIcon').classList.toggle('hidden');
+            document.getElementById('darkIcon').classList.toggle('hidden');
+            localStorage.theme = isDark ? 'dark' : 'light';
+            
+            // Update chart colors
+            const chartTextColor = isDark ? '#f3f4f6' : '#1f2937';
+            
+            [attemptsChart, usernamesChart].forEach(chart => {
+                chart.options.scales.x.ticks.color = chartTextColor;
+                chart.options.scales.y.ticks.color = chartTextColor;
+                chart.options.scales.x.grid.color = isDark ? '#374151' : '#e5e7eb';
+                chart.options.scales.y.grid.color = isDark ? '#374151' : '#e5e7eb';
+                chart.update();
+            });
+        });
+
         // Initialize map
         const map = L.map('map').setView([20, 0], 2);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
