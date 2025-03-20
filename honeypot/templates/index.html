@@ -111,6 +111,22 @@
         .dark-tiles {
             filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7);
         }
+
+        /* Mobile-specific adjustments */
+        @media (max-width: 640px) {
+            .chart-container {
+                height: 250px;
+            }
+            
+            #map {
+                height: 300px;
+            }
+            
+            .container {
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }
+        }
     </style>
 </head>
 <body class="bg-gray-100">
@@ -169,10 +185,10 @@
                 <h2 class="text-xl font-semibold">Recent Login Attempts</h2>
             </div>
             <div class="p-4">
-                <div class="flex justify-between mb-4">
+                <div class="flex flex-col sm:flex-row justify-between gap-4 mb-4">
                     <input type="text" id="searchInput" placeholder="Search..." 
-                           class="px-4 py-2 border rounded-lg">
-                    <select id="filterSelect" class="px-4 py-2 border rounded-lg">
+                           class="w-full sm:w-auto px-4 py-2 border rounded-lg">
+                    <select id="filterSelect" class="w-full sm:w-auto px-4 py-2 border rounded-lg">
                         <option value="all">All</option>
                         <option value="lastHour">Last Hour</option>
                         <option value="today">Today</option>
@@ -180,11 +196,11 @@
                     </select>
                 </div>
                 <div id="attempts" class="space-y-4"></div>
-                <div class="mt-4 flex justify-between items-center">
-                    <div class="text-sm text-gray-600">
+                <div class="mt-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+                    <div class="text-sm text-gray-600 order-2 sm:order-1">
                         Showing <span id="startRange">0</span>-<span id="endRange">0</span> of <span id="totalItems">0</span> attempts
                     </div>
-                    <div class="flex space-x-2">
+                    <div class="flex space-x-2 order-1 sm:order-2">
                         <button id="prevPage" class="px-3 py-1 bg-gray-100 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed">
                             Previous
                         </button>
@@ -361,13 +377,13 @@
 
             return `
                 <div class="bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition-colors">
-                    <div class="flex justify-between">
-                        <span class="font-semibold">${attempt.username}@${attempt.client_ip}</span>
-                        <span class="text-gray-500">${new Date(attempt.timestamp).toLocaleString()}</span>
+                    <div class="flex flex-col sm:flex-row justify-between gap-2">
+                        <span class="font-semibold break-all">${attempt.username}@${attempt.client_ip}</span>
+                        <span class="text-gray-500 text-sm">${new Date(attempt.timestamp).toLocaleString()}</span>
                     </div>
                     <div class="text-gray-600 mt-2">
-                        <div>Password: ${attempt.password}</div>
-                        ${location ? `<div class="text-sm">Location: ${location}</div>` : ''}
+                        <div class="break-all">Password: ${attempt.password}</div>
+                        ${location ? `<div class="text-sm mt-1">Location: ${location}</div>` : ''}
                     </div>
                 </div>
             `;
