@@ -442,6 +442,43 @@
         const map = L.map('map').setView([20, 0], 2);
         let currentTileLayer;
 
+        // Add this new function before the tileLayer definitions
+        function centerMapOnMostActiveRegion(attempts) {
+            if (!attempts || attempts.length === 0) return;
+
+            // Create a grid to count attacks in different regions
+            const grid = {};
+            const validAttempts = attempts.filter(a => a.latitude && a.longitude);
+            
+            if (validAttempts.length === 0) return;
+
+            // Round coordinates to create grid cells (1 degree resolution)
+            validAttempts.forEach(attempt => {
+                const lat = Math.round(attempt.latitude);
+                const lng = Math.round(attempt.longitude);
+                const key = `${lat},${lng}`;
+                grid[key] = (grid[key] || 0) + 1;
+            });
+
+            // Find the cell with most attacks
+            let maxCount = 0;
+            let hotspotCenter = null;
+            
+            for (const [coords, count] of Object.entries(grid)) {
+                if (count > maxCount) {
+                    maxCount = count;
+                    const [lat, lng] = coords.split(',').map(Number);
+                    hotspotCenter = [lat, lng];
+                }
+            }
+
+            // If we found a hotspot, center the map there with appropriate zoom
+            if (hotspotCenter) {
+                const zoom = window.innerWidth <= 768 ? 3 : 4; // Closer zoom on desktop
+                map.setView(hotspotCenter, zoom, { animate: true });
+            }
+        }
+
         const lightTileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap contributors'
         });
@@ -544,6 +581,7 @@
                         attempts.forEach(updateMap);
                         updateUI();
                         updateCharts();
+                        centerMapOnMostActiveRegion(attempts);
                     });
             };
 
