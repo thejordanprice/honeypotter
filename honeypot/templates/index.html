@@ -143,6 +143,32 @@
                 display: inline;
             }
         }
+
+        /* Override dark mode for connection status */
+        .dark #connectionStatusContainer,
+        .dark #connectionStatus,
+        .dark #connectionStatusIcon {
+            color: inherit !important;
+            background-color: inherit !important;
+        }
+
+        .dark #connectionStatusContainer.bg-red-100 {
+            background-color: rgb(254, 226, 226) !important; /* bg-red-100 */
+        }
+
+        .dark #connectionStatusContainer.bg-green-100 {
+            background-color: rgb(220, 252, 231) !important; /* bg-green-100 */
+        }
+
+        .dark #connectionStatus.text-red-600,
+        .dark #connectionStatusIcon.text-red-600 {
+            color: rgb(220, 38, 38) !important; /* text-red-600 */
+        }
+
+        .dark #connectionStatus.text-green-600,
+        .dark #connectionStatusIcon.text-green-600 {
+            color: rgb(5, 150, 105) !important; /* text-green-600 */
+        }
     </style>
 </head>
 <body class="bg-gray-100">
@@ -258,6 +284,11 @@
             // Update map theme
             setMapTheme(isDark);
 
+            // Re-trigger connection status update to refresh colors
+            const currentStatus = document.getElementById('connectionStatus').textContent;
+            const isError = currentStatus.includes('error') || currentStatus.includes('closed');
+            updateConnectionStatus(currentStatus, isError);
+
             // Update chart colors
             const chartTextColor = isDark ? '#f3f4f6' : '#1f2937';
             
@@ -345,11 +376,20 @@
             const statusIcon = document.getElementById('connectionStatusIcon');
             
             statusText.textContent = status;
-            container.className = `ml-2 md:ml-4 px-2 md:px-3 py-1 rounded-full ${isError ? 'bg-red-100' : 'bg-green-100'}`;
-            statusText.className = `hidden sm:inline text-xs md:text-sm ${isError ? 'text-red-600' : 'text-green-600'}`;
             
-            // Update icon color and path for different states
-            statusIcon.className = `w-4 h-4 sm:hidden ${isError ? 'text-red-600' : 'text-green-600'}`;
+            // Use darker background colors for better contrast
+            const isDarkMode = document.documentElement.classList.contains('dark');
+            const bgColor = isError 
+                ? (isDarkMode ? 'bg-red-200' : 'bg-red-100')
+                : (isDarkMode ? 'bg-green-200' : 'bg-green-100');
+            
+            const textColor = isError 
+                ? (isDarkMode ? 'text-red-800' : 'text-red-600')
+                : (isDarkMode ? 'text-green-800' : 'text-green-600');
+            
+            container.className = `ml-2 md:ml-4 px-2 md:px-3 py-1 rounded-full ${bgColor}`;
+            statusText.className = `hidden sm:inline text-xs md:text-sm ${textColor}`;
+            statusIcon.className = `w-4 h-4 sm:hidden ${textColor}`;
             
             if (status.includes('Connected')) {
                 statusIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>';
