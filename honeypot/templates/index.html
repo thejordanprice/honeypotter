@@ -222,6 +222,62 @@
         .dark .leaflet-container a.leaflet-popup-close-button:hover {
             color: #60a5fa;
         }
+
+        /* Connection status indicator styles */
+        #connectionStatusIndicator {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+            padding: 8px;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        #connectionStatusIndicator.connected {
+            background-color: rgb(22, 163, 74);
+        }
+
+        #connectionStatusIndicator.reconnecting {
+            background-color: rgb(234, 179, 8);
+        }
+
+        #connectionStatusIndicator.disconnected {
+            background-color: rgb(220, 38, 38);
+        }
+
+        #connectionStatusIndicator svg {
+            width: 24px;
+            height: 24px;
+            color: white;
+        }
+
+        .dark #connectionStatusIndicator.connected {
+            background-color: rgb(34, 197, 94);
+        }
+
+        .dark #connectionStatusIndicator.reconnecting {
+            background-color: rgb(250, 204, 21);
+        }
+
+        .dark #connectionStatusIndicator.disconnected {
+            background-color: rgb(239, 68, 68);
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .animate-spin {
+            animation: spin 1s linear infinite;
+        }
     </style>
 </head>
 <body class="bg-gray-100">
@@ -230,13 +286,6 @@
             <div class="flex justify-between items-center h-16">
                 <div class="flex items-center">
                     <h1 class="text-xl font-semibold text-gray-800">Honeypotter</h1>
-                    <div class="ml-4 px-3 py-1 rounded-full" id="connectionStatusContainer">
-                        <!-- Status elements for connection state display -->
-                        <span id="connectionStatus" class="hidden sm:inline"></span>
-                        <svg id="connectionStatusIcon" class="w-4 sm:hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M12 5l7 7-7 7"/>
-                        </svg>
-                    </div>
                 </div>
                 <div class="flex items-center gap-4">
                     <div class="p-2 w-[88px] rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center justify-center">
@@ -337,6 +386,13 @@
         </div>
     </footer>
 
+    <!-- Connection status indicator -->
+    <div id="connectionStatusIndicator" class="connected">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+        </svg>
+    </div>
+
     <script>
         // Initialize theme based on user preference or system settings
         if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
@@ -355,12 +411,7 @@
             // Update map theme
             setMapTheme(isDark);
 
-            // Re-trigger connection status update to refresh colors
-            const currentStatus = document.getElementById('connectionStatus').textContent;
-            const isError = currentStatus.includes('error') || currentStatus.includes('closed');
-            updateConnectionStatus(currentStatus, isError);
-
-            // Update chart colors
+            // Update chart colors based on theme
             const chartTextColor = isDark ? '#f3f4f6' : '#1f2937';
             const gridColor = isDark ? '#374151' : '#e5e7eb';
             
@@ -369,10 +420,10 @@
             attemptsChart.options.scales.y.ticks.color = chartTextColor;
             attemptsChart.options.scales.x.grid.color = gridColor;
             attemptsChart.options.scales.y.grid.color = gridColor;
-            attemptsChart.data.datasets[0].borderColor = isDark ? 'rgba(96, 165, 250, 0.9)' : 'rgb(56, 189, 248)';
-            attemptsChart.data.datasets[1].borderColor = isDark ? 'rgba(59, 130, 246, 0.9)' : 'rgb(37, 99, 235)';
-            attemptsChart.data.datasets[2].borderColor = isDark ? 'rgba(16, 185, 129, 0.9)' : 'rgb(16, 185, 129)';
             attemptsChart.options.plugins.legend.labels.color = chartTextColor;
+            attemptsChart.data.datasets[0].borderColor = isDark ? '#3b82f6' : '#2563eb';
+            attemptsChart.data.datasets[1].borderColor = isDark ? '#8b5cf6' : '#6d28d9';
+            attemptsChart.data.datasets[2].borderColor = isDark ? '#10b981' : '#059669';
             attemptsChart.update();
 
             // Update usernames chart colors
@@ -380,10 +431,10 @@
             usernamesChart.options.scales.y.ticks.color = chartTextColor;
             usernamesChart.options.scales.x.grid.color = gridColor;
             usernamesChart.options.scales.y.grid.color = gridColor;
-            usernamesChart.data.datasets[0].backgroundColor = isDark ? 'rgba(96, 165, 250, 0.7)' : 'rgb(56, 189, 248)';
-            usernamesChart.data.datasets[1].backgroundColor = isDark ? 'rgba(59, 130, 246, 0.7)' : 'rgb(37, 99, 235)';
-            usernamesChart.data.datasets[2].backgroundColor = isDark ? 'rgba(16, 185, 129, 0.7)' : 'rgb(16, 185, 129)';
-            usernamesChart.options.plugins.legend.labels = { color: chartTextColor };
+            usernamesChart.options.plugins.legend.labels.color = chartTextColor;
+            usernamesChart.data.datasets[0].backgroundColor = isDark ? 'rgba(59, 130, 246, 0.8)' : 'rgba(37, 99, 235, 0.8)';
+            usernamesChart.data.datasets[1].backgroundColor = isDark ? 'rgba(139, 92, 246, 0.8)' : 'rgba(109, 40, 217, 0.8)';
+            usernamesChart.data.datasets[2].backgroundColor = isDark ? 'rgba(16, 185, 129, 0.8)' : 'rgba(5, 150, 105, 0.8)';
             usernamesChart.update();
         });
 
@@ -458,32 +509,21 @@
         let socket = null;
 
         function updateConnectionStatus(status, isError = false) {
-            const container = document.getElementById('connectionStatusContainer');
-            const statusText = document.getElementById('connectionStatus');
-            const statusIcon = document.getElementById('connectionStatusIcon');
-            
-            statusText.textContent = status;
-            
-            // Use darker background colors for better contrast
-            const isDarkMode = document.documentElement.classList.contains('dark');
-            const bgColor = isError 
-                ? (isDarkMode ? 'bg-red-200' : 'bg-red-100')
-                : (isDarkMode ? 'bg-green-200' : 'bg-green-100');
-            
-            const textColor = isError 
-                ? (isDarkMode ? 'text-red-800' : 'text-red-600')
-                : (isDarkMode ? 'text-green-800' : 'text-green-600');
-            
-            container.className = `ml-4 px-3 py-1 rounded-full ${bgColor}`;
-            statusText.className = `hidden sm:inline ${textColor}`;
-            statusIcon.className = `w-4 sm:hidden ${textColor}`;
+            const indicator = document.getElementById('connectionStatusIndicator');
+            const svg = indicator.querySelector('svg');
             
             if (status.includes('Connected')) {
-                statusIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>';
+                indicator.className = 'connected';
+                svg.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>';
+                svg.classList.remove('animate-spin');
             } else if (status.includes('Connecting')) {
-                statusIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>';
+                indicator.className = 'reconnecting';
+                svg.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>';
+                svg.classList.add('animate-spin');
             } else {
-                statusIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>';
+                indicator.className = 'disconnected';
+                svg.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>';
+                svg.classList.remove('animate-spin');
             }
         }
 
@@ -690,8 +730,8 @@
                             label: 'SSH',
                             data: [],
                             borderColor: document.documentElement.classList.contains('dark') 
-                                ? 'rgba(96, 165, 250, 0.9)' // Light blue for dark mode
-                                : 'rgb(56, 189, 248)', // Sky blue for light mode
+                                ? '#3b82f6'  // Blue for dark mode
+                                : '#2563eb',  // Darker blue for light mode
                             backgroundColor: 'transparent',
                             borderWidth: 2,
                             pointRadius: 3,
@@ -702,8 +742,8 @@
                             label: 'Telnet',
                             data: [],
                             borderColor: document.documentElement.classList.contains('dark')
-                                ? 'rgba(59, 130, 246, 0.9)' // Darker blue for dark mode
-                                : 'rgb(37, 99, 235)', // Deep blue for light mode
+                                ? '#8b5cf6'  // Purple for dark mode
+                                : '#6d28d9',  // Darker purple for light mode
                             backgroundColor: 'transparent',
                             borderWidth: 2,
                             pointRadius: 3,
@@ -714,8 +754,8 @@
                             label: 'FTP',
                             data: [],
                             borderColor: document.documentElement.classList.contains('dark')
-                                ? 'rgba(16, 185, 129, 0.9)' // Green for dark mode
-                                : 'rgb(16, 185, 129)', // Green for light mode
+                                ? '#10b981'  // Green for dark mode
+                                : '#059669',  // Darker green for light mode
                             backgroundColor: 'transparent',
                             borderWidth: 2,
                             pointRadius: 3,
@@ -749,7 +789,11 @@
                     },
                     plugins: {
                         legend: {
-                            display: false
+                            display: true,
+                            position: 'bottom',
+                            labels: {
+                                color: document.documentElement.classList.contains('dark') ? '#f3f4f6' : '#1f2937'
+                            }
                         },
                         title: {
                             display: false
@@ -774,24 +818,24 @@
                             label: 'SSH',
                             data: [],
                             backgroundColor: document.documentElement.classList.contains('dark')
-                                ? 'rgba(96, 165, 250, 0.7)' // Light blue for dark mode
-                                : 'rgb(56, 189, 248)', // Sky blue for light mode
+                                ? 'rgba(59, 130, 246, 0.8)'  // Blue with opacity for dark mode
+                                : 'rgba(37, 99, 235, 0.8)',  // Darker blue with opacity for light mode
                             borderRadius: 4
                         },
                         {
                             label: 'Telnet',
                             data: [],
                             backgroundColor: document.documentElement.classList.contains('dark')
-                                ? 'rgba(59, 130, 246, 0.7)' // Darker blue for dark mode
-                                : 'rgb(37, 99, 235)', // Deep blue for light mode
+                                ? 'rgba(139, 92, 246, 0.8)'   // Purple with opacity for dark mode
+                                : 'rgba(109, 40, 217, 0.8)',  // Darker purple with opacity for light mode
                             borderRadius: 4
                         },
                         {
                             label: 'FTP',
                             data: [],
                             backgroundColor: document.documentElement.classList.contains('dark')
-                                ? 'rgba(16, 185, 129, 0.7)' // Green for dark mode
-                                : 'rgb(16, 185, 129)', // Green for light mode
+                                ? 'rgba(16, 185, 129, 0.8)'  // Green with opacity for dark mode
+                                : 'rgba(5, 150, 105, 0.8)',  // Darker green with opacity for light mode
                             borderRadius: 4
                         }
                     ]
@@ -823,7 +867,11 @@
                     },
                     plugins: {
                         legend: {
-                            display: false
+                            display: true,
+                            position: 'bottom',
+                            labels: {
+                                color: document.documentElement.classList.contains('dark') ? '#f3f4f6' : '#1f2937'
+                            }
                         }
                     }
                 }
