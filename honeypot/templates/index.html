@@ -626,16 +626,14 @@
         const attemptsChart = new Chart(
             document.getElementById('attemptsChart'),
             {
-                type: 'line',
+                type: 'bar',
                 data: {
                     labels: [],
                     datasets: [{
                         label: 'Login Attempts',
                         data: [],
-                        borderColor: 'rgb(56, 189, 248)',
-                        backgroundColor: 'rgba(56, 189, 248, 0.1)',
-                        fill: true,
-                        tension: 0.4
+                        backgroundColor: 'rgb(56, 189, 248)',
+                        borderRadius: 4
                     }]
                 },
                 options: {
@@ -663,6 +661,9 @@
                     },
                     plugins: {
                         legend: {
+                            display: false
+                        },
+                        title: {
                             display: false
                         }
                     }
@@ -716,67 +717,45 @@
         );
 
         function updateCharts() {
-            console.log('Starting updateCharts...');
-            console.log('Total attempts:', attempts.length);
+            if (attempts.length === 0) return;
 
-            // Create a map for the last 24 hours with 0 counts
-            const hourCounts = {};
-            const now = new Date();
-            const serverTimeOffset = 4; // Adjust this based on the difference between local and server time
-            
-            // Initialize the last 24 hours with 0 counts, starting from current local time
-            for (let i = 23; i >= 0; i--) {
-                const date = new Date(now - i * 60 * 60 * 1000);
-                const localHour = date.getHours();
-                const ampm = localHour >= 12 ? 'PM' : 'AM';
-                const displayHour = localHour % 12 || 12;
-                const label = `${displayHour}${ampm}`;
-                hourCounts[label] = 0;
-            }
+            // Get current hour from the most recent attempt
+            const latestAttempt = attempts[0];
+            const currentDate = new Date(latestAttempt.timestamp);
+            const currentHour = currentDate.getHours();
 
-            console.log('Initial hour counts:', hourCounts);
+            // Create arrays for the last 12 hours (instead of 6)
+            const hourlyData = new Array(12).fill(0);
+            const hourLabels = new Array(12).fill('').map((_, i) => {
+                // Calculate hour by going backwards from current hour
+                const hour = (currentHour - 11 + i + 24) % 24; // Changed from -5 to -11 for 12 hours
+                const displayHour = hour % 12 || 12;
+                const ampm = hour >= 12 ? 'PM' : 'AM';
+                return `${displayHour}${ampm}`;
+            });
 
-            // Count attempts by hour, adjusting for server time
+            // Count attempts for each hour
             attempts.forEach(attempt => {
-                const serverDate = new Date(attempt.timestamp);
-                // Adjust server time to local time
-                const localDate = new Date(serverDate.getTime() - serverTimeOffset * 60 * 60 * 1000);
-                const localHour = localDate.getHours();
-                const ampm = localHour >= 12 ? 'PM' : 'AM';
-                const displayHour = localHour % 12 || 12;
-                const label = `${displayHour}${ampm}`;
+                const date = new Date(attempt.timestamp);
+                const attemptHour = date.getHours();
                 
-                console.log('Processing attempt:', {
-                    serverTimestamp: attempt.timestamp,
-                    localTime: localDate.toLocaleString(),
-                    label: label
-                });
-
-                if (hourCounts.hasOwnProperty(label)) {
-                    hourCounts[label]++;
+                // Calculate how many hours ago this attempt was
+                let hoursAgo = (currentHour - attemptHour + 24) % 24;
+                
+                // Only count if it's within the last 12 hours (instead of 6)
+                if (hoursAgo < 12) {
+                    // Convert hours ago to array index (11 - hoursAgo to reverse the order)
+                    const index = 11 - hoursAgo; // Changed from 5 to 11
+                    hourlyData[index]++;
                 }
             });
 
-            console.log('Final hour counts:', hourCounts);
-
-            // Convert to arrays and maintain chronological order
-            const sortedLabels = Object.keys(hourCounts).sort((a, b) => {
-                const hourA = parseInt(a.replace(/[AP]M/, ''));
-                const hourB = parseInt(b.replace(/[AP]M/, ''));
-                const isAM_A = a.includes('AM');
-                const isAM_B = b.includes('AM');
-                
-                if (isAM_A && !isAM_B) return -1;
-                if (!isAM_A && isAM_B) return 1;
-                return hourA - hourB;
-            });
-
             // Update the attempts chart
-            attemptsChart.data.labels = sortedLabels;
-            attemptsChart.data.datasets[0].data = sortedLabels.map(label => hourCounts[label]);
+            attemptsChart.data.labels = hourLabels;
+            attemptsChart.data.datasets[0].data = hourlyData;
             attemptsChart.update();
 
-            // Update username distribution chart
+            // Update username distribution chart (unchanged)
             const usernameData = {};
             attempts.forEach(attempt => {
                 usernameData[attempt.username] = (usernameData[attempt.username] || 0) + 1;
