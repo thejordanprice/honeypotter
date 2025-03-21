@@ -1,6 +1,6 @@
 """Database models for the SSH Honeypot."""
 from datetime import datetime
-import pytz
+from zoneinfo import ZoneInfo  # Built-in module, no installation needed
 from sqlalchemy import Column, Integer, String, DateTime, Float, create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
@@ -17,7 +17,7 @@ class LoginAttempt(Base):
     password = Column(String, nullable=False)
     client_ip = Column(String, nullable=False)
     timestamp = Column(DateTime(timezone=True), 
-                      default=lambda: datetime.now(pytz.timezone('America/New_York')))
+                      default=lambda: datetime.now(ZoneInfo("America/New_York")))
     
     # Geolocation fields
     latitude = Column(Float, nullable=True)
@@ -28,8 +28,7 @@ class LoginAttempt(Base):
 
     def to_dict(self):
         """Convert the model instance to a dictionary."""
-        eastern_tz = pytz.timezone('America/New_York')
-        eastern_time = self.timestamp.astimezone(eastern_tz)
+        eastern_time = self.timestamp.astimezone(ZoneInfo("America/New_York"))
         return {
             'id': self.id,
             'username': self.username,
