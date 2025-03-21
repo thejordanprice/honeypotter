@@ -345,22 +345,24 @@
             // Update chart colors
             const chartTextColor = isDark ? '#f3f4f6' : '#1f2937';
             const gridColor = isDark ? '#374151' : '#e5e7eb';
+            const barColor = isDark ? 'rgba(56, 189, 248, 0.8)' : 'rgb(56, 189, 248)';
             
             // Update attempts chart colors
             attemptsChart.options.scales.x.ticks.color = chartTextColor;
             attemptsChart.options.scales.y.ticks.color = chartTextColor;
             attemptsChart.options.scales.x.grid.color = gridColor;
             attemptsChart.options.scales.y.grid.color = gridColor;
-            attemptsChart.data.datasets[0].borderColor = 'rgb(56, 189, 248)';
-            attemptsChart.data.datasets[0].backgroundColor = 'rgba(56, 189, 248, 0.1)';
+            attemptsChart.data.datasets[0].backgroundColor = barColor;
+            attemptsChart.options.plugins.legend.labels = { color: chartTextColor };
             attemptsChart.update();
 
             // Update usernames chart colors
-            usernamesChart.data.datasets[0].backgroundColor = 'rgb(56, 189, 248)';
             usernamesChart.options.scales.x.ticks.color = chartTextColor;
             usernamesChart.options.scales.y.ticks.color = chartTextColor;
             usernamesChart.options.scales.x.grid.color = gridColor;
             usernamesChart.options.scales.y.grid.color = gridColor;
+            usernamesChart.data.datasets[0].backgroundColor = barColor;
+            usernamesChart.options.plugins.legend.labels = { color: chartTextColor };
             usernamesChart.update();
         });
 
