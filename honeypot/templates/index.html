@@ -176,28 +176,33 @@
         <div class="container mx-auto px-4">
             <div class="flex justify-between items-center h-16">
                 <div class="flex items-center">
-                    <h1 class="text-lg md:text-xl font-semibold text-gray-800">SSH Honeypot</h1>
-                    <div class="ml-2 md:ml-4 px-2 md:px-3 py-1 rounded-full" id="connectionStatusContainer">
+                    <h1 class="text-xl font-semibold text-gray-800">SSH Honeypot</h1>
+                    <div class="ml-4 px-3 py-1 rounded-full" id="connectionStatusContainer">
                         <!-- Status text (hidden on mobile) -->
-                        <span id="connectionStatus" class="hidden sm:inline text-xs md:text-sm"></span>
+                        <span id="connectionStatus" class="hidden sm:inline"></span>
                         <!-- Status icon (shown on mobile) -->
-                        <svg id="connectionStatusIcon" class="w-4 h-4 sm:hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg id="connectionStatusIcon" class="w-4 sm:hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M12 5l7 7-7 7"/>
                         </svg>
                     </div>
                 </div>
-                <div class="flex items-center gap-2 md:gap-4">
-                    <div class="text-xs md:text-sm text-gray-600 dark:text-gray-300">
-                        <span class="hidden sm:inline">Total </span>Attempts: <span id="totalAttempts" class="font-semibold">0</span>
+                <div class="flex items-center gap-4">
+                    <div class="p-2 w-[88px] rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center justify-center">
+                        <svg class="w-5 h-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                        </svg>
+                        <span id="totalAttempts" class="font-semibold">0</span>
                     </div>
-                    <button id="exportIPs" class="bg-gray-50 hover:bg-gray-100 text-gray-800 text-xs md:text-sm font-semibold py-1.5 md:py-2 px-2 md:px-4 rounded-lg shadow transition-colors">
-                        <span class="hidden md:inline">Attack </span>Log
-                    </button>
-                    <button id="darkModeToggle" class="p-1.5 md:p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                        <svg id="lightIcon" class="w-4 h-4 md:w-5 md:h-5 hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <div class="p-2 w-10 h-10 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center justify-center cursor-pointer" id="exportIPs">
+                        <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                    </div>
+                    <button id="darkModeToggle" class="p-2 w-10 h-10 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center justify-center">
+                        <svg id="lightIcon" class="w-5 h-5 hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
                         </svg>
-                        <svg id="darkIcon" class="w-4 h-4 md:w-5 md:h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg id="darkIcon" class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
                         </svg>
                     </button>
@@ -387,9 +392,9 @@
                 ? (isDarkMode ? 'text-red-800' : 'text-red-600')
                 : (isDarkMode ? 'text-green-800' : 'text-green-600');
             
-            container.className = `ml-2 md:ml-4 px-2 md:px-3 py-1 rounded-full ${bgColor}`;
-            statusText.className = `hidden sm:inline text-xs md:text-sm ${textColor}`;
-            statusIcon.className = `w-4 h-4 sm:hidden ${textColor}`;
+            container.className = `ml-4 px-3 py-1 rounded-full ${bgColor}`;
+            statusText.className = `hidden sm:inline ${textColor}`;
+            statusIcon.className = `w-4 sm:hidden ${textColor}`;
             
             if (status.includes('Connected')) {
                 statusIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>';
