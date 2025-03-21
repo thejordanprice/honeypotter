@@ -508,6 +508,22 @@
             };
         }
 
+        function formatDateToLocalTime(isoString) {
+            // Parse the UTC timestamp and create a local date object
+            const date = new Date(isoString + 'Z'); // Append 'Z' to ensure UTC parsing if not present
+            
+            return date.toLocaleString(undefined, {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: true,
+                timeZoneName: 'short'
+            });
+        }
+
         function createAttemptElement(attempt) {
             const location = [
                 attempt.city,
@@ -519,7 +535,7 @@
                 <div class="bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition-colors">
                     <div class="flex flex-col sm:flex-row justify-between gap-2">
                         <span class="font-semibold break-all">${attempt.username}@${attempt.client_ip}</span>
-                        <span class="text-gray-500 text-sm">${new Date(attempt.timestamp).toLocaleString()}</span>
+                        <span class="text-gray-500 text-sm">${formatDateToLocalTime(attempt.timestamp)}</span>
                     </div>
                     <div class="text-gray-600 mt-2">
                         <div class="break-all">Password: ${attempt.password}</div>
@@ -535,21 +551,24 @@
             const now = new Date();
 
             return attempts.filter(attempt => {
-                // If no search term, consider it a match
                 const matchesSearch = searchTerm === '' || 
                     attempt.username.toLowerCase().includes(searchTerm) ||
                     attempt.client_ip.includes(searchTerm) ||
                     attempt.password.toLowerCase().includes(searchTerm);
 
-                const timestamp = new Date(attempt.timestamp);
+                // Create date object from UTC timestamp
+                const timestamp = new Date(attempt.timestamp + 'Z');
                 let matchesFilter = true;
 
                 switch (filterValue) {
                     case 'lastHour':
-                        matchesFilter = (now - timestamp) <= (60 * 60 * 1000); // 1 hour in milliseconds
+                        matchesFilter = (now - timestamp) <= (60 * 60 * 1000);
                         break;
                     case 'today':
-                        matchesFilter = now.toDateString() === timestamp.toDateString();
+                        // Compare using local dates
+                        const attemptDate = new Date(timestamp.toLocaleDateString());
+                        const todayDate = new Date(now.toLocaleDateString());
+                        matchesFilter = attemptDate.getTime() === todayDate.getTime();
                         break;
                     case 'thisWeek':
                         const weekAgo = new Date(now);
@@ -721,33 +740,31 @@
         function updateCharts() {
             if (attempts.length === 0) return;
 
-            // Get current hour from the most recent attempt
-            const latestAttempt = attempts[0];
-            const currentDate = new Date(latestAttempt.timestamp);
-            const currentHour = currentDate.getHours();
+            // Get current hour in local time
+            const now = new Date();
+            const currentHour = now.getHours();
 
-            // Create arrays for the last 12 hours (instead of 6)
+            // Create arrays for the last 12 hours
             const hourlyData = new Array(12).fill(0);
             const hourLabels = new Array(12).fill('').map((_, i) => {
-                // Calculate hour by going backwards from current hour
-                const hour = (currentHour - 11 + i + 24) % 24; // Changed from -5 to -11 for 12 hours
+                const hour = (currentHour - 11 + i + 24) % 24;
                 const displayHour = hour % 12 || 12;
                 const ampm = hour >= 12 ? 'PM' : 'AM';
                 return `${displayHour}${ampm}`;
             });
 
-            // Count attempts for each hour
+            // Count attempts for each hour using local time
             attempts.forEach(attempt => {
-                const date = new Date(attempt.timestamp);
+                // Create date object from UTC timestamp
+                const date = new Date(attempt.timestamp + 'Z');
                 const attemptHour = date.getHours();
                 
-                // Calculate how many hours ago this attempt was
+                // Calculate how many hours ago this attempt was in local time
                 let hoursAgo = (currentHour - attemptHour + 24) % 24;
                 
-                // Only count if it's within the last 12 hours (instead of 6)
+                // Only count if it's within the last 12 hours
                 if (hoursAgo < 12) {
-                    // Convert hours ago to array index (11 - hoursAgo to reverse the order)
-                    const index = 11 - hoursAgo; // Changed from 5 to 11
+                    const index = 11 - hoursAgo;
                     hourlyData[index]++;
                 }
             });
@@ -757,7 +774,7 @@
             attemptsChart.data.datasets[0].data = hourlyData;
             attemptsChart.update();
 
-            // Update username distribution chart (unchanged)
+            // Update username distribution chart
             const usernameData = {};
             attempts.forEach(attempt => {
                 usernameData[attempt.username] = (usernameData[attempt.username] || 0) + 1;

@@ -17,7 +17,7 @@ class LoginAttempt(Base):
     password = Column(String, nullable=False)
     client_ip = Column(String, nullable=False)
     timestamp = Column(DateTime(timezone=True), 
-                      default=lambda: datetime.now(ZoneInfo("America/New_York")))
+                      default=lambda: datetime.now(ZoneInfo("UTC")))
     
     # Geolocation fields
     latitude = Column(Float, nullable=True)
@@ -28,13 +28,12 @@ class LoginAttempt(Base):
 
     def to_dict(self):
         """Convert the model instance to a dictionary."""
-        eastern_time = self.timestamp.astimezone(ZoneInfo("America/New_York"))
         return {
             'id': self.id,
             'username': self.username,
             'password': self.password,
             'client_ip': self.client_ip,
-            'timestamp': eastern_time.isoformat(),
+            'timestamp': self.timestamp.isoformat(),
             'latitude': self.latitude,
             'longitude': self.longitude,
             'country': self.country,
