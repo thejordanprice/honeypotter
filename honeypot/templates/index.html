@@ -474,7 +474,7 @@
 
             // If we found a hotspot, center the map there with appropriate zoom
             if (hotspotCenter) {
-                const zoom = window.innerWidth <= 768 ? 3 : 4; // Closer zoom on desktop
+                const zoom = window.innerWidth <= 768 ? 2 : 3; // Reduced zoom levels by 1
                 map.setView(hotspotCenter, zoom, { animate: true });
             }
         }
