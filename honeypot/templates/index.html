@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Honeypot Monitor</title>
+    <title>Honeypotter</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -229,7 +229,7 @@
         <div class="container mx-auto px-4">
             <div class="flex justify-between items-center h-16">
                 <div class="flex items-center">
-                    <h1 class="text-xl font-semibold text-gray-800">Honeypot Monitor</h1>
+                    <h1 class="text-xl font-semibold text-gray-800">Honeypotter</h1>
                     <div class="ml-4 px-3 py-1 rounded-full" id="connectionStatusContainer">
                         <!-- Status elements for connection state display -->
                         <span id="connectionStatus" class="hidden sm:inline"></span>
@@ -271,7 +271,7 @@
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                <h2 class="text-xl font-semibold mb-4">Attack Distribution</h2>
+                <h2 class="text-xl font-semibold mb-4">Protocol Activity</h2>
                 <div class="chart-container">
                     <canvas id="attemptsChart"></canvas>
                 </div>
