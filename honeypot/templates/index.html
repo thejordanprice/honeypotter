@@ -289,20 +289,28 @@
                 <h2 class="text-xl font-semibold">Recent Login Attempts</h2>
             </div>
             <div class="p-4">
-                <div class="flex flex-col sm:flex-row justify-between gap-4 mb-4">
-                    <input type="text" id="searchInput" placeholder="Search..." 
-                           class="w-full sm:w-auto px-4 py-2 border rounded-lg">
-                    <select id="filterSelect" class="w-full sm:w-auto px-4 py-2 border rounded-lg">
-                        <option value="all">All</option>
-                        <option value="lastHour">Last Hour</option>
-                        <option value="today">Today</option>
-                        <option value="thisWeek">This Week</option>
-                    </select>
-                    <select id="protocolSelect" class="w-full sm:w-auto px-4 py-2 border rounded-lg">
-                        <option value="all">All Protocols</option>
-                        <option value="ssh">SSH Only</option>
-                        <option value="telnet">Telnet Only</option>
-                    </select>
+                <div class="flex flex-col sm:flex-row items-center gap-4 mb-4">
+                    <div class="w-full sm:w-2/3">
+                        <input type="text" id="searchInput" placeholder="Search..." 
+                               class="w-full px-4 py-2 border rounded-lg">
+                    </div>
+                    <div class="w-full sm:w-1/3 flex flex-col sm:flex-row gap-4">
+                        <div class="w-full sm:w-1/2">
+                            <select id="filterSelect" class="w-full px-4 py-2 border rounded-lg">
+                                <option value="all">All Time</option>
+                                <option value="lastHour">Last Hour</option>
+                                <option value="today">Today</option>
+                                <option value="thisWeek">This Week</option>
+                            </select>
+                        </div>
+                        <div class="w-full sm:w-1/2">
+                            <select id="protocolSelect" class="w-full px-4 py-2 border rounded-lg">
+                                <option value="all">All Protocols</option>
+                                <option value="ssh">SSH Only</option>
+                                <option value="telnet">Telnet Only</option>
+                            </select>
+                        </div>
+                    </div>
                 </div>
                 <div id="attempts" class="space-y-4"></div>
                 <div class="mt-4 flex flex-col sm:flex-row justify-between items-center gap-4">
@@ -354,14 +362,14 @@
             // Update chart colors
             const chartTextColor = isDark ? '#f3f4f6' : '#1f2937';
             const gridColor = isDark ? '#374151' : '#e5e7eb';
-            const barColor = isDark ? 'rgba(56, 189, 248, 0.8)' : 'rgb(56, 189, 248)';
             
             // Update attempts chart colors
             attemptsChart.options.scales.x.ticks.color = chartTextColor;
             attemptsChart.options.scales.y.ticks.color = chartTextColor;
             attemptsChart.options.scales.x.grid.color = gridColor;
             attemptsChart.options.scales.y.grid.color = gridColor;
-            attemptsChart.data.datasets[0].backgroundColor = barColor;
+            attemptsChart.data.datasets[0].backgroundColor = isDark ? 'rgba(96, 165, 250, 0.7)' : 'rgb(56, 189, 248)';
+            attemptsChart.data.datasets[1].backgroundColor = isDark ? 'rgba(59, 130, 246, 0.7)' : 'rgb(37, 99, 235)';
             attemptsChart.options.plugins.legend.labels = { color: chartTextColor };
             attemptsChart.update();
 
@@ -370,7 +378,8 @@
             usernamesChart.options.scales.y.ticks.color = chartTextColor;
             usernamesChart.options.scales.x.grid.color = gridColor;
             usernamesChart.options.scales.y.grid.color = gridColor;
-            usernamesChart.data.datasets[0].backgroundColor = barColor;
+            usernamesChart.data.datasets[0].backgroundColor = isDark ? 'rgba(96, 165, 250, 0.7)' : 'rgb(56, 189, 248)';
+            usernamesChart.data.datasets[1].backgroundColor = isDark ? 'rgba(59, 130, 246, 0.7)' : 'rgb(37, 99, 235)';
             usernamesChart.options.plugins.legend.labels = { color: chartTextColor };
             usernamesChart.update();
         });
@@ -545,10 +554,10 @@
                 <div class="bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition-colors">
                     <div class="flex flex-col sm:flex-row justify-between gap-2">
                         <span class="font-semibold break-all">
-                            <span class="inline-block px-2 py-1 text-xs rounded-full ${attempt.protocol === 'ssh' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}">
+                            ${attempt.username}@${attempt.client_ip}
+                            <span class="inline-block px-2 py-1 text-xs rounded-full ml-2">
                                 ${attempt.protocol.toUpperCase()}
                             </span>
-                            ${attempt.username}@${attempt.client_ip}
                         </span>
                         <span class="text-gray-500 text-sm">${formatDateToLocalTime(attempt.timestamp)}</span>
                     </div>
@@ -673,12 +682,24 @@
                 type: 'bar',
                 data: {
                     labels: [],
-                    datasets: [{
-                        label: 'Login Attempts',
-                        data: [],
-                        backgroundColor: 'rgb(56, 189, 248)',
-                        borderRadius: 4
-                    }]
+                    datasets: [
+                        {
+                            label: 'SSH',
+                            data: [],
+                            backgroundColor: document.documentElement.classList.contains('dark') 
+                                ? 'rgba(96, 165, 250, 0.7)' // Light blue for dark mode
+                                : 'rgb(56, 189, 248)', // Sky blue for light mode
+                            borderRadius: 4
+                        },
+                        {
+                            label: 'Telnet',
+                            data: [],
+                            backgroundColor: document.documentElement.classList.contains('dark')
+                                ? 'rgba(59, 130, 246, 0.7)' // Darker blue for dark mode
+                                : 'rgb(37, 99, 235)', // Deep blue for light mode
+                            borderRadius: 4
+                        }
+                    ]
                 },
                 options: {
                     responsive: true,
@@ -686,6 +707,7 @@
                     scales: {
                         y: {
                             beginAtZero: true,
+                            stacked: true,
                             ticks: {
                                 stepSize: 1,
                                 color: document.documentElement.classList.contains('dark') ? '#f3f4f6' : '#1f2937'
@@ -695,6 +717,7 @@
                             }
                         },
                         x: {
+                            stacked: true,
                             ticks: {
                                 color: document.documentElement.classList.contains('dark') ? '#f3f4f6' : '#1f2937'
                             },
@@ -705,7 +728,10 @@
                     },
                     plugins: {
                         legend: {
-                            display: false
+                            display: true,
+                            labels: {
+                                color: document.documentElement.classList.contains('dark') ? '#f3f4f6' : '#1f2937'
+                            }
                         },
                         title: {
                             display: false
@@ -721,12 +747,24 @@
                 type: 'bar',
                 data: {
                     labels: [],
-                    datasets: [{
-                        label: 'Most Used Usernames',
-                        data: [],
-                        backgroundColor: 'rgb(56, 189, 248)', // Brighter blue for dark mode visibility
-                        borderRadius: 4
-                    }]
+                    datasets: [
+                        {
+                            label: 'SSH',
+                            data: [],
+                            backgroundColor: document.documentElement.classList.contains('dark')
+                                ? 'rgba(96, 165, 250, 0.7)' // Light blue for dark mode
+                                : 'rgb(56, 189, 248)', // Sky blue for light mode
+                            borderRadius: 4
+                        },
+                        {
+                            label: 'Telnet',
+                            data: [],
+                            backgroundColor: document.documentElement.classList.contains('dark')
+                                ? 'rgba(59, 130, 246, 0.7)' // Darker blue for dark mode
+                                : 'rgb(37, 99, 235)', // Deep blue for light mode
+                            borderRadius: 4
+                        }
+                    ]
                 },
                 options: {
                     responsive: true,
@@ -734,6 +772,7 @@
                     scales: {
                         y: {
                             beginAtZero: true,
+                            stacked: true,
                             ticks: {
                                 stepSize: 1,
                                 color: document.documentElement.classList.contains('dark') ? '#f3f4f6' : '#1f2937'
@@ -743,6 +782,7 @@
                             }
                         },
                         x: {
+                            stacked: true,
                             ticks: {
                                 color: document.documentElement.classList.contains('dark') ? '#f3f4f6' : '#1f2937'
                             },
@@ -753,7 +793,10 @@
                     },
                     plugins: {
                         legend: {
-                            display: false
+                            display: true,
+                            labels: {
+                                color: document.documentElement.classList.contains('dark') ? '#f3f4f6' : '#1f2937'
+                            }
                         }
                     }
                 }
@@ -769,7 +812,8 @@
             const currentHour = now.getHours();
 
             // Create arrays for the last 12 hours
-            const hourlyData = new Array(12).fill(0);
+            const hourlyDataSSH = new Array(12).fill(0);
+            const hourlyDataTelnet = new Array(12).fill(0);
             const hourLabels = new Array(12).fill('').map((_, i) => {
                 const hour = (currentHour - 11 + i + 24) % 24;
                 const displayHour = hour % 12 || 12;
@@ -789,27 +833,40 @@
                 // Only count if it's within the last 12 hours
                 if (hoursAgo < 12) {
                     const index = 11 - hoursAgo;
-                    hourlyData[index]++;
+                    if (attempt.protocol === 'ssh') {
+                        hourlyDataSSH[index]++;
+                    } else if (attempt.protocol === 'telnet') {
+                        hourlyDataTelnet[index]++;
+                    }
                 }
             });
 
             // Update the attempts chart
             attemptsChart.data.labels = hourLabels;
-            attemptsChart.data.datasets[0].data = hourlyData;
+            attemptsChart.data.datasets[0].data = hourlyDataSSH;
+            attemptsChart.data.datasets[1].data = hourlyDataTelnet;
             attemptsChart.update();
 
             // Update username distribution chart
             const usernameData = {};
             attempts.forEach(attempt => {
-                usernameData[attempt.username] = (usernameData[attempt.username] || 0) + 1;
+                if (!usernameData[attempt.username]) {
+                    usernameData[attempt.username] = { ssh: 0, telnet: 0 };
+                }
+                if (attempt.protocol === 'ssh') {
+                    usernameData[attempt.username].ssh++;
+                } else if (attempt.protocol === 'telnet') {
+                    usernameData[attempt.username].telnet++;
+                }
             });
 
             const topUsernames = Object.entries(usernameData)
-                .sort((a, b) => b[1] - a[1])
+                .sort((a, b) => (b[1].ssh + b[1].telnet) - (a[1].ssh + a[1].telnet))
                 .slice(0, 5);
 
             usernamesChart.data.labels = topUsernames.map(([username]) => username);
-            usernamesChart.data.datasets[0].data = topUsernames.map(([, count]) => count);
+            usernamesChart.data.datasets[0].data = topUsernames.map(([, counts]) => counts.ssh);
+            usernamesChart.data.datasets[1].data = topUsernames.map(([, counts]) => counts.telnet);
             usernamesChart.update();
         }
 
