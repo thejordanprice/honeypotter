@@ -13,6 +13,7 @@ class Protocol(enum.Enum):
     """Enum for supported protocols."""
     SSH = "ssh"
     TELNET = "telnet"
+    FTP = "ftp"
 
 class LoginAttempt(Base):
     """Model for storing SSH login attempts."""

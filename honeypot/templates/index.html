@@ -271,7 +271,7 @@
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                <h2 class="text-xl font-semibold mb-4">Statistics</h2>
+                <h2 class="text-xl font-semibold mb-4">Attack Distribution</h2>
                 <div class="chart-container">
                     <canvas id="attemptsChart"></canvas>
                 </div>
@@ -308,6 +308,7 @@
                                 <option value="all">All Protocols</option>
                                 <option value="ssh">SSH Only</option>
                                 <option value="telnet">Telnet Only</option>
+                                <option value="ftp">FTP Only</option>
                             </select>
                         </div>
                     </div>
@@ -370,6 +371,7 @@
             attemptsChart.options.scales.y.grid.color = gridColor;
             attemptsChart.data.datasets[0].backgroundColor = isDark ? 'rgba(96, 165, 250, 0.7)' : 'rgb(56, 189, 248)';
             attemptsChart.data.datasets[1].backgroundColor = isDark ? 'rgba(59, 130, 246, 0.7)' : 'rgb(37, 99, 235)';
+            attemptsChart.data.datasets[2].backgroundColor = isDark ? 'rgba(16, 185, 129, 0.7)' : 'rgb(16, 185, 129)';
             attemptsChart.options.plugins.legend.labels = { color: chartTextColor };
             attemptsChart.update();
 
@@ -380,6 +382,7 @@
             usernamesChart.options.scales.y.grid.color = gridColor;
             usernamesChart.data.datasets[0].backgroundColor = isDark ? 'rgba(96, 165, 250, 0.7)' : 'rgb(56, 189, 248)';
             usernamesChart.data.datasets[1].backgroundColor = isDark ? 'rgba(59, 130, 246, 0.7)' : 'rgb(37, 99, 235)';
+            usernamesChart.data.datasets[2].backgroundColor = isDark ? 'rgba(16, 185, 129, 0.7)' : 'rgb(16, 185, 129)';
             usernamesChart.options.plugins.legend.labels = { color: chartTextColor };
             usernamesChart.update();
         });
@@ -698,6 +701,14 @@
                                 ? 'rgba(59, 130, 246, 0.7)' // Darker blue for dark mode
                                 : 'rgb(37, 99, 235)', // Deep blue for light mode
                             borderRadius: 4
+                        },
+                        {
+                            label: 'FTP',
+                            data: [],
+                            backgroundColor: document.documentElement.classList.contains('dark')
+                                ? 'rgba(16, 185, 129, 0.7)' // Green for dark mode
+                                : 'rgb(16, 185, 129)', // Green for light mode
+                            borderRadius: 4
                         }
                     ]
                 },
@@ -728,10 +739,7 @@
                     },
                     plugins: {
                         legend: {
-                            display: true,
-                            labels: {
-                                color: document.documentElement.classList.contains('dark') ? '#f3f4f6' : '#1f2937'
-                            }
+                            display: false
                         },
                         title: {
                             display: false
@@ -763,6 +771,14 @@
                                 ? 'rgba(59, 130, 246, 0.7)' // Darker blue for dark mode
                                 : 'rgb(37, 99, 235)', // Deep blue for light mode
                             borderRadius: 4
+                        },
+                        {
+                            label: 'FTP',
+                            data: [],
+                            backgroundColor: document.documentElement.classList.contains('dark')
+                                ? 'rgba(16, 185, 129, 0.7)' // Green for dark mode
+                                : 'rgb(16, 185, 129)', // Green for light mode
+                            borderRadius: 4
                         }
                     ]
                 },
@@ -793,10 +809,7 @@
                     },
                     plugins: {
                         legend: {
-                            display: true,
-                            labels: {
-                                color: document.documentElement.classList.contains('dark') ? '#f3f4f6' : '#1f2937'
-                            }
+                            display: false
                         }
                     }
                 }
@@ -814,6 +827,7 @@
             // Create arrays for the last 12 hours
             const hourlyDataSSH = new Array(12).fill(0);
             const hourlyDataTelnet = new Array(12).fill(0);
+            const hourlyDataFTP = new Array(12).fill(0);
             const hourLabels = new Array(12).fill('').map((_, i) => {
                 const hour = (currentHour - 11 + i + 24) % 24;
                 const displayHour = hour % 12 || 12;
@@ -837,6 +851,8 @@
                         hourlyDataSSH[index]++;
                     } else if (attempt.protocol === 'telnet') {
                         hourlyDataTelnet[index]++;
+                    } else if (attempt.protocol === 'ftp') {
+                        hourlyDataFTP[index]++;
                     }
                 }
             });
@@ -845,28 +861,32 @@
             attemptsChart.data.labels = hourLabels;
             attemptsChart.data.datasets[0].data = hourlyDataSSH;
             attemptsChart.data.datasets[1].data = hourlyDataTelnet;
+            attemptsChart.data.datasets[2].data = hourlyDataFTP;
             attemptsChart.update();
 
             // Update username distribution chart
             const usernameData = {};
             attempts.forEach(attempt => {
                 if (!usernameData[attempt.username]) {
-                    usernameData[attempt.username] = { ssh: 0, telnet: 0 };
+                    usernameData[attempt.username] = { ssh: 0, telnet: 0, ftp: 0 };
                 }
                 if (attempt.protocol === 'ssh') {
                     usernameData[attempt.username].ssh++;
                 } else if (attempt.protocol === 'telnet') {
                     usernameData[attempt.username].telnet++;
+                } else if (attempt.protocol === 'ftp') {
+                    usernameData[attempt.username].ftp++;
                 }
             });
 
             const topUsernames = Object.entries(usernameData)
-                .sort((a, b) => (b[1].ssh + b[1].telnet) - (a[1].ssh + a[1].telnet))
+                .sort((a, b) => (b[1].ssh + b[1].telnet + b[1].ftp) - (a[1].ssh + a[1].telnet + a[1].ftp))
                 .slice(0, 5);
 
             usernamesChart.data.labels = topUsernames.map(([username]) => username);
             usernamesChart.data.datasets[0].data = topUsernames.map(([, counts]) => counts.ssh);
             usernamesChart.data.datasets[1].data = topUsernames.map(([, counts]) => counts.telnet);
+            usernamesChart.data.datasets[2].data = topUsernames.map(([, counts]) => counts.ftp);
             usernamesChart.update();
         }
 

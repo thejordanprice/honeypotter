@@ -13,6 +13,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 HOST = os.getenv('HOST', '127.0.0.1')
 SSH_PORT = int(os.getenv('SSH_PORT', 2222))
 TELNET_PORT = int(os.getenv('TELNET_PORT', 23))
+FTP_PORT = int(os.getenv('FTP_PORT', 21))
 WEB_PORT = int(os.getenv('WEB_PORT', 8080))
 WS_PORT = int(os.getenv('WS_PORT', 8765))
 
