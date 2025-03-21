@@ -318,14 +318,22 @@
 
             // Update chart colors
             const chartTextColor = isDark ? '#f3f4f6' : '#1f2937';
+            const gridColor = isDark ? '#374151' : '#e5e7eb';
             
-            [attemptsChart, usernamesChart].forEach(chart => {
-                chart.options.scales.x.ticks.color = chartTextColor;
-                chart.options.scales.y.ticks.color = chartTextColor;
-                chart.options.scales.x.grid.color = isDark ? '#374151' : '#e5e7eb';
-                chart.options.scales.y.grid.color = isDark ? '#374151' : '#e5e7eb';
-                chart.update();
-            });
+            // Update attempts chart colors
+            attemptsChart.data.datasets[0].backgroundColor = [
+                'rgb(56, 189, 248)',  // Bright blue
+                isDark ? 'rgb(51, 65, 85)' : 'rgb(229, 231, 235)'  // Dark/light background
+            ];
+            attemptsChart.update();
+
+            // Update usernames chart colors
+            usernamesChart.data.datasets[0].backgroundColor = 'rgb(56, 189, 248)';
+            usernamesChart.options.scales.x.ticks.color = chartTextColor;
+            usernamesChart.options.scales.y.ticks.color = chartTextColor;
+            usernamesChart.options.scales.x.grid.color = gridColor;
+            usernamesChart.options.scales.y.grid.color = gridColor;
+            usernamesChart.update();
         });
 
         // Modify map initialization
@@ -596,8 +604,8 @@
                     datasets: [{
                         data: [0, 100],
                         backgroundColor: [
-                            'rgb(75, 192, 192)',
-                            'rgb(229, 231, 235)'
+                            'rgb(56, 189, 248)', // Brighter blue for dark mode visibility
+                            'rgb(51, 65, 85)'    // Darker slate for background
                         ],
                         borderWidth: 0,
                         circumference: 180,
@@ -627,13 +635,18 @@
                         ctx.save();
                         
                         const total = attempts.length;
-                        ctx.font = 'bold 24px Arial';
-                        ctx.fillStyle = document.documentElement.classList.contains('dark') ? '#f3f4f6' : '#1f2937';
+                        const isDark = document.documentElement.classList.contains('dark');
+                        
+                        // Larger, bolder text for the number
+                        ctx.font = 'bold 28px Arial';
+                        ctx.fillStyle = isDark ? '#f3f4f6' : '#1f2937';
                         ctx.textAlign = 'center';
                         ctx.textBaseline = 'middle';
                         ctx.fillText(total.toString(), width / 2, height * 0.6);
                         
-                        ctx.font = '14px Arial';
+                        // Smaller text for the label
+                        ctx.font = '16px Arial';
+                        ctx.fillStyle = isDark ? '#94a3b8' : '#64748b'; // Softer color for label
                         ctx.fillText('Total Attempts', width / 2, height * 0.75);
                         
                         ctx.restore();
@@ -651,7 +664,8 @@
                     datasets: [{
                         label: 'Most Used Usernames',
                         data: [],
-                        backgroundColor: 'rgb(54, 162, 235)'
+                        backgroundColor: 'rgb(56, 189, 248)', // Brighter blue for dark mode visibility
+                        borderRadius: 4
                     }]
                 },
                 options: {
@@ -661,7 +675,19 @@
                         y: {
                             beginAtZero: true,
                             ticks: {
-                                stepSize: 1
+                                stepSize: 1,
+                                color: document.documentElement.classList.contains('dark') ? '#f3f4f6' : '#1f2937'
+                            },
+                            grid: {
+                                color: document.documentElement.classList.contains('dark') ? '#374151' : '#e5e7eb'
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                color: document.documentElement.classList.contains('dark') ? '#f3f4f6' : '#1f2937'
+                            },
+                            grid: {
+                                color: document.documentElement.classList.contains('dark') ? '#374151' : '#e5e7eb'
                             }
                         }
                     },
