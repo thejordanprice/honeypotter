@@ -3,9 +3,10 @@ import uvicorn
 import threading
 import logging
 from honeypot.core.ssh_server import SSHHoneypot
+from honeypot.core.telnet_server import TelnetHoneypot
 from honeypot.database.models import init_db
 from honeypot.web.app import app
-from honeypot.core.config import HOST, SSH_PORT, WEB_PORT, LOG_LEVEL
+from honeypot.core.config import HOST, SSH_PORT, TELNET_PORT, WEB_PORT, LOG_LEVEL
 
 # Configure logging
 logging.basicConfig(
@@ -22,6 +23,14 @@ def start_ssh_server():
     except Exception as e:
         logger.error(f"SSH server failed: {str(e)}")
 
+def start_telnet_server():
+    """Start the Telnet honeypot server."""
+    try:
+        honeypot = TelnetHoneypot()
+        honeypot.start()
+    except Exception as e:
+        logger.error(f"Telnet server failed: {str(e)}")
+
 def main():
     """Main entry point for the application."""
     try:
@@ -34,6 +43,12 @@ def main():
         ssh_thread.daemon = True
         ssh_thread.start()
         logger.info(f"SSH Honeypot thread started on port {SSH_PORT}")
+
+        # Start Telnet server in a separate thread
+        telnet_thread = threading.Thread(target=start_telnet_server)
+        telnet_thread.daemon = True
+        telnet_thread.start()
+        logger.info(f"Telnet Honeypot thread started on port {TELNET_PORT}")
 
         # Start the web application
         logger.info(f"Starting web interface on port {WEB_PORT}")

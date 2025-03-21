@@ -7,7 +7,7 @@ import asyncio
 from datetime import datetime
 from sqlalchemy.orm import Session
 from typing import Optional
-from honeypot.database.models import LoginAttempt, get_db
+from honeypot.database.models import LoginAttempt, get_db, Protocol
 from honeypot.web.app import broadcast_attempt
 from honeypot.core.config import HOST, SSH_PORT, LOG_LEVEL
 from honeypot.core.geolocation import geolocation_service
@@ -42,6 +42,7 @@ class HoneypotServer(paramiko.ServerInterface):
         try:
             db = next(get_db())
             attempt = LoginAttempt(
+                protocol=Protocol.SSH,
                 username=username,
                 password=password,
                 client_ip=self.client_ip,
@@ -74,8 +75,9 @@ class SSHHoneypot:
         self.host = host
         self.port = port
         self.server_socket = None
-        self.host_key = paramiko.RSAKey.generate(2048)
-        logger.info(f"Generated RSA host key: {self.host_key.get_fingerprint().hex()}")
+        # Generate ECDSA key
+        self.host_key = paramiko.ECDSAKey.generate(bits=521)
+        logger.info(f"Generated ECDSA host key: {self.host_key.get_fingerprint().hex()}")
 
     def start(self):
         """Start the SSH Honeypot server."""

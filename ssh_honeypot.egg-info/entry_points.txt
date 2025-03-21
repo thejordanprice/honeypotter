@@ -1,0 +1,3 @@
+[console_scripts]
+ssh-honeypot = honeypot.main:main
+
