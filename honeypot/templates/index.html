@@ -23,7 +23,7 @@
             font-size: 14px;
             line-height: 1.4;
         }
-        /* Dark mode styles */
+        /* Core dark mode theme configuration */
         .dark body { background-color: rgb(17, 24, 39); }
         .dark nav { background-color: rgb(31, 41, 55); }
         .dark h1, .dark h2 { color: rgb(255, 255, 255); }
@@ -33,11 +33,13 @@
         .dark .bg-gray-50 { background-color: rgb(55, 65, 81); }
         .dark .hover\:bg-gray-100:hover { background-color: rgb(75, 85, 99); }
         .dark .border-gray-200 { border-color: rgb(75, 85, 99); }
-        /* Base transitions for smooth theme switching */
+
+        /* Smooth transitions for theme switching */
         * {
             transition: background-color 0.3s ease, color 0.3s ease;
         }
-        /* Dark mode overrides */
+
+        /* Dark mode color scheme overrides */
         .dark body { 
             background-color: #1a1a1a;
             transition: background-color 0.3s ease;
@@ -75,17 +77,18 @@
             transition: background-color 0.3s ease;
         }
 
-        /* Fix for dark mode text and icons */
+        /* Dark mode text and interactive elements */
         .dark * { color: #f3f4f6; }
         .dark svg { color: #f3f4f6; }
         .dark a { color: #60a5fa; }
         .dark a:hover { color: #93c5fd; }
         .dark input::placeholder { color: #9ca3af; }
         
-        /* Preserve specific text colors */
+        /* Semantic color preservation */
         .dark .text-red-600 { color: #dc2626 !important; }
         .dark .text-green-600 { color: #059669 !important; }
         
+        /* Form elements dark mode styling */
         .dark input, 
         .dark select { 
             background-color: #3d3d3d !important;
@@ -106,12 +109,12 @@
             background-color: #4b5563 !important;
         }
 
-        /* Chart text color fix */
+        /* Chart component dark mode adjustments */
         .dark .chart-container {
             color: #f3f4f6;
         }
 
-        /* Exclude Leaflet controls from dark mode changes */
+        /* Leaflet map controls dark mode preservation */
         .dark .leaflet-control-zoom a,
         .dark .leaflet-control-zoom-in,
         .dark .leaflet-control-zoom-out,
@@ -135,11 +138,12 @@
             color: #0078A8 !important;
         }
 
+        /* Dark mode map tile styling */
         .dark-tiles {
             filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7);
         }
 
-        /* Mobile and tablet adjustments */
+        /* Responsive layout adjustments */
         @media (max-width: 768px) {
             .chart-container {
                 height: 250px;
@@ -158,20 +162,20 @@
                 max-width: 100%;
             }
 
-            /* Adjust chart text sizes */
+            /* Chart text size optimization for mobile */
             .chart-js-render-monitor {
                 font-size: 12px;
             }
         }
 
-        /* Custom breakpoint for small devices */
+        /* Small device breakpoint utilities */
         @media (min-width: 640px) {
             .sm\:inline {
                 display: inline;
             }
         }
 
-        /* Override dark mode for connection status */
+        /* Connection status indicator dark mode preservation */
         .dark #connectionStatusContainer,
         .dark #connectionStatus,
         .dark #connectionStatusIcon {
@@ -180,23 +184,24 @@
         }
 
         .dark #connectionStatusContainer.bg-red-100 {
-            background-color: rgb(254, 226, 226) !important; /* bg-red-100 */
+            background-color: rgb(254, 226, 226) !important;
         }
 
         .dark #connectionStatusContainer.bg-green-100 {
-            background-color: rgb(220, 252, 231) !important; /* bg-green-100 */
+            background-color: rgb(220, 252, 231) !important;
         }
 
         .dark #connectionStatus.text-red-600,
         .dark #connectionStatusIcon.text-red-600 {
-            color: rgb(220, 38, 38) !important; /* text-red-600 */
+            color: rgb(220, 38, 38) !important;
         }
 
         .dark #connectionStatus.text-green-600,
         .dark #connectionStatusIcon.text-green-600 {
-            color: rgb(5, 150, 105) !important; /* text-green-600 */
+            color: rgb(5, 150, 105) !important;
         }
 
+        /* Map popup dark mode styling */
         .dark .leaflet-popup-content-wrapper {
             background-color: #374151;
             color: #f3f4f6;
@@ -226,9 +231,8 @@
                 <div class="flex items-center">
                     <h1 class="text-xl font-semibold text-gray-800">SSH Honeypot</h1>
                     <div class="ml-4 px-3 py-1 rounded-full" id="connectionStatusContainer">
-                        <!-- Status text (hidden on mobile) -->
+                        <!-- Status elements for connection state display -->
                         <span id="connectionStatus" class="hidden sm:inline"></span>
-                        <!-- Status icon (shown on mobile) -->
                         <svg id="connectionStatusIcon" class="w-4 sm:hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M12 5l7 7-7 7"/>
                         </svg>
@@ -320,14 +324,14 @@
     </footer>
 
     <script>
-        // Check for saved theme preference or system preference
+        // Initialize theme based on user preference or system settings
         if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
             document.documentElement.classList.add('dark');
             document.getElementById('lightIcon').classList.remove('hidden');
             document.getElementById('darkIcon').classList.add('hidden');
         }
 
-        // Dark mode toggle functionality
+        // Handle dark mode toggle and update all UI components
         document.getElementById('darkModeToggle').addEventListener('click', () => {
             const isDark = document.documentElement.classList.toggle('dark');
             document.getElementById('lightIcon').classList.toggle('hidden');
@@ -366,7 +370,7 @@
             usernamesChart.update();
         });
 
-        // Modify map initialization
+        // Initialize map with light/dark theme support
         const map = L.map('map').setView([20, 0], 2);
         let currentTileLayer;
 
@@ -391,7 +395,7 @@
         // Initial theme setup
         setMapTheme(document.documentElement.classList.contains('dark'));
 
-        // Store markers
+        // Store map markers to prevent duplicate markers at same location
         const markers = new Map();
 
         function updateMap(attempt) {
@@ -509,8 +513,8 @@
         }
 
         function formatDateToLocalTime(isoString) {
-            // Parse the UTC timestamp and create a local date object
-            const date = new Date(isoString + 'Z'); // Append 'Z' to ensure UTC parsing if not present
+            // Ensure proper UTC timestamp parsing for consistent timezone handling
+            const date = new Date(isoString + 'Z');
             
             return date.toLocaleString(undefined, {
                 year: 'numeric',
@@ -643,7 +647,7 @@
             updateUI();
         });
 
-        // Initialize charts
+        // Initialize chart configurations with responsive design
         const attemptsChart = new Chart(
             document.getElementById('attemptsChart'),
             {
@@ -737,6 +741,7 @@
             }
         );
 
+        // Process and display hourly login attempt statistics
         function updateCharts() {
             if (attempts.length === 0) return;
 
@@ -789,7 +794,7 @@
             usernamesChart.update();
         }
 
-        // Start the WebSocket connection
+        // Initialize WebSocket connection for real-time updates
         connectWebSocket();
 
         // Expo
