@@ -633,15 +633,6 @@
         function updateCharts() {
             // Update attempts over time chart - show total attempts per day
             const dailyData = {};
-            attempts.forEach(attempt => {
-                const day = new Date(attempt.timestamp).toLocaleDateString('en-US', {
-                    month: 'short',
-                    day: 'numeric'
-                });
-                dailyData[day] = (dailyData[day] || 0) + 1;
-            });
-
-            // Convert to arrays and ensure we show the last 7 days
             const today = new Date();
             const last7Days = Array.from({length: 7}, (_, i) => {
                 const date = new Date(today);
@@ -652,7 +643,26 @@
                 });
             }).reverse();
 
-            const data = last7Days.map(day => dailyData[day] || 0);
+            // Initialize all days with 0
+            last7Days.forEach(day => {
+                dailyData[day] = 0;
+            });
+
+            // Count attempts for each day
+            attempts.forEach(attempt => {
+                const attemptDate = new Date(attempt.timestamp);
+                const day = attemptDate.toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric'
+                });
+                
+                // Only count if it's within the last 7 days
+                if (last7Days.includes(day)) {
+                    dailyData[day]++;
+                }
+            });
+
+            const data = last7Days.map(day => dailyData[day]);
 
             attemptsChart.data.labels = last7Days;
             attemptsChart.data.datasets[0] = {
@@ -663,7 +673,10 @@
                 fill: true,
                 tension: 0.4
             };
-            attemptsChart.options.scales.y.ticks.stepSize = Math.max(1, Math.ceil(Math.max(...data) / 5));
+            
+            // Adjust step size based on maximum value
+            const maxValue = Math.max(...data);
+            attemptsChart.options.scales.y.ticks.stepSize = Math.max(1, Math.ceil(maxValue / 5));
             attemptsChart.update();
 
             // Update username distribution chart
