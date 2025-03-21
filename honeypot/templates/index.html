@@ -369,10 +369,10 @@
             attemptsChart.options.scales.y.ticks.color = chartTextColor;
             attemptsChart.options.scales.x.grid.color = gridColor;
             attemptsChart.options.scales.y.grid.color = gridColor;
-            attemptsChart.data.datasets[0].backgroundColor = isDark ? 'rgba(96, 165, 250, 0.7)' : 'rgb(56, 189, 248)';
-            attemptsChart.data.datasets[1].backgroundColor = isDark ? 'rgba(59, 130, 246, 0.7)' : 'rgb(37, 99, 235)';
-            attemptsChart.data.datasets[2].backgroundColor = isDark ? 'rgba(16, 185, 129, 0.7)' : 'rgb(16, 185, 129)';
-            attemptsChart.options.plugins.legend.labels = { color: chartTextColor };
+            attemptsChart.data.datasets[0].borderColor = isDark ? 'rgba(96, 165, 250, 0.9)' : 'rgb(56, 189, 248)';
+            attemptsChart.data.datasets[1].borderColor = isDark ? 'rgba(59, 130, 246, 0.9)' : 'rgb(37, 99, 235)';
+            attemptsChart.data.datasets[2].borderColor = isDark ? 'rgba(16, 185, 129, 0.9)' : 'rgb(16, 185, 129)';
+            attemptsChart.options.plugins.legend.labels.color = chartTextColor;
             attemptsChart.update();
 
             // Update usernames chart colors
@@ -682,33 +682,45 @@
         const attemptsChart = new Chart(
             document.getElementById('attemptsChart'),
             {
-                type: 'bar',
+                type: 'line',
                 data: {
                     labels: [],
                     datasets: [
                         {
                             label: 'SSH',
                             data: [],
-                            backgroundColor: document.documentElement.classList.contains('dark') 
-                                ? 'rgba(96, 165, 250, 0.7)' // Light blue for dark mode
+                            borderColor: document.documentElement.classList.contains('dark') 
+                                ? 'rgba(96, 165, 250, 0.9)' // Light blue for dark mode
                                 : 'rgb(56, 189, 248)', // Sky blue for light mode
-                            borderRadius: 4
+                            backgroundColor: 'transparent',
+                            borderWidth: 2,
+                            pointRadius: 3,
+                            pointHoverRadius: 5,
+                            tension: 0.3
                         },
                         {
                             label: 'Telnet',
                             data: [],
-                            backgroundColor: document.documentElement.classList.contains('dark')
-                                ? 'rgba(59, 130, 246, 0.7)' // Darker blue for dark mode
+                            borderColor: document.documentElement.classList.contains('dark')
+                                ? 'rgba(59, 130, 246, 0.9)' // Darker blue for dark mode
                                 : 'rgb(37, 99, 235)', // Deep blue for light mode
-                            borderRadius: 4
+                            backgroundColor: 'transparent',
+                            borderWidth: 2,
+                            pointRadius: 3,
+                            pointHoverRadius: 5,
+                            tension: 0.3
                         },
                         {
                             label: 'FTP',
                             data: [],
-                            backgroundColor: document.documentElement.classList.contains('dark')
-                                ? 'rgba(16, 185, 129, 0.7)' // Green for dark mode
+                            borderColor: document.documentElement.classList.contains('dark')
+                                ? 'rgba(16, 185, 129, 0.9)' // Green for dark mode
                                 : 'rgb(16, 185, 129)', // Green for light mode
-                            borderRadius: 4
+                            backgroundColor: 'transparent',
+                            borderWidth: 2,
+                            pointRadius: 3,
+                            pointHoverRadius: 5,
+                            tension: 0.3
                         }
                     ]
                 },
@@ -718,7 +730,6 @@
                     scales: {
                         y: {
                             beginAtZero: true,
-                            stacked: true,
                             ticks: {
                                 stepSize: 1,
                                 color: document.documentElement.classList.contains('dark') ? '#f3f4f6' : '#1f2937'
@@ -728,7 +739,6 @@
                             }
                         },
                         x: {
-                            stacked: true,
                             ticks: {
                                 color: document.documentElement.classList.contains('dark') ? '#f3f4f6' : '#1f2937'
                             },
@@ -744,6 +754,10 @@
                         title: {
                             display: false
                         }
+                    },
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
                     }
                 }
             }
