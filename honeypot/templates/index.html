@@ -347,10 +347,12 @@
             const gridColor = isDark ? '#374151' : '#e5e7eb';
             
             // Update attempts chart colors
-            attemptsChart.data.datasets[0].backgroundColor = [
-                'rgb(56, 189, 248)',  // Bright blue
-                isDark ? 'rgb(51, 65, 85)' : 'rgb(229, 231, 235)'  // Dark/light background
-            ];
+            attemptsChart.options.scales.x.ticks.color = chartTextColor;
+            attemptsChart.options.scales.y.ticks.color = chartTextColor;
+            attemptsChart.options.scales.x.grid.color = gridColor;
+            attemptsChart.options.scales.y.grid.color = gridColor;
+            attemptsChart.data.datasets[0].borderColor = 'rgb(56, 189, 248)';
+            attemptsChart.data.datasets[0].backgroundColor = 'rgba(56, 189, 248, 0.1)';
             attemptsChart.update();
 
             // Update usernames chart colors
@@ -624,60 +626,47 @@
         const attemptsChart = new Chart(
             document.getElementById('attemptsChart'),
             {
-                type: 'doughnut',
+                type: 'line',
                 data: {
-                    labels: ['Attempts'],
+                    labels: [],
                     datasets: [{
-                        data: [0, 100],
-                        backgroundColor: [
-                            'rgb(56, 189, 248)', // Brighter blue for dark mode visibility
-                            'rgb(51, 65, 85)'    // Darker slate for background
-                        ],
-                        borderWidth: 0,
-                        circumference: 180,
-                        rotation: 270
+                        label: 'Login Attempts',
+                        data: [],
+                        borderColor: 'rgb(56, 189, 248)',
+                        backgroundColor: 'rgba(56, 189, 248, 0.1)',
+                        fill: true,
+                        tension: 0.4
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    cutout: '75%',
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1,
+                                color: document.documentElement.classList.contains('dark') ? '#f3f4f6' : '#1f2937'
+                            },
+                            grid: {
+                                color: document.documentElement.classList.contains('dark') ? '#374151' : '#e5e7eb'
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                color: document.documentElement.classList.contains('dark') ? '#f3f4f6' : '#1f2937'
+                            },
+                            grid: {
+                                color: document.documentElement.classList.contains('dark') ? '#374151' : '#e5e7eb'
+                            }
+                        }
+                    },
                     plugins: {
                         legend: {
                             display: false
-                        },
-                        tooltip: {
-                            enabled: false
-                        },
-                        datalabels: {
-                            display: false
                         }
                     }
-                },
-                plugins: [{
-                    id: 'gaugeText',
-                    afterDraw: (chart) => {
-                        const { ctx, data, chartArea: { width, height } } = chart;
-                        ctx.save();
-                        
-                        const total = attempts.length;
-                        const isDark = document.documentElement.classList.contains('dark');
-                        
-                        // Larger, bolder text for the number
-                        ctx.font = 'bold 28px Arial';
-                        ctx.fillStyle = isDark ? '#f3f4f6' : '#1f2937';
-                        ctx.textAlign = 'center';
-                        ctx.textBaseline = 'middle';
-                        ctx.fillText(total.toString(), width / 2, height * 0.6);
-                        
-                        // Smaller text for the label
-                        ctx.font = '16px Arial';
-                        ctx.fillStyle = isDark ? '#94a3b8' : '#64748b'; // Softer color for label
-                        ctx.fillText('Total Attempts', width / 2, height * 0.75);
-                        
-                        ctx.restore();
-                    }
-                }]
+                }
             }
         );
 
@@ -727,11 +716,64 @@
         );
 
         function updateCharts() {
-            // Update gauge chart
-            const total = attempts.length;
-            const maxValue = Math.max(100, total);
+            console.log('Starting updateCharts...');
+            console.log('Total attempts:', attempts.length);
+
+            // Create a map for the last 24 hours with 0 counts
+            const hourCounts = {};
+            const now = new Date();
+            const serverTimeOffset = 4; // Adjust this based on the difference between local and server time
             
-            attemptsChart.data.datasets[0].data = [total, maxValue - total];
+            // Initialize the last 24 hours with 0 counts, starting from current local time
+            for (let i = 23; i >= 0; i--) {
+                const date = new Date(now - i * 60 * 60 * 1000);
+                const localHour = date.getHours();
+                const ampm = localHour >= 12 ? 'PM' : 'AM';
+                const displayHour = localHour % 12 || 12;
+                const label = `${displayHour}${ampm}`;
+                hourCounts[label] = 0;
+            }
+
+            console.log('Initial hour counts:', hourCounts);
+
+            // Count attempts by hour, adjusting for server time
+            attempts.forEach(attempt => {
+                const serverDate = new Date(attempt.timestamp);
+                // Adjust server time to local time
+                const localDate = new Date(serverDate.getTime() - serverTimeOffset * 60 * 60 * 1000);
+                const localHour = localDate.getHours();
+                const ampm = localHour >= 12 ? 'PM' : 'AM';
+                const displayHour = localHour % 12 || 12;
+                const label = `${displayHour}${ampm}`;
+                
+                console.log('Processing attempt:', {
+                    serverTimestamp: attempt.timestamp,
+                    localTime: localDate.toLocaleString(),
+                    label: label
+                });
+
+                if (hourCounts.hasOwnProperty(label)) {
+                    hourCounts[label]++;
+                }
+            });
+
+            console.log('Final hour counts:', hourCounts);
+
+            // Convert to arrays and maintain chronological order
+            const sortedLabels = Object.keys(hourCounts).sort((a, b) => {
+                const hourA = parseInt(a.replace(/[AP]M/, ''));
+                const hourB = parseInt(b.replace(/[AP]M/, ''));
+                const isAM_A = a.includes('AM');
+                const isAM_B = b.includes('AM');
+                
+                if (isAM_A && !isAM_B) return -1;
+                if (!isAM_A && isAM_B) return 1;
+                return hourA - hourB;
+            });
+
+            // Update the attempts chart
+            attemptsChart.data.labels = sortedLabels;
+            attemptsChart.data.datasets[0].data = sortedLabels.map(label => hourCounts[label]);
             attemptsChart.update();
 
             // Update username distribution chart
