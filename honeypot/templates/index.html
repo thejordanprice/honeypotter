@@ -568,33 +568,55 @@
         const attemptsChart = new Chart(
             document.getElementById('attemptsChart'),
             {
-                type: 'line',
+                type: 'doughnut',
                 data: {
-                    labels: [],
+                    labels: ['Attempts'],
                     datasets: [{
-                        label: 'Login Attempts',
-                        data: [],
-                        borderColor: 'rgb(75, 192, 192)',
-                        tension: 0.1
+                        data: [0, 100],
+                        backgroundColor: [
+                            'rgb(75, 192, 192)',
+                            'rgb(229, 231, 235)'
+                        ],
+                        borderWidth: 0,
+                        circumference: 180,
+                        rotation: 270
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                stepSize: 1
-                            }
-                        }
-                    },
+                    cutout: '75%',
                     plugins: {
                         legend: {
                             display: false
+                        },
+                        tooltip: {
+                            enabled: false
+                        },
+                        datalabels: {
+                            display: false
                         }
                     }
-                }
+                },
+                plugins: [{
+                    id: 'gaugeText',
+                    afterDraw: (chart) => {
+                        const { ctx, data, chartArea: { width, height } } = chart;
+                        ctx.save();
+                        
+                        const total = attempts.length;
+                        ctx.font = 'bold 24px Arial';
+                        ctx.fillStyle = document.documentElement.classList.contains('dark') ? '#f3f4f6' : '#1f2937';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(total.toString(), width / 2, height * 0.6);
+                        
+                        ctx.font = '14px Arial';
+                        ctx.fillText('Total Attempts', width / 2, height * 0.75);
+                        
+                        ctx.restore();
+                    }
+                }]
             }
         );
 
@@ -631,52 +653,11 @@
         );
 
         function updateCharts() {
-            // Update attempts over time chart - show total attempts per day
-            const dailyData = {};
-            const today = new Date();
-            const last7Days = Array.from({length: 7}, (_, i) => {
-                const date = new Date(today);
-                date.setDate(date.getDate() - i);
-                return date.toLocaleDateString('en-US', {
-                    month: 'short',
-                    day: 'numeric'
-                });
-            }).reverse();
-
-            // Initialize all days with 0
-            last7Days.forEach(day => {
-                dailyData[day] = 0;
-            });
-
-            // Count attempts for each day
-            attempts.forEach(attempt => {
-                const attemptDate = new Date(attempt.timestamp);
-                const day = attemptDate.toLocaleDateString('en-US', {
-                    month: 'short',
-                    day: 'numeric'
-                });
-                
-                // Only count if it's within the last 7 days
-                if (last7Days.includes(day)) {
-                    dailyData[day]++;
-                }
-            });
-
-            const data = last7Days.map(day => dailyData[day]);
-
-            attemptsChart.data.labels = last7Days;
-            attemptsChart.data.datasets[0] = {
-                label: 'Total Attempts',
-                data: data,
-                borderColor: 'rgb(75, 192, 192)',
-                backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                fill: true,
-                tension: 0.4
-            };
+            // Update gauge chart
+            const total = attempts.length;
+            const maxValue = Math.max(100, total);
             
-            // Adjust step size based on maximum value
-            const maxValue = Math.max(...data);
-            attemptsChart.options.scales.y.ticks.stepSize = Math.max(1, Math.ceil(maxValue / 5));
+            attemptsChart.data.datasets[0].data = [total, maxValue - total];
             attemptsChart.update();
 
             // Update username distribution chart
