@@ -421,8 +421,8 @@
             attemptsChart.options.scales.x.grid.color = gridColor;
             attemptsChart.options.scales.y.grid.color = gridColor;
             attemptsChart.options.plugins.legend.labels.color = chartTextColor;
-            attemptsChart.data.datasets[0].borderColor = isDark ? '#3b82f6' : '#2563eb';
-            attemptsChart.data.datasets[1].borderColor = isDark ? '#8b5cf6' : '#6d28d9';
+            attemptsChart.data.datasets[0].borderColor = isDark ? '#8b5cf6' : '#6d28d9';
+            attemptsChart.data.datasets[1].borderColor = isDark ? '#3b82f6' : '#2563eb';
             attemptsChart.data.datasets[2].borderColor = isDark ? '#10b981' : '#059669';
             attemptsChart.update();
 
@@ -432,8 +432,8 @@
             usernamesChart.options.scales.x.grid.color = gridColor;
             usernamesChart.options.scales.y.grid.color = gridColor;
             usernamesChart.options.plugins.legend.labels.color = chartTextColor;
-            usernamesChart.data.datasets[0].backgroundColor = isDark ? 'rgba(59, 130, 246, 0.8)' : 'rgba(37, 99, 235, 0.8)';
-            usernamesChart.data.datasets[1].backgroundColor = isDark ? 'rgba(139, 92, 246, 0.8)' : 'rgba(109, 40, 217, 0.8)';
+            usernamesChart.data.datasets[0].backgroundColor = isDark ? 'rgba(139, 92, 246, 0.8)' : 'rgba(109, 40, 217, 0.8)';
+            usernamesChart.data.datasets[1].backgroundColor = isDark ? 'rgba(59, 130, 246, 0.8)' : 'rgba(37, 99, 235, 0.8)';
             usernamesChart.data.datasets[2].backgroundColor = isDark ? 'rgba(16, 185, 129, 0.8)' : 'rgba(5, 150, 105, 0.8)';
             usernamesChart.update();
         });
@@ -730,8 +730,8 @@
                             label: 'SSH',
                             data: [],
                             borderColor: document.documentElement.classList.contains('dark') 
-                                ? '#3b82f6'  // Blue for dark mode
-                                : '#2563eb',  // Darker blue for light mode
+                                ? '#8b5cf6'  // Purple for dark mode
+                                : '#6d28d9',  // Darker purple for light mode
                             backgroundColor: 'transparent',
                             borderWidth: 2,
                             pointRadius: 3,
@@ -742,8 +742,8 @@
                             label: 'Telnet',
                             data: [],
                             borderColor: document.documentElement.classList.contains('dark')
-                                ? '#8b5cf6'  // Purple for dark mode
-                                : '#6d28d9',  // Darker purple for light mode
+                                ? '#3b82f6'  // Blue for dark mode
+                                : '#2563eb',  // Darker blue for light mode
                             backgroundColor: 'transparent',
                             borderWidth: 2,
                             pointRadius: 3,
@@ -818,16 +818,16 @@
                             label: 'SSH',
                             data: [],
                             backgroundColor: document.documentElement.classList.contains('dark')
-                                ? 'rgba(59, 130, 246, 0.8)'  // Blue with opacity for dark mode
-                                : 'rgba(37, 99, 235, 0.8)',  // Darker blue with opacity for light mode
+                                ? 'rgba(139, 92, 246, 0.8)'   // Purple with opacity for dark mode
+                                : 'rgba(109, 40, 217, 0.8)',  // Darker purple with opacity for light mode
                             borderRadius: 4
                         },
                         {
                             label: 'Telnet',
                             data: [],
                             backgroundColor: document.documentElement.classList.contains('dark')
-                                ? 'rgba(139, 92, 246, 0.8)'   // Purple with opacity for dark mode
-                                : 'rgba(109, 40, 217, 0.8)',  // Darker purple with opacity for light mode
+                                ? 'rgba(59, 130, 246, 0.8)'  // Blue with opacity for dark mode
+                                : 'rgba(37, 99, 235, 0.8)',  // Darker blue with opacity for light mode
                             borderRadius: 4
                         },
                         {
