@@ -151,8 +151,13 @@
             <div class="flex justify-between items-center h-16">
                 <div class="flex items-center">
                     <h1 class="text-lg md:text-xl font-semibold text-gray-800">SSH Honeypot</h1>
-                    <div class="ml-2 md:ml-4 px-2 md:px-3 py-1 rounded-full hidden sm:block" id="connectionStatusContainer">
-                        <span id="connectionStatus" class="text-xs md:text-sm"></span>
+                    <div class="ml-2 md:ml-4 px-2 md:px-3 py-1 rounded-full" id="connectionStatusContainer">
+                        <!-- Status text (hidden on mobile) -->
+                        <span id="connectionStatus" class="hidden sm:inline text-xs md:text-sm"></span>
+                        <!-- Status icon (shown on mobile) -->
+                        <svg id="connectionStatusIcon" class="w-4 h-4 sm:hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M12 5l7 7-7 7"/>
+                        </svg>
                     </div>
                 </div>
                 <div class="flex items-center gap-2 md:gap-4">
@@ -336,9 +341,23 @@
 
         function updateConnectionStatus(status, isError = false) {
             const container = document.getElementById('connectionStatusContainer');
-            connectionStatus.textContent = status;
-            container.className = `ml-4 px-3 py-1 rounded-full hidden sm:block ${isError ? 'bg-red-100' : 'bg-green-100'}`;
-            connectionStatus.className = `text-sm ${isError ? 'text-red-600' : 'text-green-600'}`;
+            const statusText = document.getElementById('connectionStatus');
+            const statusIcon = document.getElementById('connectionStatusIcon');
+            
+            statusText.textContent = status;
+            container.className = `ml-2 md:ml-4 px-2 md:px-3 py-1 rounded-full ${isError ? 'bg-red-100' : 'bg-green-100'}`;
+            statusText.className = `hidden sm:inline text-xs md:text-sm ${isError ? 'text-red-600' : 'text-green-600'}`;
+            
+            // Update icon color and path for different states
+            statusIcon.className = `w-4 h-4 sm:hidden ${isError ? 'text-red-600' : 'text-green-600'}`;
+            
+            if (status.includes('Connected')) {
+                statusIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>';
+            } else if (status.includes('Connecting')) {
+                statusIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>';
+            } else {
+                statusIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>';
+            }
         }
 
         function connectWebSocket() {
