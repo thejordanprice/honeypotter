@@ -8,6 +8,22 @@ from honeypot.core.config import HOST, SSH_PORT
 
 logger = logging.getLogger(__name__)
 
+# Configure Paramiko logger to be less verbose
+paramiko_logger = logging.getLogger("paramiko")
+paramiko_logger.setLevel(logging.WARNING)  # Set base level
+# Create a filter for common non-critical errors
+class ParamikoFilter(logging.Filter):
+    def filter(self, record):
+        # Filter out common scanner/timeout related errors
+        if "Error reading SSH protocol banner" in record.getMessage():
+            return False
+        if "EOFError" in record.getMessage():
+            return False
+        if "Incompatible ssh peer" in record.getMessage():
+            return False
+        return True
+paramiko_logger.addFilter(ParamikoFilter())
+
 class HoneypotServerInterface(paramiko.ServerInterface):
     """SSH server interface implementation."""
     
