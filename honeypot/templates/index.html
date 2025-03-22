@@ -423,6 +423,7 @@
                                 <option value="ssh">SSH Only</option>
                                 <option value="telnet">Telnet Only</option>
                                 <option value="ftp">FTP Only</option>
+                                <option value="smtp">SMTP Only</option>
                             </select>
                         </div>
                     </div>
@@ -495,6 +496,7 @@
             attemptsChart.data.datasets[0].borderColor = isDark ? '#8b5cf6' : '#6d28d9';
             attemptsChart.data.datasets[1].borderColor = isDark ? '#3b82f6' : '#2563eb';
             attemptsChart.data.datasets[2].borderColor = isDark ? '#10b981' : '#059669';
+            attemptsChart.data.datasets[3].borderColor = isDark ? '#f59e0b' : '#d97706';
             attemptsChart.update();
 
             // Update usernames chart colors
@@ -506,6 +508,7 @@
             usernamesChart.data.datasets[0].backgroundColor = isDark ? 'rgba(139, 92, 246, 0.8)' : 'rgba(109, 40, 217, 0.8)';
             usernamesChart.data.datasets[1].backgroundColor = isDark ? 'rgba(59, 130, 246, 0.8)' : 'rgba(37, 99, 235, 0.8)';
             usernamesChart.data.datasets[2].backgroundColor = isDark ? 'rgba(16, 185, 129, 0.8)' : 'rgba(5, 150, 105, 0.8)';
+            usernamesChart.data.datasets[3].backgroundColor = isDark ? 'rgba(245, 158, 11, 0.8)' : 'rgba(217, 119, 6, 0.8)';
             usernamesChart.update();
         });
 
@@ -957,6 +960,7 @@
             let sshData = [];
             let telnetData = [];
             let ftpData = [];
+            let smtpData = [];
 
             // Function to format hour with AM/PM
             const formatHour = (hour) => {
@@ -993,6 +997,7 @@
                 sshData = new Array(intervals).fill(0);
                 telnetData = new Array(intervals).fill(0);
                 ftpData = new Array(intervals).fill(0);
+                smtpData = new Array(intervals).fill(0);
 
                 sortedAttempts.forEach(attempt => {
                     const date = new Date(attempt.timestamp + 'Z');
@@ -1003,6 +1008,7 @@
                             if (attempt.protocol === 'ssh') sshData[intervalIndex]++;
                             else if (attempt.protocol === 'telnet') telnetData[intervalIndex]++;
                             else if (attempt.protocol === 'ftp') ftpData[intervalIndex]++;
+                            else if (attempt.protocol === 'smtp') smtpData[intervalIndex]++;
                         }
                     }
                 });
@@ -1014,6 +1020,7 @@
                 sshData = new Array(currentHour + 1).fill(0);
                 telnetData = new Array(currentHour + 1).fill(0);
                 ftpData = new Array(currentHour + 1).fill(0);
+                smtpData = new Array(currentHour + 1).fill(0);
 
                 sortedAttempts.forEach(attempt => {
                     const date = new Date(attempt.timestamp + 'Z');
@@ -1022,6 +1029,7 @@
                         if (attempt.protocol === 'ssh') sshData[hour]++;
                         else if (attempt.protocol === 'telnet') telnetData[hour]++;
                         else if (attempt.protocol === 'ftp') ftpData[hour]++;
+                        else if (attempt.protocol === 'smtp') smtpData[hour]++;
                     }
                 });
             } else if (filterValue === 'thisWeek') {
@@ -1035,6 +1043,7 @@
                 sshData = new Array(7).fill(0);
                 telnetData = new Array(7).fill(0);
                 ftpData = new Array(7).fill(0);
+                smtpData = new Array(7).fill(0);
 
                 sortedAttempts.forEach(attempt => {
                     const date = new Date(attempt.timestamp + 'Z');
@@ -1044,6 +1053,7 @@
                         if (attempt.protocol === 'ssh') sshData[dayIndex]++;
                         else if (attempt.protocol === 'telnet') telnetData[dayIndex]++;
                         else if (attempt.protocol === 'ftp') ftpData[dayIndex]++;
+                        else if (attempt.protocol === 'smtp') smtpData[dayIndex]++;
                     }
                 });
             } else {
@@ -1071,6 +1081,7 @@
                     sshData = new Array(hoursToShow).fill(0);
                     telnetData = new Array(hoursToShow).fill(0);
                     ftpData = new Array(hoursToShow).fill(0);
+                    smtpData = new Array(hoursToShow).fill(0);
 
                     sortedAttempts.forEach(attempt => {
                         const date = new Date(attempt.timestamp + 'Z');
@@ -1083,6 +1094,7 @@
                             if (attempt.protocol === 'ssh') sshData[index]++;
                             else if (attempt.protocol === 'telnet') telnetData[index]++;
                             else if (attempt.protocol === 'ftp') ftpData[index]++;
+                            else if (attempt.protocol === 'smtp') smtpData[index]++;
                         }
                     });
                 } else if (hoursDiff < 168) { // Less than 7 days
@@ -1097,6 +1109,7 @@
                     sshData = new Array(days).fill(0);
                     telnetData = new Array(days).fill(0);
                     ftpData = new Array(days).fill(0);
+                    smtpData = new Array(days).fill(0);
 
                     sortedAttempts.forEach(attempt => {
                         const date = new Date(attempt.timestamp + 'Z');
@@ -1105,6 +1118,7 @@
                             if (attempt.protocol === 'ssh') sshData[dayIndex]++;
                             else if (attempt.protocol === 'telnet') telnetData[dayIndex]++;
                             else if (attempt.protocol === 'ftp') ftpData[dayIndex]++;
+                            else if (attempt.protocol === 'smtp') smtpData[dayIndex]++;
                         }
                     });
                 } else {
@@ -1119,6 +1133,7 @@
                     sshData = new Array(daysDiff + 1).fill(0);
                     telnetData = new Array(daysDiff + 1).fill(0);
                     ftpData = new Array(daysDiff + 1).fill(0);
+                    smtpData = new Array(daysDiff + 1).fill(0);
 
                     sortedAttempts.forEach(attempt => {
                         const date = new Date(attempt.timestamp + 'Z');
@@ -1128,6 +1143,7 @@
                             if (attempt.protocol === 'ssh') sshData[dayIndex]++;
                             else if (attempt.protocol === 'telnet') telnetData[dayIndex]++;
                             else if (attempt.protocol === 'ftp') ftpData[dayIndex]++;
+                            else if (attempt.protocol === 'smtp') smtpData[dayIndex]++;
                         }
                     });
                 }
@@ -1138,13 +1154,14 @@
             attemptsChart.data.datasets[0].data = sshData;
             attemptsChart.data.datasets[1].data = telnetData;
             attemptsChart.data.datasets[2].data = ftpData;
+            attemptsChart.data.datasets[3].data = smtpData;
             attemptsChart.update();
 
             // Update username distribution chart
             const usernameData = {};
             filteredAttempts.forEach(attempt => {
                 if (!usernameData[attempt.username]) {
-                    usernameData[attempt.username] = { ssh: 0, telnet: 0, ftp: 0 };
+                    usernameData[attempt.username] = { ssh: 0, telnet: 0, ftp: 0, smtp: 0 };
                 }
                 if (attempt.protocol === 'ssh') {
                     usernameData[attempt.username].ssh++;
@@ -1152,17 +1169,20 @@
                     usernameData[attempt.username].telnet++;
                 } else if (attempt.protocol === 'ftp') {
                     usernameData[attempt.username].ftp++;
+                } else if (attempt.protocol === 'smtp') {
+                    usernameData[attempt.username].smtp++;
                 }
             });
 
             const topUsernames = Object.entries(usernameData)
-                .sort((a, b) => (b[1].ssh + b[1].telnet + b[1].ftp) - (a[1].ssh + a[1].telnet + a[1].ftp))
+                .sort((a, b) => (b[1].ssh + b[1].telnet + b[1].ftp + b[1].smtp) - (a[1].ssh + a[1].telnet + a[1].ftp + a[1].smtp))
                 .slice(0, 5);
 
             usernamesChart.data.labels = topUsernames.map(([username]) => username);
             usernamesChart.data.datasets[0].data = topUsernames.map(([, counts]) => counts.ssh);
             usernamesChart.data.datasets[1].data = topUsernames.map(([, counts]) => counts.telnet);
             usernamesChart.data.datasets[2].data = topUsernames.map(([, counts]) => counts.ftp);
+            usernamesChart.data.datasets[3].data = topUsernames.map(([, counts]) => counts.smtp);
             usernamesChart.update();
         }
 
@@ -1237,6 +1257,18 @@
                             borderColor: document.documentElement.classList.contains('dark')
                                 ? '#10b981'  // Green for dark mode
                                 : '#059669',  // Darker green for light mode
+                            backgroundColor: 'transparent',
+                            borderWidth: 2,
+                            pointRadius: 3,
+                            pointHoverRadius: 5,
+                            tension: 0.3
+                        },
+                        {
+                            label: 'SMTP',
+                            data: [],
+                            borderColor: document.documentElement.classList.contains('dark')
+                                ? '#f59e0b'  // Amber for dark mode
+                                : '#d97706',  // Darker amber for light mode
                             backgroundColor: 'transparent',
                             borderWidth: 2,
                             pointRadius: 3,
@@ -1317,6 +1349,14 @@
                             backgroundColor: document.documentElement.classList.contains('dark')
                                 ? 'rgba(16, 185, 129, 0.8)'  // Green with opacity for dark mode
                                 : 'rgba(5, 150, 105, 0.8)',  // Darker green with opacity for light mode
+                            borderRadius: 4
+                        },
+                        {
+                            label: 'SMTP',
+                            data: [],
+                            backgroundColor: document.documentElement.classList.contains('dark')
+                                ? 'rgba(245, 158, 11, 0.8)'  // Amber with opacity for dark mode
+                                : 'rgba(217, 119, 6, 0.8)',  // Darker amber with opacity for light mode
                             borderRadius: 4
                         }
                     ]

@@ -71,3 +71,13 @@
 2025-03-22 13:51:44,526 - uvicorn.error - INFO - connection open
 2025-03-22 13:51:44,544 - uvicorn.access - INFO - 127.0.0.1:54425 - "GET /api/attempts HTTP/1.1" 200
 2025-03-22 13:52:04,506 - honeypot.core.base_server - INFO - SMTP login attempt from 127.0.0.1: Username: username, Password: password
+2025-03-22 13:56:02,835 - uvicorn.error - INFO - connection closed
+2025-03-22 13:56:02,852 - uvicorn.access - INFO - 127.0.0.1:54514 - "GET / HTTP/1.1" 200
+2025-03-22 13:56:02,937 - uvicorn.error - INFO - ('127.0.0.1', 54515) - "WebSocket /ws" [accepted]
+2025-03-22 13:56:02,937 - uvicorn.error - INFO - connection open
+2025-03-22 13:56:02,945 - uvicorn.access - INFO - 127.0.0.1:54514 - "GET /api/attempts HTTP/1.1" 200
+2025-03-22 13:56:39,501 - uvicorn.error - INFO - connection closed
+2025-03-22 13:56:39,516 - uvicorn.access - INFO - 127.0.0.1:54528 - "GET / HTTP/1.1" 200
+2025-03-22 13:56:39,573 - uvicorn.error - INFO - ('127.0.0.1', 54529) - "WebSocket /ws" [accepted]
+2025-03-22 13:56:39,573 - uvicorn.error - INFO - connection open
+2025-03-22 13:56:39,582 - uvicorn.access - INFO - 127.0.0.1:54528 - "GET /api/attempts HTTP/1.1" 200
