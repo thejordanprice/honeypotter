@@ -1,20 +1,33 @@
-"""Main entry point for the SSH Honeypot application."""
 import uvicorn
 import threading
 import logging
+import os
 from honeypot.core.ssh_server import SSHHoneypot
 from honeypot.core.telnet_server import TelnetHoneypot
 from honeypot.core.ftp_server import FTPHoneypot
 from honeypot.database.models import init_db
 from honeypot.web.app import app
-from honeypot.core.config import HOST, SSH_PORT, TELNET_PORT, FTP_PORT, WEB_PORT, LOG_LEVEL
-
-# Configure logging
-logging.basicConfig(
-    level=getattr(logging, LOG_LEVEL),
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+from honeypot.core.config import (
+    HOST, SSH_PORT, TELNET_PORT, FTP_PORT, WEB_PORT, 
+    LOG_LEVEL, LOG_FILE
 )
-logger = logging.getLogger(__name__)
+
+def setup_logging():
+    """Configure logging for the application."""
+    # Create log directory if it doesn't exist
+    log_dir = os.path.dirname(LOG_FILE)
+    if log_dir and not os.path.exists(log_dir):
+        os.makedirs(log_dir)
+
+    # Configure logging
+    logging.basicConfig(
+        level=getattr(logging, LOG_LEVEL),
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.FileHandler(LOG_FILE),
+            logging.StreamHandler()  # Also log to console
+        ]
+    )
 
 def start_ssh_server():
     """Start the SSH honeypot server."""
@@ -43,6 +56,10 @@ def start_ftp_server():
 def main():
     """Main entry point for the application."""
     try:
+        # Set up logging first
+        setup_logging()
+        logger = logging.getLogger(__name__)
+        
         # Initialize the database
         init_db()
         logger.info("Database initialized successfully")

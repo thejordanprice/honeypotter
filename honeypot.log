@@ -1,0 +1,25 @@
+2025-03-22 12:17:01,389 - __main__ - INFO - Database initialized successfully
+2025-03-22 12:17:01,389 - honeypot.core.ssh_server - INFO - Generated ECDSA host key: 548640259ea700d41e64d879933ef8f5
+2025-03-22 12:17:01,389 - __main__ - INFO - SSH Honeypot thread started on port 2222
+2025-03-22 12:17:01,390 - __main__ - INFO - Telnet Honeypot thread started on port 2323
+2025-03-22 12:17:01,390 - honeypot.core.base_server - INFO - TELNET Honeypot listening on 127.0.0.1:2323
+2025-03-22 12:17:01,390 - honeypot.core.base_server - INFO - SSH Honeypot listening on 127.0.0.1:2222
+2025-03-22 12:17:01,390 - __main__ - INFO - FTP Honeypot thread started on port 2121
+2025-03-22 12:17:01,390 - honeypot.core.base_server - INFO - FTP Honeypot listening on 127.0.0.1:2121
+2025-03-22 12:17:01,390 - __main__ - INFO - Starting web interface on port 8080
+2025-03-22 12:17:29,889 - honeypot.core.base_server - INFO - TELNET login attempt from 127.0.0.1: Username: whoah, Password: buddy
+2025-03-22 12:18:10,816 - __main__ - INFO - Database initialized successfully
+2025-03-22 12:18:10,816 - honeypot.core.ssh_server - INFO - Generated ECDSA host key: bca4aa9284aa1dc9943c728cc9368665
+2025-03-22 12:18:10,816 - __main__ - INFO - SSH Honeypot thread started on port 2222
+2025-03-22 12:18:10,817 - honeypot.core.base_server - ERROR - Failed to start SSH Honeypot: [Errno 48] Address already in use
+2025-03-22 12:18:10,817 - __main__ - INFO - Telnet Honeypot thread started on port 2323
+2025-03-22 12:18:10,817 - honeypot.core.base_server - ERROR - Failed to start TELNET Honeypot: [Errno 48] Address already in use
+2025-03-22 12:18:10,817 - honeypot.core.base_server - ERROR - Failed to start FTP Honeypot: [Errno 48] Address already in use
+2025-03-22 12:18:10,817 - __main__ - INFO - FTP Honeypot thread started on port 2121
+2025-03-22 12:18:10,817 - __main__ - INFO - Starting web interface on port 8080
+2025-03-22 12:18:22,816 - paramiko.transport - INFO - Connected (version 2.0, client OpenSSH_9.8)
+2025-03-22 12:18:23,962 - paramiko.transport - INFO - Auth rejected (none).
+2025-03-22 12:18:27,486 - honeypot.core.base_server - INFO - SSH login attempt from 127.0.0.1: Username: root, Password: whoahthere
+2025-03-22 12:18:27,493 - paramiko.transport - INFO - Auth granted (password).
+2025-03-22 12:18:27,494 - paramiko.transport - INFO - Disconnect (code 11): disconnected by user
+2025-03-22 12:19:03,359 - honeypot.core.base_server - INFO - FTP login attempt from 127.0.0.1: Username: root, Password: whoahthere
