@@ -1455,196 +1455,81 @@
                     }
                 });
             } else {
-                // All time - dynamically adjust time frame based on data span
+                // All time - show all data with appropriate intervals
                 const oldestDate = sortedAttempts.length > 0 ? 
                     new Date(sortedAttempts[0].timestamp + 'Z') : now;
                 const newestDate = sortedAttempts.length > 0 ?
                     new Date(sortedAttempts[sortedAttempts.length - 1].timestamp + 'Z') : now;
                 
-                // Ensure we include the current hour in our calculations
+                // Ensure we include the current time in our calculations
                 const endDate = new Date(Math.max(newestDate.getTime(), now.getTime()));
                 const startDate = new Date(oldestDate);
                 
-                // Calculate differences using the adjusted end date
-                const hoursDiff = Math.ceil((endDate - startDate) / (1000 * 60 * 60));
-                const daysDiff = Math.ceil(hoursDiff / 24);
-                
-                // Choose appropriate time frame based on data span
-                if (hoursDiff <= 24) {  // Less than 24 hours - show hourly intervals
-                    // Round start date down to the nearest hour
-                    startDate.setUTCMinutes(0, 0, 0);
-                    // Round end date up to the nearest hour and add 1 hour to include current
-                    endDate.setUTCMinutes(59, 59, 999);
-                    const hoursToShow = Math.max(Math.ceil((endDate - startDate) / (1000 * 60 * 60)), 6);
-                    
-                    timeLabels = Array.from({length: hoursToShow}, (_, i) => {
-                        const date = new Date(startDate);
-                        date.setUTCHours(date.getUTCHours() + i);
-                        return date.toLocaleString(undefined, {
-                            hour: 'numeric',
-                            minute: '2-digit',
-                            hour12: true
-                        });
-                    });
-                    
-                    sshData = new Array(hoursToShow).fill(0);
-                    telnetData = new Array(hoursToShow).fill(0);
-                    ftpData = new Array(hoursToShow).fill(0);
-                    smtpData = new Array(hoursToShow).fill(0);
-                    rdpData = new Array(hoursToShow).fill(0);
+                // Calculate total time span
+                const totalHoursDiff = Math.ceil((endDate - startDate) / (1000 * 60 * 60));
+                const totalDaysDiff = Math.ceil(totalHoursDiff / 24);
 
-                    sortedAttempts.forEach(attempt => {
-                        const date = new Date(attempt.timestamp + 'Z');
-                        const hourIndex = Math.floor((date - startDate) / (1000 * 60 * 60));
-                        if (hourIndex >= 0 && hourIndex < hoursToShow) {
-                            if (attempt.protocol === 'ssh') sshData[hourIndex]++;
-                            else if (attempt.protocol === 'telnet') telnetData[hourIndex]++;
-                            else if (attempt.protocol === 'ftp') ftpData[hourIndex]++;
-                            else if (attempt.protocol === 'smtp') smtpData[hourIndex]++;
-                            else if (attempt.protocol === 'rdp') rdpData[hourIndex]++;
-                        }
-                    });
-                } else if (daysDiff <= 7) {  // Less than 7 days - show 3-hour intervals
-                    // Round start date down to nearest 3-hour interval
-                    startDate.setUTCMinutes(0, 0, 0);
-                    startDate.setUTCHours(Math.floor(startDate.getUTCHours() / 3) * 3);
-                    
-                    // Round end date up to nearest 3-hour interval
-                    endDate.setUTCMinutes(59, 59, 999);
-                    endDate.setUTCHours(Math.ceil(endDate.getUTCHours() / 3) * 3);
-                    
-                    const intervals = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 3));
-                    
-                    timeLabels = Array.from({length: intervals}, (_, i) => {
-                        const date = new Date(startDate);
-                        date.setUTCHours(date.getUTCHours() + (i * 3));
-                        return `${formatDate(date)} ${date.toLocaleString(undefined, {
-                            hour: 'numeric',
-                            hour12: true
-                        })}`;
-                    });
-                    
-                    sshData = new Array(intervals).fill(0);
-                    telnetData = new Array(intervals).fill(0);
-                    ftpData = new Array(intervals).fill(0);
-                    smtpData = new Array(intervals).fill(0);
-                    rdpData = new Array(intervals).fill(0);
-
-                    sortedAttempts.forEach(attempt => {
-                        const date = new Date(attempt.timestamp + 'Z');
-                        const intervalIndex = Math.floor((date - startDate) / (1000 * 60 * 60 * 3));
-                        if (intervalIndex >= 0 && intervalIndex < intervals) {
-                            if (attempt.protocol === 'ssh') sshData[intervalIndex]++;
-                            else if (attempt.protocol === 'telnet') telnetData[intervalIndex]++;
-                            else if (attempt.protocol === 'ftp') ftpData[intervalIndex]++;
-                            else if (attempt.protocol === 'smtp') smtpData[intervalIndex]++;
-                            else if (attempt.protocol === 'rdp') rdpData[intervalIndex]++;
-                        }
-                    });
-                } else if (daysDiff <= 14) {  // Less than 14 days - show 6-hour intervals
-                    // Round start date down to nearest 6-hour interval
-                    startDate.setUTCMinutes(0, 0, 0);
-                    startDate.setUTCHours(Math.floor(startDate.getUTCHours() / 6) * 6);
-                    
-                    // Round end date up to nearest 6-hour interval
-                    endDate.setUTCMinutes(59, 59, 999);
-                    endDate.setUTCHours(Math.ceil(endDate.getUTCHours() / 6) * 6);
-                    
-                    const intervals = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 6));
-                    
-                    timeLabels = Array.from({length: intervals}, (_, i) => {
-                        const date = new Date(startDate);
-                        date.setUTCHours(date.getUTCHours() + (i * 6));
-                        return `${formatDate(date)} ${date.toLocaleString(undefined, {
-                            hour: 'numeric',
-                            hour12: true
-                        })}`;
-                    });
-                    
-                    sshData = new Array(intervals).fill(0);
-                    telnetData = new Array(intervals).fill(0);
-                    ftpData = new Array(intervals).fill(0);
-                    smtpData = new Array(intervals).fill(0);
-                    rdpData = new Array(intervals).fill(0);
-
-                    sortedAttempts.forEach(attempt => {
-                        const date = new Date(attempt.timestamp + 'Z');
-                        const intervalIndex = Math.floor((date - startDate) / (1000 * 60 * 60 * 6));
-                        if (intervalIndex >= 0 && intervalIndex < intervals) {
-                            if (attempt.protocol === 'ssh') sshData[intervalIndex]++;
-                            else if (attempt.protocol === 'telnet') telnetData[intervalIndex]++;
-                            else if (attempt.protocol === 'ftp') ftpData[intervalIndex]++;
-                            else if (attempt.protocol === 'smtp') smtpData[intervalIndex]++;
-                            else if (attempt.protocol === 'rdp') rdpData[intervalIndex]++;
-                        }
-                    });
-                } else if (daysDiff <= 30) {  // Less than 30 days - show 12-hour intervals
-                    // Round start date down to nearest 12-hour interval
-                    startDate.setUTCMinutes(0, 0, 0);
-                    startDate.setUTCHours(Math.floor(startDate.getUTCHours() / 12) * 12);
-                    
-                    // Round end date up to nearest 12-hour interval
-                    endDate.setUTCMinutes(59, 59, 999);
-                    endDate.setUTCHours(Math.ceil(endDate.getUTCHours() / 12) * 12);
-                    
-                    const intervals = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 12));
-                    
-                    timeLabels = Array.from({length: intervals}, (_, i) => {
-                        const date = new Date(startDate);
-                        date.setUTCHours(date.getUTCHours() + (i * 12));
-                        return `${formatDate(date)} ${date.getHours() >= 12 ? 'PM' : 'AM'}`;
-                    });
-                    
-                    sshData = new Array(intervals).fill(0);
-                    telnetData = new Array(intervals).fill(0);
-                    ftpData = new Array(intervals).fill(0);
-                    smtpData = new Array(intervals).fill(0);
-                    rdpData = new Array(intervals).fill(0);
-
-                    sortedAttempts.forEach(attempt => {
-                        const date = new Date(attempt.timestamp + 'Z');
-                        const intervalIndex = Math.floor((date - startDate) / (1000 * 60 * 60 * 12));
-                        if (intervalIndex >= 0 && intervalIndex < intervals) {
-                            if (attempt.protocol === 'ssh') sshData[intervalIndex]++;
-                            else if (attempt.protocol === 'telnet') telnetData[intervalIndex]++;
-                            else if (attempt.protocol === 'ftp') ftpData[intervalIndex]++;
-                            else if (attempt.protocol === 'smtp') smtpData[intervalIndex]++;
-                            else if (attempt.protocol === 'rdp') rdpData[intervalIndex]++;
-                        }
-                    });
-                } else {  // More than 30 days - show daily intervals
-                    // Round start date down to start of day
-                    startDate.setUTCHours(0, 0, 0, 0);
-                    
-                    // Round end date up to end of day
-                    endDate.setUTCHours(23, 59, 59, 999);
-                    
-                    const daysToShow = Math.min(60, Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)));
-                    
-                    timeLabels = Array.from({length: daysToShow}, (_, i) => {
-                        const date = new Date(startDate);
-                        date.setUTCDate(date.getUTCDate() + i);
-                        return formatDate(date);
-                    });
-                    
-                    sshData = new Array(daysToShow).fill(0);
-                    telnetData = new Array(daysToShow).fill(0);
-                    ftpData = new Array(daysToShow).fill(0);
-                    smtpData = new Array(daysToShow).fill(0);
-                    rdpData = new Array(daysToShow).fill(0);
-
-                    sortedAttempts.forEach(attempt => {
-                        const date = new Date(attempt.timestamp + 'Z');
-                        const dayIndex = Math.floor((date - startDate) / (1000 * 60 * 60 * 24));
-                        if (dayIndex >= 0 && dayIndex < daysToShow) {
-                            if (attempt.protocol === 'ssh') sshData[dayIndex]++;
-                            else if (attempt.protocol === 'telnet') telnetData[dayIndex]++;
-                            else if (attempt.protocol === 'ftp') ftpData[dayIndex]++;
-                            else if (attempt.protocol === 'smtp') smtpData[dayIndex]++;
-                            else if (attempt.protocol === 'rdp') rdpData[dayIndex]++;
-                        }
-                    });
+                let intervalSize; // in hours
+                if (totalDaysDiff <= 2) { // Less than 2 days - show hourly
+                    intervalSize = 1;
+                } else if (totalDaysDiff <= 7) { // Less than 7 days - show 3-hour intervals
+                    intervalSize = 3;
+                } else if (totalDaysDiff <= 14) { // Less than 14 days - show 6-hour intervals
+                    intervalSize = 6;
+                } else if (totalDaysDiff <= 30) { // Less than 30 days - show 12-hour intervals
+                    intervalSize = 12;
+                } else { // More than 30 days - show daily intervals
+                    intervalSize = 24;
                 }
+
+                // Round start date down and end date up to the nearest interval
+                startDate.setUTCMinutes(0, 0, 0);
+                startDate.setUTCHours(Math.floor(startDate.getUTCHours() / intervalSize) * intervalSize);
+                
+                endDate.setUTCMinutes(59, 59, 999);
+                endDate.setUTCHours(Math.ceil(endDate.getUTCHours() / intervalSize) * intervalSize);
+
+                // Calculate number of intervals
+                const intervals = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * intervalSize));
+
+                // Create arrays for data
+                timeLabels = new Array(intervals);
+                sshData = new Array(intervals).fill(0);
+                telnetData = new Array(intervals).fill(0);
+                ftpData = new Array(intervals).fill(0);
+                smtpData = new Array(intervals).fill(0);
+                rdpData = new Array(intervals).fill(0);
+
+                // Generate time labels based on interval size
+                for (let i = 0; i < intervals; i++) {
+                    const date = new Date(startDate);
+                    date.setUTCHours(date.getUTCHours() + (i * intervalSize));
+                    
+                    if (intervalSize === 24) { // Daily intervals
+                        timeLabels[i] = formatDate(date);
+                    } else if (intervalSize === 12) { // 12-hour intervals
+                        timeLabels[i] = `${formatDate(date)} ${date.getHours() >= 12 ? 'PM' : 'AM'}`;
+                    } else { // Hourly, 3-hour, or 6-hour intervals
+                        timeLabels[i] = `${formatDate(date)} ${date.toLocaleString(undefined, {
+                            hour: 'numeric',
+                            hour12: true
+                        })}`;
+                    }
+                }
+
+                // Populate data arrays
+                sortedAttempts.forEach(attempt => {
+                    const date = new Date(attempt.timestamp + 'Z');
+                    const intervalIndex = Math.floor((date - startDate) / (1000 * 60 * 60 * intervalSize));
+                    
+                    if (intervalIndex >= 0 && intervalIndex < intervals) {
+                        if (attempt.protocol === 'ssh') sshData[intervalIndex]++;
+                        else if (attempt.protocol === 'telnet') telnetData[intervalIndex]++;
+                        else if (attempt.protocol === 'ftp') ftpData[intervalIndex]++;
+                        else if (attempt.protocol === 'smtp') smtpData[intervalIndex]++;
+                        else if (attempt.protocol === 'rdp') rdpData[intervalIndex]++;
+                    }
+                });
             }
 
             // Update the attempts chart
