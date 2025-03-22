@@ -359,7 +359,7 @@
             position: fixed;
             top: 50%;
             left: 50%;
-            transform: translate(-50%, -50%);
+            transform: translate(-50%, -50%) scale(0.9);
             width: calc(100vw - 2rem);
             max-width: 20rem;
             background-color: white;
@@ -368,16 +368,44 @@
             z-index: 1000;
             opacity: 0;
             visibility: hidden;
-            transform: translate(-50%, -40%);
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             pointer-events: none;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #mobileMenu.hidden {
+            display: flex !important;
+            opacity: 0;
+            visibility: hidden;
+            transform: translate(-50%, -50%) scale(0.9);
         }
 
         #mobileMenu:not(.hidden) {
             opacity: 1;
             visibility: visible;
-            transform: translate(-50%, -50%);
+            transform: translate(-50%, -50%) scale(1);
             pointer-events: auto;
+        }
+
+        @media (min-width: 769px) {
+            #mobileMenu {
+                position: absolute;
+                top: calc(100% + 0.5rem);
+                left: auto;
+                right: 0;
+                transform: scale(0.9);
+                transform-origin: top right;
+                width: 16rem;
+            }
+
+            #mobileMenu.hidden {
+                transform: scale(0.9);
+            }
+
+            #mobileMenu:not(.hidden) {
+                transform: scale(1);
+            }
         }
 
         .dark #mobileMenu {
@@ -749,9 +777,6 @@
             if (hamburgerBtn && mobileMenu) {
                 hamburgerBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    const isHidden = mobileMenu.classList.contains('hidden');
-                    
-                    // Toggle menu visibility
                     mobileMenu.classList.toggle('hidden');
                     
                     // Handle overlay
