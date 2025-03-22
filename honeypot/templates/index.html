@@ -1047,90 +1047,31 @@
                     }
                 });
             } else {
-                // All time - dynamically adjust time frame based on data span
+                // All time - show up to last 30 days
                 const oldestDate = sortedAttempts.length > 0 ? 
                     new Date(sortedAttempts[0].timestamp + 'Z') : now;
-                const newestDate = sortedAttempts.length > 0 ?
-                    new Date(sortedAttempts[sortedAttempts.length - 1].timestamp + 'Z') : now;
-                const hoursDiff = Math.floor((newestDate - oldestDate) / (1000 * 60 * 60));
+                const daysDiff = Math.min(29, Math.floor((now - oldestDate) / (1000 * 60 * 60 * 24)));
                 
-                // Choose appropriate time frame based on data span
-                if (hoursDiff < 24) {
-                    // If less than 24 hours of data, show hourly intervals
-                    const startHour = oldestDate.getHours();
-                    const endHour = newestDate.getHours();
-                    const hoursToShow = endHour >= startHour ? 
-                        (endHour - startHour + 1) : 
-                        (24 - startHour + endHour + 1);
-                    
-                    timeLabels = Array.from({length: hoursToShow}, (_, i) => {
-                        const hour = (startHour + i) % 24;
-                        return formatHour(hour);
-                    });
-                    
-                    sshData = new Array(hoursToShow).fill(0);
-                    telnetData = new Array(hoursToShow).fill(0);
-                    ftpData = new Array(hoursToShow).fill(0);
+                timeLabels = Array.from({length: daysDiff + 1}, (_, i) => {
+                    const d = new Date(now);
+                    d.setDate(d.getDate() - (daysDiff - i));
+                    return formatDate(d);
+                });
+                
+                sshData = new Array(daysDiff + 1).fill(0);
+                telnetData = new Array(daysDiff + 1).fill(0);
+                ftpData = new Array(daysDiff + 1).fill(0);
 
-                    sortedAttempts.forEach(attempt => {
-                        const date = new Date(attempt.timestamp + 'Z');
-                        const hour = date.getHours();
-                        const index = hour >= startHour ? 
-                            (hour - startHour) : 
-                            (24 - startHour + hour);
-                        
-                        if (index >= 0 && index < hoursToShow) {
-                            if (attempt.protocol === 'ssh') sshData[index]++;
-                            else if (attempt.protocol === 'telnet') telnetData[index]++;
-                            else if (attempt.protocol === 'ftp') ftpData[index]++;
-                        }
-                    });
-                } else if (hoursDiff < 168) { // Less than 7 days
-                    // Show data by day with hours
-                    const days = Math.ceil(hoursDiff / 24);
-                    timeLabels = Array.from({length: days}, (_, i) => {
-                        const d = new Date(oldestDate);
-                        d.setDate(d.getDate() + i);
-                        return formatDate(d);
-                    });
-                    
-                    sshData = new Array(days).fill(0);
-                    telnetData = new Array(days).fill(0);
-                    ftpData = new Array(days).fill(0);
-
-                    sortedAttempts.forEach(attempt => {
-                        const date = new Date(attempt.timestamp + 'Z');
-                        const dayIndex = Math.floor((date - oldestDate) / (1000 * 60 * 60 * 24));
-                        if (dayIndex >= 0 && dayIndex < days) {
-                            if (attempt.protocol === 'ssh') sshData[dayIndex]++;
-                            else if (attempt.protocol === 'telnet') telnetData[dayIndex]++;
-                            else if (attempt.protocol === 'ftp') ftpData[dayIndex]++;
-                        }
-                    });
-                } else {
-                    // More than 7 days - show up to 30 days
-                    const daysDiff = Math.min(29, Math.floor((now - oldestDate) / (1000 * 60 * 60 * 24)));
-                    timeLabels = Array.from({length: daysDiff + 1}, (_, i) => {
-                        const d = new Date(now);
-                        d.setDate(d.getDate() - (daysDiff - i));
-                        return formatDate(d);
-                    });
-                    
-                    sshData = new Array(daysDiff + 1).fill(0);
-                    telnetData = new Array(daysDiff + 1).fill(0);
-                    ftpData = new Array(daysDiff + 1).fill(0);
-
-                    sortedAttempts.forEach(attempt => {
-                        const date = new Date(attempt.timestamp + 'Z');
-                        const daysAgo = Math.floor((now - date) / (1000 * 60 * 60 * 24));
-                        if (daysAgo <= daysDiff) {
-                            const dayIndex = daysDiff - daysAgo;
-                            if (attempt.protocol === 'ssh') sshData[dayIndex]++;
-                            else if (attempt.protocol === 'telnet') telnetData[dayIndex]++;
-                            else if (attempt.protocol === 'ftp') ftpData[dayIndex]++;
-                        }
-                    });
-                }
+                sortedAttempts.forEach(attempt => {
+                    const date = new Date(attempt.timestamp + 'Z');
+                    const daysAgo = Math.floor((now - date) / (1000 * 60 * 60 * 24));
+                    if (daysAgo <= daysDiff) {
+                        const dayIndex = daysDiff - daysAgo;
+                        if (attempt.protocol === 'ssh') sshData[dayIndex]++;
+                        else if (attempt.protocol === 'telnet') telnetData[dayIndex]++;
+                        else if (attempt.protocol === 'ftp') ftpData[dayIndex]++;
+                    }
+                });
             }
 
             // Update the attempts chart
