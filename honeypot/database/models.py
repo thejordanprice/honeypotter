@@ -16,6 +16,7 @@ class Protocol(enum.Enum):
     TELNET = "telnet"
     FTP = "ftp"
     SMTP = "smtp"
+    RDP = "rdp"
 
 class LoginAttempt(Base):
     """Model for storing SSH login attempts."""

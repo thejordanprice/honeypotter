@@ -424,6 +424,7 @@
                                 <option value="telnet">Telnet Only</option>
                                 <option value="ftp">FTP Only</option>
                                 <option value="smtp">SMTP Only</option>
+                                <option value="rdp">RDP Only</option>
                             </select>
                         </div>
                     </div>
@@ -497,6 +498,7 @@
             attemptsChart.data.datasets[1].borderColor = isDark ? '#3b82f6' : '#2563eb';
             attemptsChart.data.datasets[2].borderColor = isDark ? '#10b981' : '#059669';
             attemptsChart.data.datasets[3].borderColor = isDark ? '#f59e0b' : '#d97706';
+            attemptsChart.data.datasets[4].borderColor = isDark ? '#ec4899' : '#db2777';
             attemptsChart.update();
 
             // Update usernames chart colors
@@ -509,6 +511,7 @@
             usernamesChart.data.datasets[1].backgroundColor = isDark ? 'rgba(59, 130, 246, 0.8)' : 'rgba(37, 99, 235, 0.8)';
             usernamesChart.data.datasets[2].backgroundColor = isDark ? 'rgba(16, 185, 129, 0.8)' : 'rgba(5, 150, 105, 0.8)';
             usernamesChart.data.datasets[3].backgroundColor = isDark ? 'rgba(245, 158, 11, 0.8)' : 'rgba(217, 119, 6, 0.8)';
+            usernamesChart.data.datasets[4].backgroundColor = isDark ? 'rgba(236, 72, 153, 0.8)' : 'rgba(219, 39, 119, 0.8)';
             usernamesChart.update();
         });
 
@@ -961,6 +964,7 @@
             let telnetData = [];
             let ftpData = [];
             let smtpData = [];
+            let rdpData = [];
 
             // Function to format hour with AM/PM
             const formatHour = (hour) => {
@@ -998,6 +1002,7 @@
                 telnetData = new Array(intervals).fill(0);
                 ftpData = new Array(intervals).fill(0);
                 smtpData = new Array(intervals).fill(0);
+                rdpData = new Array(intervals).fill(0);
 
                 sortedAttempts.forEach(attempt => {
                     const date = new Date(attempt.timestamp + 'Z');
@@ -1009,6 +1014,7 @@
                             else if (attempt.protocol === 'telnet') telnetData[intervalIndex]++;
                             else if (attempt.protocol === 'ftp') ftpData[intervalIndex]++;
                             else if (attempt.protocol === 'smtp') smtpData[intervalIndex]++;
+                            else if (attempt.protocol === 'rdp') rdpData[intervalIndex]++;
                         }
                     }
                 });
@@ -1021,6 +1027,7 @@
                 telnetData = new Array(currentHour + 1).fill(0);
                 ftpData = new Array(currentHour + 1).fill(0);
                 smtpData = new Array(currentHour + 1).fill(0);
+                rdpData = new Array(currentHour + 1).fill(0);
 
                 sortedAttempts.forEach(attempt => {
                     const date = new Date(attempt.timestamp + 'Z');
@@ -1030,6 +1037,7 @@
                         else if (attempt.protocol === 'telnet') telnetData[hour]++;
                         else if (attempt.protocol === 'ftp') ftpData[hour]++;
                         else if (attempt.protocol === 'smtp') smtpData[hour]++;
+                        else if (attempt.protocol === 'rdp') rdpData[hour]++;
                     }
                 });
             } else if (filterValue === 'thisWeek') {
@@ -1044,6 +1052,7 @@
                 telnetData = new Array(7).fill(0);
                 ftpData = new Array(7).fill(0);
                 smtpData = new Array(7).fill(0);
+                rdpData = new Array(7).fill(0);
 
                 sortedAttempts.forEach(attempt => {
                     const date = new Date(attempt.timestamp + 'Z');
@@ -1054,6 +1063,7 @@
                         else if (attempt.protocol === 'telnet') telnetData[dayIndex]++;
                         else if (attempt.protocol === 'ftp') ftpData[dayIndex]++;
                         else if (attempt.protocol === 'smtp') smtpData[dayIndex]++;
+                        else if (attempt.protocol === 'rdp') rdpData[dayIndex]++;
                     }
                 });
             } else {
@@ -1082,6 +1092,7 @@
                     telnetData = new Array(hoursToShow).fill(0);
                     ftpData = new Array(hoursToShow).fill(0);
                     smtpData = new Array(hoursToShow).fill(0);
+                    rdpData = new Array(hoursToShow).fill(0);
 
                     sortedAttempts.forEach(attempt => {
                         const date = new Date(attempt.timestamp + 'Z');
@@ -1095,6 +1106,7 @@
                             else if (attempt.protocol === 'telnet') telnetData[index]++;
                             else if (attempt.protocol === 'ftp') ftpData[index]++;
                             else if (attempt.protocol === 'smtp') smtpData[index]++;
+                            else if (attempt.protocol === 'rdp') rdpData[index]++;
                         }
                     });
                 } else if (hoursDiff < 168) { // Less than 7 days
@@ -1110,6 +1122,7 @@
                     telnetData = new Array(days).fill(0);
                     ftpData = new Array(days).fill(0);
                     smtpData = new Array(days).fill(0);
+                    rdpData = new Array(days).fill(0);
 
                     sortedAttempts.forEach(attempt => {
                         const date = new Date(attempt.timestamp + 'Z');
@@ -1119,6 +1132,7 @@
                             else if (attempt.protocol === 'telnet') telnetData[dayIndex]++;
                             else if (attempt.protocol === 'ftp') ftpData[dayIndex]++;
                             else if (attempt.protocol === 'smtp') smtpData[dayIndex]++;
+                            else if (attempt.protocol === 'rdp') rdpData[dayIndex]++;
                         }
                     });
                 } else {
@@ -1134,6 +1148,7 @@
                     telnetData = new Array(daysDiff + 1).fill(0);
                     ftpData = new Array(daysDiff + 1).fill(0);
                     smtpData = new Array(daysDiff + 1).fill(0);
+                    rdpData = new Array(daysDiff + 1).fill(0);
 
                     sortedAttempts.forEach(attempt => {
                         const date = new Date(attempt.timestamp + 'Z');
@@ -1144,6 +1159,7 @@
                             else if (attempt.protocol === 'telnet') telnetData[dayIndex]++;
                             else if (attempt.protocol === 'ftp') ftpData[dayIndex]++;
                             else if (attempt.protocol === 'smtp') smtpData[dayIndex]++;
+                            else if (attempt.protocol === 'rdp') rdpData[dayIndex]++;
                         }
                     });
                 }
@@ -1155,13 +1171,14 @@
             attemptsChart.data.datasets[1].data = telnetData;
             attemptsChart.data.datasets[2].data = ftpData;
             attemptsChart.data.datasets[3].data = smtpData;
+            attemptsChart.data.datasets[4].data = rdpData;
             attemptsChart.update();
 
             // Update username distribution chart
             const usernameData = {};
             filteredAttempts.forEach(attempt => {
                 if (!usernameData[attempt.username]) {
-                    usernameData[attempt.username] = { ssh: 0, telnet: 0, ftp: 0, smtp: 0 };
+                    usernameData[attempt.username] = { ssh: 0, telnet: 0, ftp: 0, smtp: 0, rdp: 0 };
                 }
                 if (attempt.protocol === 'ssh') {
                     usernameData[attempt.username].ssh++;
@@ -1171,11 +1188,13 @@
                     usernameData[attempt.username].ftp++;
                 } else if (attempt.protocol === 'smtp') {
                     usernameData[attempt.username].smtp++;
+                } else if (attempt.protocol === 'rdp') {
+                    usernameData[attempt.username].rdp++;
                 }
             });
 
             const topUsernames = Object.entries(usernameData)
-                .sort((a, b) => (b[1].ssh + b[1].telnet + b[1].ftp + b[1].smtp) - (a[1].ssh + a[1].telnet + a[1].ftp + a[1].smtp))
+                .sort((a, b) => (b[1].ssh + b[1].telnet + b[1].ftp + b[1].smtp + b[1].rdp) - (a[1].ssh + a[1].telnet + a[1].ftp + a[1].smtp + a[1].rdp))
                 .slice(0, 5);
 
             usernamesChart.data.labels = topUsernames.map(([username]) => username);
@@ -1183,6 +1202,7 @@
             usernamesChart.data.datasets[1].data = topUsernames.map(([, counts]) => counts.telnet);
             usernamesChart.data.datasets[2].data = topUsernames.map(([, counts]) => counts.ftp);
             usernamesChart.data.datasets[3].data = topUsernames.map(([, counts]) => counts.smtp);
+            usernamesChart.data.datasets[4].data = topUsernames.map(([, counts]) => counts.rdp);
             usernamesChart.update();
         }
 
@@ -1274,6 +1294,18 @@
                             pointRadius: 3,
                             pointHoverRadius: 5,
                             tension: 0.3
+                        },
+                        {
+                            label: 'RDP',
+                            data: [],
+                            borderColor: document.documentElement.classList.contains('dark')
+                                ? '#ec4899'  // Pink for dark mode
+                                : '#db2777',  // Darker pink for light mode
+                            backgroundColor: 'transparent',
+                            borderWidth: 2,
+                            pointRadius: 3,
+                            pointHoverRadius: 5,
+                            tension: 0.3
                         }
                     ]
                 },
@@ -1357,6 +1389,14 @@
                             backgroundColor: document.documentElement.classList.contains('dark')
                                 ? 'rgba(245, 158, 11, 0.8)'  // Amber with opacity for dark mode
                                 : 'rgba(217, 119, 6, 0.8)',  // Darker amber with opacity for light mode
+                            borderRadius: 4
+                        },
+                        {
+                            label: 'RDP',
+                            data: [],
+                            backgroundColor: document.documentElement.classList.contains('dark')
+                                ? 'rgba(236, 72, 153, 0.8)'  // Pink with opacity for dark mode
+                                : 'rgba(219, 39, 119, 0.8)',  // Darker pink with opacity for light mode
                             borderRadius: 4
                         }
                     ]
