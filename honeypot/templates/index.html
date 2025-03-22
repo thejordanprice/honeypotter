@@ -1443,7 +1443,11 @@
                     timeLabels = Array.from({length: hoursToShow}, (_, i) => {
                         const date = new Date(startDate);
                         date.setHours(date.getHours() + i);
-                        return `${formatDate(date)} ${formatHour(date.getHours())}`;
+                        // Use toLocaleString for consistent local time display
+                        return `${formatDate(date)} ${date.toLocaleString(undefined, {
+                            hour: 'numeric',
+                            hour12: true
+                        })}`;
                     });
                     
                     sshData = new Array(hoursToShow).fill(0);
