@@ -415,9 +415,34 @@
             visibility: hidden;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             display: flex;
-            align-items: center;
+            align-items: flex-start; /* Changed from center to flex-start */
             justify-content: center;
             backdrop-filter: blur(3px);
+            overflow-y: auto; /* Enable scrolling on the modal overlay */
+            -webkit-overflow-scrolling: touch; /* Enable smooth scrolling on iOS */
+        }
+
+        #faqModal .bg-white {
+            transform: scale(0.9);
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            margin: 1rem; /* Add margin around the modal content */
+            width: calc(100% - 2rem); /* Account for margin */
+            max-height: calc(100vh - 2rem); /* Limit height and account for margin */
+            overflow-y: auto; /* Enable scrolling within the modal content */
+            -webkit-overflow-scrolling: touch; /* Enable smooth scrolling on iOS */
+        }
+
+        @media (min-width: 640px) {
+            #faqModal {
+                align-items: center; /* Center modal on larger screens */
+                padding: 2rem; /* Add padding on larger screens */
+            }
+            
+            #faqModal .bg-white {
+                margin: 0; /* Remove margin on larger screens */
+                max-height: 90vh; /* Slightly smaller on desktop for better appearance */
+            }
         }
 
         #faqModal:not(.hidden) {
@@ -425,15 +450,24 @@
             visibility: visible;
         }
 
-        #faqModal .bg-white {
-            transform: scale(0.9);
-            opacity: 0;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
         #faqModal:not(.hidden) .bg-white {
             transform: scale(1);
             opacity: 1;
+        }
+
+        /* Improve touch targets for mobile */
+        #closeFaqModal {
+            padding: 0.75rem; /* Larger touch target */
+            margin: -0.75rem; /* Offset padding to maintain visual size */
+            cursor: pointer;
+        }
+
+        /* Add smooth momentum scrolling for iOS */
+        .modal-content {
+            -webkit-overflow-scrolling: touch;
+            overflow-y: auto;
+            max-height: 100%;
+            padding-bottom: 2rem; /* Add some bottom padding for better scrolling experience */
         }
 
         /* Mobile menu button hover states */
@@ -630,10 +664,10 @@
     </div>
 
     <!-- FAQ Modal -->
-    <div id="faqModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+    <div id="faqModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50">
         <div class="bg-white dark:bg-gray-800 w-11/12 max-w-2xl rounded-lg shadow-xl">
-            <div class="p-6">
-                <div class="flex justify-between items-center mb-4">
+            <div class="sticky top-0 bg-white dark:bg-gray-800 p-4 border-b border-gray-200 dark:border-gray-700 rounded-t-lg">
+                <div class="flex justify-between items-center">
                     <h2 class="text-2xl font-semibold">Frequently Asked Questions</h2>
                     <button id="closeFaqModal" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -641,6 +675,8 @@
                         </svg>
                     </button>
                 </div>
+            </div>
+            <div class="modal-content p-6">
                 <div class="space-y-6">
                     <div>
                         <h3 class="text-lg font-semibold mb-2">What is Honeypotter?</h3>
