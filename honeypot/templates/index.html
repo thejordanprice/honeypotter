@@ -614,7 +614,6 @@
                 try {
                     const attempt = JSON.parse(event.data);
                     attempts.unshift(attempt);
-                    updateMap(attempt);
                     
                     // Only update UI with filtered data if it matches current filters
                     const currentFilters = {
@@ -655,8 +654,9 @@
                     // Update total attempts counter regardless of filters
                     document.getElementById('totalAttempts').textContent = attempts.length;
                     
-                    // Only update the UI if the new attempt matches current filters
+                    // Only update the map and UI if the new attempt matches current filters
                     if (matchesSearch && matchesProtocol && matchesFilter) {
+                        updateMap(attempt);
                         currentPage = 1; // Reset to first page when new matching data arrives
                         const filteredAttempts = filterAttempts(attempts);
                         attemptsDiv.innerHTML = filteredAttempts
