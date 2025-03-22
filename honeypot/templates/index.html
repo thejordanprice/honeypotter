@@ -36,45 +36,36 @@
 
         /* Smooth transitions for theme switching */
         * {
-            transition: background-color 0.3s ease, color 0.3s ease;
+            transition: background-color 0.2s ease-out, color 0.2s ease-out;
         }
 
         /* Dark mode color scheme overrides */
         .dark body { 
             background-color: #1a1a1a;
-            transition: background-color 0.3s ease;
         }
         .dark .bg-white { 
             background-color: #2d2d2d !important;
-            transition: background-color 0.3s ease;
         }
         .dark .bg-gray-100 { 
             background-color: #1a1a1a !important;
-            transition: background-color 0.3s ease;
         }
         .dark .bg-gray-50 { 
             background-color: #3d3d3d !important;
-            transition: background-color 0.3s ease;
         }
         .dark .text-gray-800 { 
             color: #f3f4f6 !important;
-            transition: color 0.3s ease;
         }
         .dark .text-gray-600 { 
             color: #d1d5db !important;
-            transition: color 0.3s ease;
         }
         .dark .border-gray-200 { 
             border-color: #4b5563 !important;
-            transition: border-color 0.3s ease;
         }
         .dark .shadow { 
             box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.3);
-            transition: box-shadow 0.3s ease;
         }
         .dark .hover\:bg-gray-100:hover { 
             background-color: #4b5563 !important;
-            transition: background-color 0.3s ease;
         }
 
         /* Dark mode text and interactive elements */
@@ -176,6 +167,11 @@
             /* Chart text size optimization for mobile */
             .chart-js-render-monitor {
                 font-size: 12px;
+            }
+
+            /* Mobile-specific optimizations */
+            * {
+                transition: background-color 0.15s ease-out, color 0.15s ease-out;
             }
         }
 
