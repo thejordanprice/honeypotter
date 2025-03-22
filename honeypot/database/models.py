@@ -56,6 +56,10 @@ engine = create_engine(
     DATABASE_URL,
     connect_args={"check_same_thread": False},  # Allow cross-thread usage
     poolclass=QueuePool,  # Use QueuePool for connection pooling
+    pool_size=20,  # Increase from default of 5
+    max_overflow=30,  # Increase from default of 10
+    pool_timeout=60,  # Increase timeout to 60 seconds
+    pool_pre_ping=True  # Enable connection health checks
 )
 
 # Create thread-safe session factory
