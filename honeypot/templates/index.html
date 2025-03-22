@@ -1322,9 +1322,13 @@
             if (filterValue === 'lastHour') {
                 // Show last hour in 5-minute intervals
                 const intervals = 12; // 5-minute intervals
+                const currentMinute = now.getMinutes();
+                const startMinute = currentMinute - (currentMinute % 5); // Round down to nearest 5
+                
                 timeLabels = Array.from({length: intervals}, (_, i) => {
-                    const minutes = (now.getMinutes() - ((intervals - 1 - i) * 5) + 60) % 60;
-                    return formatTimeWithMinutes(now.getHours(), minutes);
+                    const d = new Date(now);
+                    d.setMinutes(startMinute - ((intervals - 1 - i) * 5));
+                    return formatTimeWithMinutes(d.getHours(), d.getMinutes());
                 });
                 
                 sshData = new Array(intervals).fill(0);
@@ -1401,20 +1405,20 @@
                     new Date(sortedAttempts[0].timestamp + 'Z') : now;
                 const newestDate = sortedAttempts.length > 0 ?
                     new Date(sortedAttempts[sortedAttempts.length - 1].timestamp + 'Z') : now;
-                const hoursDiff = Math.floor((newestDate - oldestDate) / (1000 * 60 * 60));
-                const daysDiff = Math.floor(hoursDiff / 24);
+                const hoursDiff = Math.ceil((newestDate - oldestDate) / (1000 * 60 * 60));
+                const daysDiff = Math.ceil(hoursDiff / 24);
                 
                 // Choose appropriate time frame based on data span
                 if (hoursDiff <= 48) {  // If 48 hours or less, show hourly intervals
                     // Calculate the number of hours to show
                     const hoursToShow = Math.max(hoursDiff + 1, 12); // Show at least 12 hours
                     const startDate = new Date(oldestDate);
-                    startDate.setHours(startDate.getHours() - (hoursToShow - hoursDiff));
+                    startDate.setMinutes(0, 0, 0); // Start at the beginning of the hour
                     
                     timeLabels = Array.from({length: hoursToShow}, (_, i) => {
                         const date = new Date(startDate);
                         date.setHours(date.getHours() + i);
-                        return formatHour(date.getHours());
+                        return `${formatDate(date)} ${formatHour(date.getHours())}`;
                     });
                     
                     sshData = new Array(hoursToShow).fill(0);
@@ -1438,6 +1442,7 @@
                     const intervalsPerDay = 4; // 6-hour intervals
                     const totalIntervals = Math.ceil(hoursDiff / 6);
                     const startDate = new Date(oldestDate);
+                    startDate.setMinutes(0, 0, 0); // Start at the beginning of the hour
                     
                     timeLabels = Array.from({length: totalIntervals}, (_, i) => {
                         const date = new Date(startDate);
@@ -1465,10 +1470,13 @@
                 } else {
                     // More than 7 days - show daily intervals
                     const daysToShow = Math.min(30, daysDiff + 1);
+                    const startDate = new Date(oldestDate);
+                    startDate.setHours(0, 0, 0, 0); // Start at beginning of day
+                    
                     timeLabels = Array.from({length: daysToShow}, (_, i) => {
-                        const d = new Date(now);
-                        d.setDate(d.getDate() - (daysToShow - 1 - i));
-                        return formatDate(d);
+                        const date = new Date(startDate);
+                        date.setDate(date.getDate() + i);
+                        return formatDate(date);
                     });
                     
                     sshData = new Array(daysToShow).fill(0);
@@ -1479,9 +1487,8 @@
 
                     sortedAttempts.forEach(attempt => {
                         const date = new Date(attempt.timestamp + 'Z');
-                        const daysAgo = Math.floor((now - date) / (1000 * 60 * 60 * 24));
-                        if (daysAgo < daysToShow) {
-                            const dayIndex = daysToShow - 1 - daysAgo;
+                        const dayIndex = Math.floor((date - startDate) / (1000 * 60 * 60 * 24));
+                        if (dayIndex >= 0 && dayIndex < daysToShow) {
                             if (attempt.protocol === 'ssh') sshData[dayIndex]++;
                             else if (attempt.protocol === 'telnet') telnetData[dayIndex]++;
                             else if (attempt.protocol === 'ftp') ftpData[dayIndex]++;
