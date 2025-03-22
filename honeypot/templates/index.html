@@ -948,45 +948,137 @@
             filteredAttempts.forEach(updateMap);
             centerMapOnMostActiveRegion(filteredAttempts);
 
-            // Get current hour in local time
+            // Get current time and filter value
             const now = new Date();
-            const currentHour = now.getHours();
+            const filterValue = filterSelect.value;
+            
+            // Initialize arrays for protocol data
+            let timeLabels = [];
+            let sshData = [];
+            let telnetData = [];
+            let ftpData = [];
 
-            // Create arrays for the last 12 hours
-            const hourlyDataSSH = new Array(12).fill(0);
-            const hourlyDataTelnet = new Array(12).fill(0);
-            const hourlyDataFTP = new Array(12).fill(0);
-            const hourLabels = new Array(12).fill('').map((_, i) => {
-                const hour = (currentHour - 11 + i + 24) % 24;
-                const displayHour = hour % 12 || 12;
+            // Function to format hour with AM/PM
+            const formatHour = (hour) => {
+                const h = hour % 12 || 12;
                 const ampm = hour >= 12 ? 'PM' : 'AM';
-                return `${displayHour}${ampm}`;
-            });
+                return `${h}${ampm}`;
+            };
 
-            // Count attempts for each hour using local time
-            filteredAttempts.forEach(attempt => {
-                const date = new Date(attempt.timestamp + 'Z');
-                const attemptHour = date.getHours();
+            // Function to format time with minutes
+            const formatTimeWithMinutes = (hour, minutes) => {
+                const h = hour % 12 || 12;
+                const ampm = hour >= 12 ? 'PM' : 'AM';
+                return `${h}:${minutes.toString().padStart(2, '0')}${ampm}`;
+            };
+
+            // Function to format date
+            const formatDate = (date) => {
+                return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+            };
+
+            // Sort attempts by timestamp
+            const sortedAttempts = [...filteredAttempts].sort((a, b) => 
+                new Date(a.timestamp + 'Z') - new Date(b.timestamp + 'Z')
+            );
+
+            if (filterValue === 'lastHour') {
+                // Show last hour in 5-minute intervals
+                const intervals = 12; // 5-minute intervals
+                timeLabels = Array.from({length: intervals}, (_, i) => {
+                    const minutes = (now.getMinutes() - ((intervals - 1 - i) * 5) + 60) % 60;
+                    return formatTimeWithMinutes(now.getHours(), minutes);
+                });
                 
-                let hoursAgo = (currentHour - attemptHour + 24) % 24;
-                
-                if (hoursAgo < 12) {
-                    const index = 11 - hoursAgo;
-                    if (attempt.protocol === 'ssh') {
-                        hourlyDataSSH[index]++;
-                    } else if (attempt.protocol === 'telnet') {
-                        hourlyDataTelnet[index]++;
-                    } else if (attempt.protocol === 'ftp') {
-                        hourlyDataFTP[index]++;
+                sshData = new Array(intervals).fill(0);
+                telnetData = new Array(intervals).fill(0);
+                ftpData = new Array(intervals).fill(0);
+
+                sortedAttempts.forEach(attempt => {
+                    const date = new Date(attempt.timestamp + 'Z');
+                    const minutesAgo = Math.floor((now - date) / (1000 * 60));
+                    if (minutesAgo <= 60) {
+                        const intervalIndex = Math.floor((60 - minutesAgo) / 5);
+                        if (intervalIndex >= 0 && intervalIndex < intervals) {
+                            if (attempt.protocol === 'ssh') sshData[intervalIndex]++;
+                            else if (attempt.protocol === 'telnet') telnetData[intervalIndex]++;
+                            else if (attempt.protocol === 'ftp') ftpData[intervalIndex]++;
+                        }
                     }
-                }
-            });
+                });
+            } else if (filterValue === 'today') {
+                // Show today's data by hour
+                const currentHour = now.getHours();
+                timeLabels = Array.from({length: currentHour + 1}, (_, i) => formatHour(i));
+                
+                sshData = new Array(currentHour + 1).fill(0);
+                telnetData = new Array(currentHour + 1).fill(0);
+                ftpData = new Array(currentHour + 1).fill(0);
+
+                sortedAttempts.forEach(attempt => {
+                    const date = new Date(attempt.timestamp + 'Z');
+                    if (date.toLocaleDateString() === now.toLocaleDateString()) {
+                        const hour = date.getHours();
+                        if (attempt.protocol === 'ssh') sshData[hour]++;
+                        else if (attempt.protocol === 'telnet') telnetData[hour]++;
+                        else if (attempt.protocol === 'ftp') ftpData[hour]++;
+                    }
+                });
+            } else if (filterValue === 'thisWeek') {
+                // Show last 7 days
+                timeLabels = Array.from({length: 7}, (_, i) => {
+                    const d = new Date(now);
+                    d.setDate(d.getDate() - (6 - i));
+                    return formatDate(d);
+                });
+                
+                sshData = new Array(7).fill(0);
+                telnetData = new Array(7).fill(0);
+                ftpData = new Array(7).fill(0);
+
+                sortedAttempts.forEach(attempt => {
+                    const date = new Date(attempt.timestamp + 'Z');
+                    const daysAgo = Math.floor((now - date) / (1000 * 60 * 60 * 24));
+                    if (daysAgo < 7) {
+                        const dayIndex = 6 - daysAgo;
+                        if (attempt.protocol === 'ssh') sshData[dayIndex]++;
+                        else if (attempt.protocol === 'telnet') telnetData[dayIndex]++;
+                        else if (attempt.protocol === 'ftp') ftpData[dayIndex]++;
+                    }
+                });
+            } else {
+                // All time - show up to last 30 days
+                const oldestDate = sortedAttempts.length > 0 ? 
+                    new Date(sortedAttempts[0].timestamp + 'Z') : now;
+                const daysDiff = Math.min(29, Math.floor((now - oldestDate) / (1000 * 60 * 60 * 24)));
+                
+                timeLabels = Array.from({length: daysDiff + 1}, (_, i) => {
+                    const d = new Date(now);
+                    d.setDate(d.getDate() - (daysDiff - i));
+                    return formatDate(d);
+                });
+                
+                sshData = new Array(daysDiff + 1).fill(0);
+                telnetData = new Array(daysDiff + 1).fill(0);
+                ftpData = new Array(daysDiff + 1).fill(0);
+
+                sortedAttempts.forEach(attempt => {
+                    const date = new Date(attempt.timestamp + 'Z');
+                    const daysAgo = Math.floor((now - date) / (1000 * 60 * 60 * 24));
+                    if (daysAgo <= daysDiff) {
+                        const dayIndex = daysDiff - daysAgo;
+                        if (attempt.protocol === 'ssh') sshData[dayIndex]++;
+                        else if (attempt.protocol === 'telnet') telnetData[dayIndex]++;
+                        else if (attempt.protocol === 'ftp') ftpData[dayIndex]++;
+                    }
+                });
+            }
 
             // Update the attempts chart
-            attemptsChart.data.labels = hourLabels;
-            attemptsChart.data.datasets[0].data = hourlyDataSSH;
-            attemptsChart.data.datasets[1].data = hourlyDataTelnet;
-            attemptsChart.data.datasets[2].data = hourlyDataFTP;
+            attemptsChart.data.labels = timeLabels;
+            attemptsChart.data.datasets[0].data = sshData;
+            attemptsChart.data.datasets[1].data = telnetData;
+            attemptsChart.data.datasets[2].data = ftpData;
             attemptsChart.update();
 
             // Update username distribution chart
