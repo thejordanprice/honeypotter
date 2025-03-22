@@ -23,3 +23,13 @@
 2025-03-22 12:18:27,493 - paramiko.transport - INFO - Auth granted (password).
 2025-03-22 12:18:27,494 - paramiko.transport - INFO - Disconnect (code 11): disconnected by user
 2025-03-22 12:19:03,359 - honeypot.core.base_server - INFO - FTP login attempt from 127.0.0.1: Username: root, Password: whoahthere
+2025-03-22 13:07:53,496 - __main__ - INFO - Database initialized successfully
+2025-03-22 13:07:53,497 - honeypot.core.ssh_server - INFO - Generated ECDSA host key: f815dee07f0faba104fd7403c45a32ac
+2025-03-22 13:07:53,497 - __main__ - INFO - SSH Honeypot thread started on port 2222
+2025-03-22 13:07:53,497 - __main__ - INFO - Telnet Honeypot thread started on port 2323
+2025-03-22 13:07:53,497 - honeypot.core.base_server - INFO - TELNET Honeypot listening on 127.0.0.1:2323
+2025-03-22 13:07:53,497 - honeypot.core.base_server - INFO - SSH Honeypot listening on 127.0.0.1:2222
+2025-03-22 13:07:53,497 - honeypot.core.base_server - INFO - FTP Honeypot listening on 127.0.0.1:2121
+2025-03-22 13:07:53,497 - __main__ - INFO - FTP Honeypot thread started on port 2121
+2025-03-22 13:07:53,497 - __main__ - INFO - Starting web interface on port 8080
+2025-03-22 13:08:23,420 - honeypot.core.base_server - INFO - TELNET login attempt from 127.0.0.1: Username: whoah, Password: there

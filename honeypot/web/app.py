@@ -10,7 +10,7 @@ from pathlib import Path
 from honeypot.core.config import TEMPLATE_DIR, STATIC_DIR, HOST, WEB_PORT
 from honeypot.database.models import get_db, LoginAttempt
 
-app = FastAPI(title="SSH Honeypot Monitor")
+app = FastAPI(title="Honeypot Monitor")
 
 # Mount static files directory
 static_path = Path(STATIC_DIR)

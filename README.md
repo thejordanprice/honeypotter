@@ -59,7 +59,6 @@ Edit the `.env` file to configure:
 - `TELNET_PORT`: Telnet server port (default: 2323)
 - `FTP_PORT`: FTP server port (default: 2121)
 - `WEB_PORT`: Web interface port (default: 8080)
-- `WS_PORT`: WebSocket port (default: 8765)
 
 ### Database Settings
 - `DATABASE_URL`: SQLite database path (default: sqlite:///honeypot.db)
