@@ -1460,14 +1460,22 @@
                     new Date(sortedAttempts[0].timestamp + 'Z') : now;
                 const newestDate = sortedAttempts.length > 0 ?
                     new Date(sortedAttempts[sortedAttempts.length - 1].timestamp + 'Z') : now;
-                const hoursDiff = Math.ceil((newestDate - oldestDate) / (1000 * 60 * 60));
+                
+                // Ensure we include the current hour in our calculations
+                const endDate = new Date(Math.max(newestDate.getTime(), now.getTime()));
+                const startDate = new Date(oldestDate);
+                
+                // Calculate differences using the adjusted end date
+                const hoursDiff = Math.ceil((endDate - startDate) / (1000 * 60 * 60));
                 const daysDiff = Math.ceil(hoursDiff / 24);
                 
                 // Choose appropriate time frame based on data span
                 if (hoursDiff <= 24) {  // Less than 24 hours - show hourly intervals
-                    const startDate = new Date(oldestDate);
-                    startDate.setUTCMinutes(0, 0, 0); // Start at the beginning of the hour
-                    const hoursToShow = Math.max(hoursDiff + 1, 6); // Show at least 6 hours
+                    // Round start date down to the nearest hour
+                    startDate.setUTCMinutes(0, 0, 0);
+                    // Round end date up to the nearest hour and add 1 hour to include current
+                    endDate.setUTCMinutes(59, 59, 999);
+                    const hoursToShow = Math.max(Math.ceil((endDate - startDate) / (1000 * 60 * 60)), 6);
                     
                     timeLabels = Array.from({length: hoursToShow}, (_, i) => {
                         const date = new Date(startDate);
@@ -1497,9 +1505,15 @@
                         }
                     });
                 } else if (daysDiff <= 7) {  // Less than 7 days - show 3-hour intervals
-                    const startDate = new Date(oldestDate);
+                    // Round start date down to nearest 3-hour interval
                     startDate.setUTCMinutes(0, 0, 0);
-                    const intervals = Math.ceil(hoursDiff / 3);
+                    startDate.setUTCHours(Math.floor(startDate.getUTCHours() / 3) * 3);
+                    
+                    // Round end date up to nearest 3-hour interval
+                    endDate.setUTCMinutes(59, 59, 999);
+                    endDate.setUTCHours(Math.ceil(endDate.getUTCHours() / 3) * 3);
+                    
+                    const intervals = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 3));
                     
                     timeLabels = Array.from({length: intervals}, (_, i) => {
                         const date = new Date(startDate);
@@ -1528,9 +1542,15 @@
                         }
                     });
                 } else if (daysDiff <= 14) {  // Less than 14 days - show 6-hour intervals
-                    const startDate = new Date(oldestDate);
-                    startDate.setUTCHours(0, 0, 0, 0);
-                    const intervals = Math.ceil(hoursDiff / 6);
+                    // Round start date down to nearest 6-hour interval
+                    startDate.setUTCMinutes(0, 0, 0);
+                    startDate.setUTCHours(Math.floor(startDate.getUTCHours() / 6) * 6);
+                    
+                    // Round end date up to nearest 6-hour interval
+                    endDate.setUTCMinutes(59, 59, 999);
+                    endDate.setUTCHours(Math.ceil(endDate.getUTCHours() / 6) * 6);
+                    
+                    const intervals = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 6));
                     
                     timeLabels = Array.from({length: intervals}, (_, i) => {
                         const date = new Date(startDate);
@@ -1559,9 +1579,15 @@
                         }
                     });
                 } else if (daysDiff <= 30) {  // Less than 30 days - show 12-hour intervals
-                    const startDate = new Date(oldestDate);
-                    startDate.setUTCHours(0, 0, 0, 0);
-                    const intervals = Math.ceil(hoursDiff / 12);
+                    // Round start date down to nearest 12-hour interval
+                    startDate.setUTCMinutes(0, 0, 0);
+                    startDate.setUTCHours(Math.floor(startDate.getUTCHours() / 12) * 12);
+                    
+                    // Round end date up to nearest 12-hour interval
+                    endDate.setUTCMinutes(59, 59, 999);
+                    endDate.setUTCHours(Math.ceil(endDate.getUTCHours() / 12) * 12);
+                    
+                    const intervals = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 12));
                     
                     timeLabels = Array.from({length: intervals}, (_, i) => {
                         const date = new Date(startDate);
@@ -1587,9 +1613,13 @@
                         }
                     });
                 } else {  // More than 30 days - show daily intervals
-                    const startDate = new Date(oldestDate);
+                    // Round start date down to start of day
                     startDate.setUTCHours(0, 0, 0, 0);
-                    const daysToShow = Math.min(60, daysDiff); // Cap at 60 days to prevent overcrowding
+                    
+                    // Round end date up to end of day
+                    endDate.setUTCHours(23, 59, 59, 999);
+                    
+                    const daysToShow = Math.min(60, Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)));
                     
                     timeLabels = Array.from({length: daysToShow}, (_, i) => {
                         const date = new Date(startDate);
