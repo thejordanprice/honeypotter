@@ -615,8 +615,50 @@
                     const attempt = JSON.parse(event.data);
                     attempts.unshift(attempt);
                     updateMap(attempt);
+                    
+                    // Only update UI with filtered data if it matches current filters
+                    const currentFilters = {
+                        search: searchInput.value.toLowerCase().trim(),
+                        filter: filterSelect.value,
+                        protocol: protocolSelect.value
+                    };
+                    
+                    // Check if the new attempt matches current filters
+                    const matchesSearch = currentFilters.search === '' || 
+                        attempt.username.toLowerCase().includes(currentFilters.search) ||
+                        attempt.client_ip.includes(currentFilters.search) ||
+                        attempt.password.toLowerCase().includes(currentFilters.search);
+                        
+                    const matchesProtocol = currentFilters.protocol === 'all' || 
+                        attempt.protocol === currentFilters.protocol;
+                        
+                    const timestamp = new Date(attempt.timestamp + 'Z');
+                    const now = new Date();
+                    let matchesFilter = true;
+                    
+                    switch (currentFilters.filter) {
+                        case 'lastHour':
+                            matchesFilter = (now - timestamp) <= (60 * 60 * 1000);
+                            break;
+                        case 'today':
+                            const attemptDate = new Date(timestamp.toLocaleDateString());
+                            const todayDate = new Date(now.toLocaleDateString());
+                            matchesFilter = attemptDate.getTime() === todayDate.getTime();
+                            break;
+                        case 'thisWeek':
+                            const weekAgo = new Date(now);
+                            weekAgo.setDate(now.getDate() - 7);
+                            matchesFilter = timestamp >= weekAgo;
+                            break;
+                    }
+                    
+                    // Update UI only if the new attempt matches all current filters
+                    if (matchesSearch && matchesProtocol && matchesFilter) {
+                        currentPage = 1; // Reset to first page when new matching data arrives
+                    }
+                    
                     updateUI();
-                    updateVisualizations(attempts);
+                    updateVisualizations(filterAttempts(attempts));
                 } catch (error) {
                     console.error('Error processing message:', error);
                 }
