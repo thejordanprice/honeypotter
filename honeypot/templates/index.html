@@ -396,6 +396,18 @@
                     <canvas id="usernamesChart"></canvas>
                 </div>
             </div>
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                <h2 class="text-xl font-semibold mb-4">Source IPs</h2>
+                <div class="chart-container">
+                    <canvas id="ipsChart"></canvas>
+                </div>
+            </div>
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                <h2 class="text-xl font-semibold mb-4">Attack Origins</h2>
+                <div class="chart-container">
+                    <canvas id="countriesChart"></canvas>
+                </div>
+            </div>
         </div>
 
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow">
@@ -513,6 +525,22 @@
             usernamesChart.data.datasets[3].backgroundColor = isDark ? 'rgba(245, 158, 11, 0.8)' : 'rgba(217, 119, 6, 0.8)';
             usernamesChart.data.datasets[4].backgroundColor = isDark ? 'rgba(236, 72, 153, 0.8)' : 'rgba(219, 39, 119, 0.8)';
             usernamesChart.update();
+
+            // Update IPs chart colors
+            ipsChart.options.scales.x.ticks.color = chartTextColor;
+            ipsChart.options.scales.y.ticks.color = chartTextColor;
+            ipsChart.options.scales.x.grid.color = gridColor;
+            ipsChart.options.scales.y.grid.color = gridColor;
+            ipsChart.data.datasets[0].backgroundColor = isDark ? 'rgba(139, 92, 246, 0.8)' : 'rgba(109, 40, 217, 0.8)';
+            ipsChart.update();
+
+            // Update countries chart colors
+            countriesChart.options.scales.x.ticks.color = chartTextColor;
+            countriesChart.options.scales.y.ticks.color = chartTextColor;
+            countriesChart.options.scales.x.grid.color = gridColor;
+            countriesChart.options.scales.y.grid.color = gridColor;
+            countriesChart.data.datasets[0].backgroundColor = isDark ? 'rgba(59, 130, 246, 0.8)' : 'rgba(37, 99, 235, 0.8)';
+            countriesChart.update();
         });
 
         // Initialize map with light/dark theme support
@@ -1204,6 +1232,36 @@
             usernamesChart.data.datasets[3].data = topUsernames.map(([, counts]) => counts.smtp);
             usernamesChart.data.datasets[4].data = topUsernames.map(([, counts]) => counts.rdp);
             usernamesChart.update();
+
+            // Update IP addresses chart
+            const ipData = {};
+            filteredAttempts.forEach(attempt => {
+                ipData[attempt.client_ip] = (ipData[attempt.client_ip] || 0) + 1;
+            });
+
+            const topIPs = Object.entries(ipData)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 10);
+
+            ipsChart.data.labels = topIPs.map(([ip]) => ip);
+            ipsChart.data.datasets[0].data = topIPs.map(([, count]) => count);
+            ipsChart.update();
+
+            // Update countries chart
+            const countryData = {};
+            filteredAttempts.forEach(attempt => {
+                if (attempt.country) {
+                    countryData[attempt.country] = (countryData[attempt.country] || 0) + 1;
+                }
+            });
+
+            const topCountries = Object.entries(countryData)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 10);
+
+            countriesChart.data.labels = topCountries.map(([country]) => country);
+            countriesChart.data.datasets[0].data = topCountries.map(([, count]) => count);
+            countriesChart.update();
         }
 
         // Add pagination event listeners
@@ -1432,6 +1490,118 @@
                             position: 'bottom',
                             labels: {
                                 color: document.documentElement.classList.contains('dark') ? '#f3f4f6' : '#1f2937'
+                            }
+                        }
+                    }
+                }
+            }
+        );
+
+        // Initialize new chart for IP addresses
+        const ipsChart = new Chart(
+            document.getElementById('ipsChart'),
+            {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        data: [],
+                        backgroundColor: document.documentElement.classList.contains('dark')
+                            ? 'rgba(139, 92, 246, 0.8)'
+                            : 'rgba(109, 40, 217, 0.8)',
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                color: document.documentElement.classList.contains('dark') ? '#f3f4f6' : '#1f2937'
+                            },
+                            grid: {
+                                color: document.documentElement.classList.contains('dark') ? '#374151' : '#e5e7eb'
+                            }
+                        },
+                        x: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1,
+                                color: document.documentElement.classList.contains('dark') ? '#f3f4f6' : '#1f2937'
+                            },
+                            grid: {
+                                color: document.documentElement.classList.contains('dark') ? '#374151' : '#e5e7eb'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `Attempts: ${context.raw}`;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        );
+
+        // Initialize new chart for countries
+        const countriesChart = new Chart(
+            document.getElementById('countriesChart'),
+            {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        data: [],
+                        backgroundColor: document.documentElement.classList.contains('dark')
+                            ? 'rgba(59, 130, 246, 0.8)'
+                            : 'rgba(37, 99, 235, 0.8)',
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                color: document.documentElement.classList.contains('dark') ? '#f3f4f6' : '#1f2937'
+                            },
+                            grid: {
+                                color: document.documentElement.classList.contains('dark') ? '#374151' : '#e5e7eb'
+                            }
+                        },
+                        x: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1,
+                                color: document.documentElement.classList.contains('dark') ? '#f3f4f6' : '#1f2937'
+                            },
+                            grid: {
+                                color: document.documentElement.classList.contains('dark') ? '#374151' : '#e5e7eb'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `Attempts: ${context.raw}`;
+                                }
                             }
                         }
                     }
