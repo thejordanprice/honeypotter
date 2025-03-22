@@ -22,6 +22,8 @@
             height: 400px;
             width: 100%;
             border-radius: 0.5rem;
+            z-index: 1;
+            position: relative;
         }
         .location-popup {
             font-size: 14px;
@@ -40,6 +42,15 @@
             justify-content: center;
             align-items: center;
             z-index: 9999;
+            opacity: 1;
+            transition: opacity 0.3s ease-out, visibility 0.3s ease-out;
+            visibility: visible;
+        }
+
+        #loadingOverlay.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
         }
 
         .loading-spinner {
@@ -49,12 +60,14 @@
             border-top: 5px solid #3498db;
             border-radius: 50%;
             animation: spin 1s linear infinite;
+            margin-right: 15px;
         }
 
         .loading-text {
             color: white;
-            margin-left: 15px;
             font-size: 1.2rem;
+            font-weight: 500;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
         }
 
         @keyframes spin {
@@ -338,6 +351,119 @@
         .animate-spin {
             animation: spin 1s linear infinite;
         }
+
+        /* Mobile Menu Styles */
+        #mobileMenu {
+            position: absolute;
+            top: calc(100% + 0.5rem);
+            right: 0;
+            width: 16rem;
+            background-color: white;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-20px);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            pointer-events: none;
+        }
+
+        #mobileMenu:not(.hidden) {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+
+        .dark #mobileMenu {
+            background-color: #1f2937;
+        }
+
+        /* Menu overlay styles */
+        .menu-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 900;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            backdrop-filter: blur(2px);
+        }
+
+        .menu-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* FAQ Modal Styles */
+        #faqModal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.75);
+            z-index: 1100;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(4px);
+        }
+
+        #faqModal:not(.hidden) {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        #faqModal .bg-white {
+            transform: scale(0.9);
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        #faqModal:not(.hidden) .bg-white {
+            transform: scale(1);
+            opacity: 1;
+        }
+
+        /* Mobile menu button hover states */
+        #mobileMenu button {
+            width: 100%;
+            text-align: left;
+            padding: 0.75rem 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: background-color 0.2s ease;
+            border-radius: 0.375rem;
+        }
+
+        #mobileMenu button:hover {
+            background-color: #f3f4f6;
+            transform: translateX(4px);
+            transition: all 0.2s ease;
+        }
+
+        .dark #mobileMenu button:hover {
+            background-color: #374151;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            #mobileMenu {
+                width: calc(100vw - 2rem);
+                right: 1rem;
+                top: calc(100% + 0.75rem);
+            }
+        }
     </style>
 </head>
 <body class="bg-gray-100">
@@ -359,19 +485,40 @@
                         </svg>
                         <span id="totalAttempts" class="font-semibold">0</span>
                     </div>
-                    <div class="p-2 w-10 h-10 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center justify-center cursor-pointer" id="exportIPs">
-                        <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
+                    <!-- Hamburger Menu Button -->
+                    <div class="relative">
+                        <button id="hamburgerBtn" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                            </svg>
+                        </button>
+                        <!-- Mobile Menu -->
+                        <div id="mobileMenu" class="hidden absolute top-full right-0 w-64 bg-white dark:bg-gray-800 shadow-lg rounded-lg z-50">
+                            <div class="p-4 space-y-4">
+                                <button id="exportIPsMenu" class="w-full p-2 flex items-center gap-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                                    <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                    <span>Export IPs</span>
+                                </button>
+                                <button id="faqButton" class="w-full p-2 flex items-center gap-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                                    <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    <span>FAQ</span>
+                                </button>
+                                <button id="darkModeToggleMenu" class="w-full p-2 flex items-center gap-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                                    <svg id="darkIconMenu" class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                                    </svg>
+                                    <svg id="lightIconMenu" class="w-5 h-5 hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                                    </svg>
+                                    <span>Toggle Theme</span>
+                                </button>
+                            </div>
+                        </div>
                     </div>
-                    <button id="darkModeToggle" class="p-2 w-10 h-10 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center justify-center">
-                        <svg id="lightIcon" class="w-5 h-5 hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                        </svg>
-                        <svg id="darkIcon" class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                        </svg>
-                    </button>
                 </div>
             </div>
         </div>
@@ -474,73 +621,261 @@
 
     <!-- Loading Overlay -->
     <div id="loadingOverlay">
-        <div class="loading-spinner"></div>
-        <div class="loading-text">Loading data...</div>
+        <div class="flex items-center bg-white dark:bg-gray-800 rounded-lg p-6 shadow-xl">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Loading data...</div>
+        </div>
+    </div>
+
+    <!-- FAQ Modal -->
+    <div id="faqModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+        <div class="bg-white dark:bg-gray-800 w-11/12 max-w-2xl rounded-lg shadow-xl">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-2xl font-semibold">Frequently Asked Questions</h2>
+                    <button id="closeFaqModal" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="space-y-6">
+                    <div>
+                        <h3 class="text-lg font-semibold mb-2">What is Honeypotter?</h3>
+                        <p class="text-gray-600 dark:text-gray-300">Honeypotter is a honeypot monitoring system that tracks and visualizes attempted unauthorized access to various network services (SSH, Telnet, FTP, SMTP, RDP). It helps security researchers and system administrators understand attack patterns and origins.</p>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-semibold mb-2">How does it work?</h3>
+                        <p class="text-gray-600 dark:text-gray-300">The system sets up decoy services that log connection attempts, usernames, passwords, and IP addresses. This data is then analyzed and displayed in real-time through various charts and visualizations.</p>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-semibold mb-2">What information is collected?</h3>
+                        <p class="text-gray-600 dark:text-gray-300">For each connection attempt, we log:
+                            <ul class="list-disc ml-6 mt-2">
+                                <li>IP address and geolocation data</li>
+                                <li>Attempted username and password</li>
+                                <li>Protocol used (SSH, Telnet, etc.)</li>
+                                <li>Timestamp of the attempt</li>
+                            </ul>
+                        </p>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-semibold mb-2">Is this legal?</h3>
+                        <p class="text-gray-600 dark:text-gray-300">Yes. Honeypots are legal security tools used for research and defense. We don't engage with attackers or collect any data beyond what they voluntarily provide in their connection attempts.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
         // Initialize theme based on user preference or system settings
         if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
             document.documentElement.classList.add('dark');
-            document.getElementById('lightIcon').classList.remove('hidden');
-            document.getElementById('darkIcon').classList.add('hidden');
+            const lightIconMenu = document.getElementById('lightIconMenu');
+            const darkIconMenu = document.getElementById('darkIconMenu');
+            if (lightIconMenu && darkIconMenu) {
+                lightIconMenu.classList.remove('hidden');
+                darkIconMenu.classList.add('hidden');
+            }
         }
 
-        // Handle dark mode toggle and update all UI components
-        document.getElementById('darkModeToggle').addEventListener('click', () => {
-            const isDark = document.documentElement.classList.toggle('dark');
-            document.getElementById('lightIcon').classList.toggle('hidden');
-            document.getElementById('darkIcon').classList.toggle('hidden');
-            localStorage.theme = isDark ? 'dark' : 'light';
-            
-            // Update map theme
-            setMapTheme(isDark);
+        // Wait for DOM to be fully loaded before adding event listeners
+        document.addEventListener('DOMContentLoaded', () => {
+            // Hamburger Menu
+            const hamburgerBtn = document.getElementById('hamburgerBtn');
+            const mobileMenu = document.getElementById('mobileMenu');
+            const exportIPsMenu = document.getElementById('exportIPsMenu');
+            const darkModeToggleMenu = document.getElementById('darkModeToggleMenu');
+            const faqButton = document.getElementById('faqButton');
+            const faqModal = document.getElementById('faqModal');
+            const closeFaqModal = document.getElementById('closeFaqModal');
 
-            // Update chart colors based on theme
-            const chartTextColor = isDark ? '#f3f4f6' : '#1f2937';
-            const gridColor = isDark ? '#374151' : '#e5e7eb';
-            
-            // Update attempts chart colors
-            attemptsChart.options.scales.x.ticks.color = chartTextColor;
-            attemptsChart.options.scales.y.ticks.color = chartTextColor;
-            attemptsChart.options.scales.x.grid.color = gridColor;
-            attemptsChart.options.scales.y.grid.color = gridColor;
-            attemptsChart.options.plugins.legend.labels.color = chartTextColor;
-            attemptsChart.data.datasets[0].borderColor = isDark ? '#8b5cf6' : '#6d28d9';
-            attemptsChart.data.datasets[1].borderColor = isDark ? '#3b82f6' : '#2563eb';
-            attemptsChart.data.datasets[2].borderColor = isDark ? '#10b981' : '#059669';
-            attemptsChart.data.datasets[3].borderColor = isDark ? '#f59e0b' : '#d97706';
-            attemptsChart.data.datasets[4].borderColor = isDark ? '#ec4899' : '#db2777';
-            attemptsChart.update();
+            if (hamburgerBtn && mobileMenu) {
+                hamburgerBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const isHidden = mobileMenu.classList.contains('hidden');
+                    
+                    // Toggle menu visibility
+                    mobileMenu.classList.toggle('hidden');
+                    
+                    // Handle overlay
+                    if (!mobileMenu.classList.contains('hidden')) {
+                        // Add overlay if menu is visible
+                        const overlay = document.createElement('div');
+                        overlay.className = 'menu-overlay';
+                        document.body.appendChild(overlay);
+                        
+                        // Ensure overlay is visible after being added to DOM
+                        requestAnimationFrame(() => {
+                            overlay.classList.add('active');
+                        });
+                    } else {
+                        // Remove overlay if menu is hidden
+                        const overlay = document.querySelector('.menu-overlay');
+                        if (overlay) {
+                            overlay.classList.remove('active');
+                            setTimeout(() => overlay.remove(), 300);
+                        }
+                    }
+                });
+            }
 
-            // Update usernames chart colors
-            usernamesChart.options.scales.x.ticks.color = chartTextColor;
-            usernamesChart.options.scales.y.ticks.color = chartTextColor;
-            usernamesChart.options.scales.x.grid.color = gridColor;
-            usernamesChart.options.scales.y.grid.color = gridColor;
-            usernamesChart.options.plugins.legend.labels.color = chartTextColor;
-            usernamesChart.data.datasets[0].backgroundColor = isDark ? 'rgba(139, 92, 246, 0.8)' : 'rgba(109, 40, 217, 0.8)';
-            usernamesChart.data.datasets[1].backgroundColor = isDark ? 'rgba(59, 130, 246, 0.8)' : 'rgba(37, 99, 235, 0.8)';
-            usernamesChart.data.datasets[2].backgroundColor = isDark ? 'rgba(16, 185, 129, 0.8)' : 'rgba(5, 150, 105, 0.8)';
-            usernamesChart.data.datasets[3].backgroundColor = isDark ? 'rgba(245, 158, 11, 0.8)' : 'rgba(217, 119, 6, 0.8)';
-            usernamesChart.data.datasets[4].backgroundColor = isDark ? 'rgba(236, 72, 153, 0.8)' : 'rgba(219, 39, 119, 0.8)';
-            usernamesChart.update();
+            // Close menu when clicking outside
+            document.addEventListener('click', (e) => {
+                if (mobileMenu && !mobileMenu.contains(e.target) && !hamburgerBtn.contains(e.target)) {
+                    mobileMenu.classList.add('hidden');
+                    const overlay = document.querySelector('.menu-overlay');
+                    if (overlay) {
+                        overlay.classList.remove('active');
+                        setTimeout(() => overlay.remove(), 300);
+                    }
+                }
+            });
 
-            // Update IPs chart colors
-            ipsChart.options.scales.x.ticks.color = chartTextColor;
-            ipsChart.options.scales.y.ticks.color = chartTextColor;
-            ipsChart.options.scales.x.grid.color = gridColor;
-            ipsChart.options.scales.y.grid.color = gridColor;
-            ipsChart.data.datasets[0].backgroundColor = isDark ? 'rgba(139, 92, 246, 0.8)' : 'rgba(109, 40, 217, 0.8)';
-            ipsChart.update();
+            // Prevent menu from closing when clicking inside
+            if (mobileMenu) {
+                mobileMenu.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                });
+            }
 
-            // Update countries chart colors
-            countriesChart.options.scales.x.ticks.color = chartTextColor;
-            countriesChart.options.scales.y.ticks.color = chartTextColor;
-            countriesChart.options.scales.x.grid.color = gridColor;
-            countriesChart.options.scales.y.grid.color = gridColor;
-            countriesChart.data.datasets[0].backgroundColor = isDark ? 'rgba(59, 130, 246, 0.8)' : 'rgba(37, 99, 235, 0.8)';
-            countriesChart.update();
+            // Menu item click handlers
+            if (exportIPsMenu) {
+                exportIPsMenu.addEventListener('click', () => {
+                    mobileMenu.classList.add('hidden');
+                    const overlay = document.querySelector('.menu-overlay');
+                    if (overlay) {
+                        overlay.classList.remove('active');
+                        setTimeout(() => overlay.remove(), 300);
+                    }
+                    window.open('/api/export/ips', '_blank');
+                });
+            }
+
+            if (darkModeToggleMenu) {
+                darkModeToggleMenu.addEventListener('click', () => {
+                    const isDark = document.documentElement.classList.toggle('dark');
+                    const lightIconMenu = document.getElementById('lightIconMenu');
+                    const darkIconMenu = document.getElementById('darkIconMenu');
+                    
+                    if (lightIconMenu && darkIconMenu) {
+                        lightIconMenu.classList.toggle('hidden');
+                        darkIconMenu.classList.toggle('hidden');
+                    }
+                    
+                    localStorage.theme = isDark ? 'dark' : 'light';
+                    mobileMenu.classList.add('hidden');
+                    
+                    const overlay = document.querySelector('.menu-overlay');
+                    if (overlay) {
+                        overlay.classList.remove('active');
+                        setTimeout(() => overlay.remove(), 300);
+                    }
+
+                    // Update map theme
+                    setMapTheme(isDark);
+
+                    // Update chart colors based on theme
+                    const chartTextColor = isDark ? '#f3f4f6' : '#1f2937';
+                    const gridColor = isDark ? '#374151' : '#e5e7eb';
+                    
+                    // Update all charts if they exist
+                    if (typeof attemptsChart !== 'undefined') {
+                        // Update attempts chart colors
+                        attemptsChart.options.scales.x.ticks.color = chartTextColor;
+                        attemptsChart.options.scales.y.ticks.color = chartTextColor;
+                        attemptsChart.options.scales.x.grid.color = gridColor;
+                        attemptsChart.options.scales.y.grid.color = gridColor;
+                        attemptsChart.options.plugins.legend.labels.color = chartTextColor;
+                        attemptsChart.data.datasets[0].borderColor = isDark ? '#8b5cf6' : '#6d28d9';
+                        attemptsChart.data.datasets[1].borderColor = isDark ? '#3b82f6' : '#2563eb';
+                        attemptsChart.data.datasets[2].borderColor = isDark ? '#10b981' : '#059669';
+                        attemptsChart.data.datasets[3].borderColor = isDark ? '#f59e0b' : '#d97706';
+                        attemptsChart.data.datasets[4].borderColor = isDark ? '#ec4899' : '#db2777';
+                        attemptsChart.update();
+                    }
+
+                    if (typeof usernamesChart !== 'undefined') {
+                        // Update usernames chart colors
+                        usernamesChart.options.scales.x.ticks.color = chartTextColor;
+                        usernamesChart.options.scales.y.ticks.color = chartTextColor;
+                        usernamesChart.options.scales.x.grid.color = gridColor;
+                        usernamesChart.options.scales.y.grid.color = gridColor;
+                        usernamesChart.options.plugins.legend.labels.color = chartTextColor;
+                        usernamesChart.data.datasets[0].backgroundColor = isDark ? 'rgba(139, 92, 246, 0.8)' : 'rgba(109, 40, 217, 0.8)';
+                        usernamesChart.data.datasets[1].backgroundColor = isDark ? 'rgba(59, 130, 246, 0.8)' : 'rgba(37, 99, 235, 0.8)';
+                        usernamesChart.data.datasets[2].backgroundColor = isDark ? 'rgba(16, 185, 129, 0.8)' : 'rgba(5, 150, 105, 0.8)';
+                        usernamesChart.data.datasets[3].backgroundColor = isDark ? 'rgba(245, 158, 11, 0.8)' : 'rgba(217, 119, 6, 0.8)';
+                        usernamesChart.data.datasets[4].backgroundColor = isDark ? 'rgba(236, 72, 153, 0.8)' : 'rgba(219, 39, 119, 0.8)';
+                        usernamesChart.update();
+                    }
+
+                    if (typeof ipsChart !== 'undefined') {
+                        // Update IPs chart colors
+                        ipsChart.options.scales.x.ticks.color = chartTextColor;
+                        ipsChart.options.scales.y.ticks.color = chartTextColor;
+                        ipsChart.options.scales.x.grid.color = gridColor;
+                        ipsChart.options.scales.y.grid.color = gridColor;
+                        ipsChart.data.datasets[0].backgroundColor = isDark ? 'rgba(139, 92, 246, 0.8)' : 'rgba(109, 40, 217, 0.8)';
+                        ipsChart.update();
+                    }
+
+                    if (typeof countriesChart !== 'undefined') {
+                        // Update countries chart colors
+                        countriesChart.options.scales.x.ticks.color = chartTextColor;
+                        countriesChart.options.scales.y.ticks.color = chartTextColor;
+                        countriesChart.options.scales.x.grid.color = gridColor;
+                        countriesChart.options.scales.y.grid.color = gridColor;
+                        countriesChart.data.datasets[0].backgroundColor = isDark ? 'rgba(59, 130, 246, 0.8)' : 'rgba(37, 99, 235, 0.8)';
+                        countriesChart.update();
+                    }
+                });
+            }
+
+            // FAQ Modal handlers
+            if (faqButton && faqModal) {
+                faqButton.addEventListener('click', () => {
+                    mobileMenu.classList.add('hidden');
+                    const overlay = document.querySelector('.menu-overlay');
+                    if (overlay) {
+                        overlay.classList.remove('active');
+                        setTimeout(() => overlay.remove(), 300);
+                    }
+                    faqModal.classList.remove('hidden');
+                });
+            }
+
+            if (closeFaqModal && faqModal) {
+                closeFaqModal.addEventListener('click', () => {
+                    faqModal.classList.add('hidden');
+                });
+
+                // Close FAQ modal when clicking outside
+                faqModal.addEventListener('click', (e) => {
+                    if (e.target === faqModal) {
+                        faqModal.classList.add('hidden');
+                    }
+                });
+            }
+
+            // Close modals on escape key
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    if (mobileMenu && !mobileMenu.classList.contains('hidden')) {
+                        mobileMenu.classList.add('hidden');
+                        const overlay = document.querySelector('.menu-overlay');
+                        if (overlay) {
+                            overlay.classList.remove('active');
+                            setTimeout(() => overlay.remove(), 300);
+                        }
+                    }
+                    
+                    if (faqModal && !faqModal.classList.contains('hidden')) {
+                        faqModal.classList.add('hidden');
+                    }
+                }
+            });
         });
 
         // Initialize map with light/dark theme support
@@ -678,6 +1013,34 @@
             }
         }
 
+        // Function to show/hide loading overlay with animation
+        function toggleLoadingOverlay(show) {
+            const overlay = document.getElementById('loadingOverlay');
+            if (show) {
+                overlay.classList.remove('hidden');
+                document.body.style.overflow = 'hidden'; // Prevent scrolling while loading
+                
+                // Ensure the overlay is visible before adding animation classes
+                requestAnimationFrame(() => {
+                    overlay.style.opacity = '1';
+                    overlay.style.visibility = 'visible';
+                });
+            } else {
+                overlay.style.opacity = '0';
+                overlay.style.visibility = 'hidden';
+                document.body.style.overflow = ''; // Restore scrolling
+                
+                // Add hidden class after animation completes
+                setTimeout(() => {
+                    overlay.classList.add('hidden');
+                }, 300); // Match the transition duration
+            }
+        }
+
+        // Show loading overlay initially
+        toggleLoadingOverlay(true);
+
+        // Modify the WebSocket connection function to handle loading state
         function connectWebSocket() {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const wsUrl = `${protocol}//${window.location.host}/ws`;
@@ -701,155 +1064,33 @@
                         };
                         
                         // Apply filters to the fetched data
-                        const filteredAttempts = attempts.filter(attempt => {
-                            const matchesSearch = currentFilters.search === '' || 
-                                attempt.username.toLowerCase().includes(currentFilters.search) ||
-                                attempt.client_ip.includes(currentFilters.search) ||
-                                attempt.password.toLowerCase().includes(currentFilters.search);
-                                
-                            const matchesProtocol = currentFilters.protocol === 'all' || 
-                                attempt.protocol === currentFilters.protocol;
-                                
-                            const timestamp = new Date(attempt.timestamp + 'Z');
-                            const now = new Date();
-                            let matchesFilter = true;
-                            
-                            switch (currentFilters.filter) {
-                                case 'lastHour':
-                                    matchesFilter = (now - timestamp) <= (60 * 60 * 1000);
-                                    break;
-                                case 'today':
-                                    const attemptDate = new Date(timestamp.toLocaleDateString());
-                                    const todayDate = new Date(now.toLocaleDateString());
-                                    matchesFilter = attemptDate.getTime() === todayDate.getTime();
-                                    break;
-                                case 'thisWeek':
-                                    const weekAgo = new Date(now);
-                                    weekAgo.setDate(now.getDate() - 7);
-                                    matchesFilter = timestamp >= weekAgo;
-                                    break;
-                            }
-                            
-                            return matchesSearch && matchesProtocol && matchesFilter;
-                        });
-                        
-                        // Clear existing markers
-                        markers.forEach(marker => {
-                            map.removeLayer(marker.leaflet);
-                        });
-                        markers.clear();
-                        
-                        // Update map with filtered attempts
-                        filteredAttempts.forEach(updateMap);
+                        const filteredAttempts = filterAttempts(attempts);
                         
                         // Update UI with filtered data
-                        document.getElementById('totalAttempts').textContent = attempts.length;
-                        attemptsDiv.innerHTML = filteredAttempts
-                            .slice(0, itemsPerPage)
-                            .map(attempt => createAttemptElement(attempt))
-                            .join('');
-                            
-                        // Update pagination info
-                        const totalItems = filteredAttempts.length;
-                        document.getElementById('startRange').textContent = totalItems ? 1 : 0;
-                        document.getElementById('endRange').textContent = Math.min(itemsPerPage, totalItems);
-                        document.getElementById('totalItems').textContent = totalItems;
-                        document.getElementById('prevPage').disabled = true;
-                        document.getElementById('nextPage').disabled = totalItems <= itemsPerPage;
+                        updateUI();
                         
-                        // Update visualizations and center map
-                        updateVisualizations(filteredAttempts);
-                        centerMapOnMostActiveRegion(filteredAttempts);
-
-                        // Hide loading overlay once everything is loaded
-                        document.getElementById('loadingOverlay').style.display = 'none';
+                        // Hide loading overlay after everything is loaded and add a slight delay
+                        setTimeout(() => toggleLoadingOverlay(false), 500);
                     })
                     .catch(error => {
                         console.error('Error fetching data:', error);
                         // Hide loading overlay even if there's an error
-                        document.getElementById('loadingOverlay').style.display = 'none';
+                        toggleLoadingOverlay(false);
                     });
-            };
-
-            socket.onmessage = function(event) {
-                try {
-                    const attempt = JSON.parse(event.data);
-                    attempts.unshift(attempt);
-                    
-                    // Only update UI with filtered data if it matches current filters
-                    const currentFilters = {
-                        search: searchInput.value.toLowerCase().trim(),
-                        filter: filterSelect.value,
-                        protocol: protocolSelect.value
-                    };
-                    
-                    // Check if the new attempt matches current filters
-                    const matchesSearch = currentFilters.search === '' || 
-                        attempt.username.toLowerCase().includes(currentFilters.search) ||
-                        attempt.client_ip.includes(currentFilters.search) ||
-                        attempt.password.toLowerCase().includes(currentFilters.search);
-                        
-                    const matchesProtocol = currentFilters.protocol === 'all' || 
-                        attempt.protocol === currentFilters.protocol;
-                        
-                    const timestamp = new Date(attempt.timestamp + 'Z');
-                    const now = new Date();
-                    let matchesFilter = true;
-                    
-                    switch (currentFilters.filter) {
-                        case 'lastHour':
-                            matchesFilter = (now - timestamp) <= (60 * 60 * 1000);
-                            break;
-                        case 'today':
-                            const attemptDate = new Date(timestamp.toLocaleDateString());
-                            const todayDate = new Date(now.toLocaleDateString());
-                            matchesFilter = attemptDate.getTime() === todayDate.getTime();
-                            break;
-                        case 'thisWeek':
-                            const weekAgo = new Date(now);
-                            weekAgo.setDate(now.getDate() - 7);
-                            matchesFilter = timestamp >= weekAgo;
-                            break;
-                    }
-
-                    // Update total attempts counter regardless of filters
-                    document.getElementById('totalAttempts').textContent = attempts.length;
-                    
-                    // Only update the map and UI if the new attempt matches current filters
-                    if (matchesSearch && matchesProtocol && matchesFilter) {
-                        updateMap(attempt);
-                        currentPage = 1; // Reset to first page when new matching data arrives
-                        const filteredAttempts = filterAttempts(attempts);
-                        attemptsDiv.innerHTML = filteredAttempts
-                            .slice(0, itemsPerPage)
-                            .map(attempt => createAttemptElement(attempt))
-                            .join('');
-                            
-                        // Update pagination info
-                        const totalItems = filteredAttempts.length;
-                        document.getElementById('startRange').textContent = totalItems ? 1 : 0;
-                        document.getElementById('endRange').textContent = Math.min(itemsPerPage, totalItems);
-                        document.getElementById('totalItems').textContent = totalItems;
-                        document.getElementById('prevPage').disabled = true;
-                        document.getElementById('nextPage').disabled = totalItems <= itemsPerPage;
-                        
-                        // Update visualizations with filtered data
-                        updateVisualizations(filteredAttempts);
-                    }
-                } catch (error) {
-                    console.error('Error processing message:', error);
-                }
             };
 
             socket.onerror = function(error) {
                 updateConnectionStatus('WebSocket error: ' + error.message, true);
                 console.error('WebSocket error:', error);
+                toggleLoadingOverlay(false);
             };
 
             socket.onclose = function() {
                 updateConnectionStatus('WebSocket connection closed. Reconnecting...', true);
+                toggleLoadingOverlay(false);
                 setTimeout(connectWebSocket, 5000);
             };
+
         }
 
         function formatDateToLocalTime(isoString) {
@@ -1616,6 +1857,119 @@
         document.getElementById('exportIPs').addEventListener('click', () => {
             // Open in new tab
             window.open('/api/export/ips', '_blank');
+        });
+
+        // Hamburger Menu
+        document.getElementById('hamburgerBtn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            const mobileMenu = document.getElementById('mobileMenu');
+            const isHidden = mobileMenu.classList.contains('hidden');
+            
+            // Toggle menu visibility
+            mobileMenu.classList.toggle('hidden');
+            
+            // Handle overlay
+            if (!mobileMenu.classList.contains('hidden')) {
+                // Add overlay if menu is visible
+                const overlay = document.createElement('div');
+                overlay.className = 'menu-overlay';
+                document.body.appendChild(overlay);
+                
+                // Ensure overlay is visible after being added to DOM
+                requestAnimationFrame(() => {
+                    overlay.classList.add('active');
+                });
+            } else {
+                // Remove overlay if menu is hidden
+                const overlay = document.querySelector('.menu-overlay');
+                if (overlay) {
+                    overlay.classList.remove('active');
+                    setTimeout(() => overlay.remove(), 300);
+                }
+            }
+        });
+
+        // Close menu when clicking outside
+        document.addEventListener('click', (e) => {
+            const mobileMenu = document.getElementById('mobileMenu');
+            const hamburgerBtn = document.getElementById('hamburgerBtn');
+            
+            if (!mobileMenu.contains(e.target) && !hamburgerBtn.contains(e.target)) {
+                mobileMenu.classList.add('hidden');
+                const overlay = document.querySelector('.menu-overlay');
+                if (overlay) {
+                    overlay.classList.remove('active');
+                    setTimeout(() => overlay.remove(), 300);
+                }
+            }
+        });
+
+        // Close menu when clicking inside
+        document.getElementById('mobileMenu').addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+
+        // Menu item click handlers
+        document.getElementById('exportIPsMenu').addEventListener('click', () => {
+            document.getElementById('mobileMenu').classList.add('hidden');
+            const overlay = document.querySelector('.menu-overlay');
+            if (overlay) {
+                overlay.classList.remove('active');
+                setTimeout(() => overlay.remove(), 300);
+            }
+            window.open('/api/export/ips', '_blank');
+        });
+
+        document.getElementById('darkModeToggleMenu').addEventListener('click', () => {
+            document.getElementById('mobileMenu').classList.add('hidden');
+            const overlay = document.querySelector('.menu-overlay');
+            if (overlay) {
+                overlay.classList.remove('active');
+                setTimeout(() => overlay.remove(), 300);
+            }
+        });
+
+        // FAQ Modal
+        document.getElementById('faqButton').addEventListener('click', () => {
+            document.getElementById('mobileMenu').classList.add('hidden');
+            const overlay = document.querySelector('.menu-overlay');
+            if (overlay) {
+                overlay.classList.remove('active');
+                setTimeout(() => overlay.remove(), 300);
+            }
+            document.getElementById('faqModal').classList.remove('hidden');
+        });
+
+        document.getElementById('closeFaqModal').addEventListener('click', () => {
+            document.getElementById('faqModal').classList.add('hidden');
+        });
+
+        // Close FAQ modal when clicking outside
+        document.getElementById('faqModal').addEventListener('click', (e) => {
+            if (e.target === document.getElementById('faqModal')) {
+                document.getElementById('faqModal').classList.add('hidden');
+            }
+        });
+
+        // Close modals on escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                const mobileMenu = document.getElementById('mobileMenu');
+                const faqModal = document.getElementById('faqModal');
+                const overlay = document.querySelector('.menu-overlay');
+                
+                if (!mobileMenu.classList.contains('hidden')) {
+                    mobileMenu.classList.add('hidden');
+                    if (overlay) {
+                        overlay.classList.remove('active');
+                        setTimeout(() => overlay.remove(), 300);
+                    }
+                }
+                
+                if (!faqModal.classList.contains('hidden')) {
+                    faqModal.classList.add('hidden');
+                }
+            }
         });
     </script>
 </body>
