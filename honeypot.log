@@ -33,3 +33,41 @@
 2025-03-22 13:07:53,497 - __main__ - INFO - FTP Honeypot thread started on port 2121
 2025-03-22 13:07:53,497 - __main__ - INFO - Starting web interface on port 8080
 2025-03-22 13:08:23,420 - honeypot.core.base_server - INFO - TELNET login attempt from 127.0.0.1: Username: whoah, Password: there
+2025-03-22 13:50:54,781 - __main__ - INFO - Database initialized successfully
+2025-03-22 13:50:54,782 - honeypot.core.ssh_server - INFO - Generated ECDSA host key: e22d07e116d6e723a5d5a939daff73e4
+2025-03-22 13:50:54,782 - __main__ - INFO - SSH Honeypot thread started on port 2222
+2025-03-22 13:50:54,782 - honeypot.core.base_server - INFO - SSH Honeypot listening on 127.0.0.1:2222
+2025-03-22 13:50:54,782 - __main__ - INFO - Telnet Honeypot thread started on port 2323
+2025-03-22 13:50:54,782 - honeypot.core.base_server - INFO - TELNET Honeypot listening on 127.0.0.1:2323
+2025-03-22 13:50:54,782 - __main__ - INFO - FTP Honeypot thread started on port 2121
+2025-03-22 13:50:54,782 - __main__ - INFO - SMTP Honeypot thread started on port 25
+2025-03-22 13:50:54,782 - __main__ - INFO - Starting web interface on port 8080
+2025-03-22 13:50:54,782 - honeypot.core.base_server - INFO - FTP Honeypot listening on 127.0.0.1:2121
+2025-03-22 13:50:54,782 - honeypot.core.base_server - ERROR - Failed to start SMTP Honeypot: [Errno 13] Permission denied
+2025-03-22 13:50:54,792 - uvicorn.error - INFO - Started server process [82744]
+2025-03-22 13:50:54,792 - uvicorn.error - INFO - Waiting for application startup.
+2025-03-22 13:50:54,792 - uvicorn.error - INFO - Application startup complete.
+2025-03-22 13:50:54,792 - uvicorn.error - INFO - Uvicorn running on http://127.0.0.1:8080 (Press CTRL+C to quit)
+2025-03-22 13:50:57,419 - uvicorn.error - INFO - Shutting down
+2025-03-22 13:50:57,521 - uvicorn.error - INFO - Waiting for application shutdown.
+2025-03-22 13:50:57,522 - uvicorn.error - INFO - Application shutdown complete.
+2025-03-22 13:50:57,522 - uvicorn.error - INFO - Finished server process [82744]
+2025-03-22 13:51:31,069 - __main__ - INFO - Database initialized successfully
+2025-03-22 13:51:31,069 - honeypot.core.ssh_server - INFO - Generated ECDSA host key: 22f75249ff8322e2dfca5b2b3df63788
+2025-03-22 13:51:31,069 - __main__ - INFO - SSH Honeypot thread started on port 2222
+2025-03-22 13:51:31,069 - honeypot.core.base_server - INFO - SSH Honeypot listening on 0.0.0.0:2222
+2025-03-22 13:51:31,069 - __main__ - INFO - Telnet Honeypot thread started on port 2323
+2025-03-22 13:51:31,070 - honeypot.core.base_server - INFO - TELNET Honeypot listening on 0.0.0.0:2323
+2025-03-22 13:51:31,070 - __main__ - INFO - FTP Honeypot thread started on port 2121
+2025-03-22 13:51:31,070 - __main__ - INFO - SMTP Honeypot thread started on port 2525
+2025-03-22 13:51:31,070 - __main__ - INFO - Starting web interface on port 8080
+2025-03-22 13:51:31,070 - honeypot.core.base_server - INFO - SMTP Honeypot listening on 0.0.0.0:2525
+2025-03-22 13:51:31,070 - honeypot.core.base_server - INFO - FTP Honeypot listening on 0.0.0.0:2121
+2025-03-22 13:51:31,079 - uvicorn.error - INFO - Started server process [82839]
+2025-03-22 13:51:31,079 - uvicorn.error - INFO - Waiting for application startup.
+2025-03-22 13:51:31,079 - uvicorn.error - INFO - Application startup complete.
+2025-03-22 13:51:31,079 - uvicorn.error - INFO - Uvicorn running on http://0.0.0.0:8080 (Press CTRL+C to quit)
+2025-03-22 13:51:44,525 - uvicorn.error - INFO - ('127.0.0.1', 54424) - "WebSocket /ws" [accepted]
+2025-03-22 13:51:44,526 - uvicorn.error - INFO - connection open
+2025-03-22 13:51:44,544 - uvicorn.access - INFO - 127.0.0.1:54425 - "GET /api/attempts HTTP/1.1" 200
+2025-03-22 13:52:04,506 - honeypot.core.base_server - INFO - SMTP login attempt from 127.0.0.1: Username: username, Password: password

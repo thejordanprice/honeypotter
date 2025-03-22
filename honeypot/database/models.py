@@ -15,6 +15,7 @@ class Protocol(enum.Enum):
     SSH = "ssh"
     TELNET = "telnet"
     FTP = "ftp"
+    SMTP = "smtp"
 
 class LoginAttempt(Base):
     """Model for storing SSH login attempts."""
@@ -78,4 +79,4 @@ def get_db():
         yield db
     finally:
         db.close()
-        SessionLocal.remove()  # Remove session from registry 
+        SessionLocal.remove() 

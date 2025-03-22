@@ -5,10 +5,11 @@ import os
 from honeypot.core.ssh_server import SSHHoneypot
 from honeypot.core.telnet_server import TelnetHoneypot
 from honeypot.core.ftp_server import FTPHoneypot
+from honeypot.core.smtp_server import SMTPHoneypot
 from honeypot.database.models import init_db
 from honeypot.web.app import app
 from honeypot.core.config import (
-    HOST, SSH_PORT, TELNET_PORT, FTP_PORT, WEB_PORT, 
+    HOST, SSH_PORT, TELNET_PORT, FTP_PORT, SMTP_PORT, WEB_PORT, 
     LOG_LEVEL, LOG_FILE
 )
 
@@ -53,6 +54,14 @@ def start_ftp_server():
     except Exception as e:
         logger.error(f"FTP server failed: {str(e)}")
 
+def start_smtp_server():
+    """Start the SMTP honeypot server."""
+    try:
+        honeypot = SMTPHoneypot()
+        honeypot.start()
+    except Exception as e:
+        logger.error(f"SMTP server failed: {str(e)}")
+
 def main():
     """Main entry point for the application."""
     try:
@@ -81,6 +90,12 @@ def main():
         ftp_thread.daemon = True
         ftp_thread.start()
         logger.info(f"FTP Honeypot thread started on port {FTP_PORT}")
+
+        # Start SMTP server in a separate thread
+        smtp_thread = threading.Thread(target=start_smtp_server)
+        smtp_thread.daemon = True
+        smtp_thread.start()
+        logger.info(f"SMTP Honeypot thread started on port {SMTP_PORT}")
 
         # Start the web application
         logger.info(f"Starting web interface on port {WEB_PORT}")

@@ -14,6 +14,7 @@ HOST = os.getenv('HOST', '0.0.0.0')
 SSH_PORT = int(os.getenv('SSH_PORT', 22))
 TELNET_PORT = int(os.getenv('TELNET_PORT', 23))
 FTP_PORT = int(os.getenv('FTP_PORT', 21))
+SMTP_PORT = int(os.getenv('SMTP_PORT', 25))
 WEB_PORT = int(os.getenv('WEB_PORT', 8080))
 
 # Database settings
