@@ -69,16 +69,35 @@ class SSHHoneypot(BaseHoneypot):
         try:
             transport = paramiko.Transport(client_socket)
             transport.add_server_key(self.host_key)
+            transport.local_version = "SSH-2.0-OpenSSH_8.2p1 Ubuntu-4ubuntu0.5"  # Mimic a real server
             
             server = HoneypotServerInterface(self, client_ip)
-            transport.start_server(server=server)
+            try:
+                transport.start_server(server=server)
+            except paramiko.SSHException as e:
+                if "Error reading SSH protocol banner" in str(e):
+                    # This is a common case for scanners, log at debug level
+                    logger.debug(f"Scanner probe from {client_ip}: {str(e)}")
+                    return
+                elif "Incompatible ssh peer" in str(e):
+                    logger.debug(f"Incompatible SSH client from {client_ip}: {str(e)}")
+                    return
+                else:
+                    logger.warning(f"SSH negotiation failed from {client_ip}: {str(e)}")
+                    return
             
             channel = transport.accept(20)
             if channel is not None:
                 channel.close()
                 
         except paramiko.SSHException as e:
-            logger.warning(f"SSH exception from {client_ip}: {str(e)}")
+            # Handle other SSH-specific exceptions
+            if "Error reading SSH protocol banner" in str(e):
+                logger.debug(f"Scanner probe from {client_ip}: {str(e)}")
+            else:
+                logger.warning(f"SSH exception from {client_ip}: {str(e)}")
+        except socket.timeout:
+            logger.debug(f"Connection timed out from {client_ip}")
         except Exception as e:
             logger.error(f"Error handling client {client_ip}: {str(e)}")
         finally:
