@@ -106,9 +106,9 @@ def main():
                     }
                 },
                 "loggers": {
-                    "uvicorn": {"handlers": ["default"], "level": LOG_LEVEL.lower()},
-                    "uvicorn.access": {"handlers": ["default"], "level": LOG_LEVEL.lower()},
-                    "uvicorn.asgi": {"handlers": ["default"], "level": LOG_LEVEL.lower()}
+                    "uvicorn": {"handlers": ["default"], "level": LOG_LEVEL},
+                    "uvicorn.access": {"handlers": ["default"], "level": LOG_LEVEL},
+                    "uvicorn.asgi": {"handlers": ["default"], "level": LOG_LEVEL}
                 }
             }
         )
