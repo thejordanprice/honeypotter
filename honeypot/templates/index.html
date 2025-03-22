@@ -651,14 +651,30 @@
                             matchesFilter = timestamp >= weekAgo;
                             break;
                     }
+
+                    // Update total attempts counter regardless of filters
+                    document.getElementById('totalAttempts').textContent = attempts.length;
                     
-                    // Update UI only if the new attempt matches all current filters
+                    // Only update the UI if the new attempt matches current filters
                     if (matchesSearch && matchesProtocol && matchesFilter) {
                         currentPage = 1; // Reset to first page when new matching data arrives
+                        const filteredAttempts = filterAttempts(attempts);
+                        attemptsDiv.innerHTML = filteredAttempts
+                            .slice(0, itemsPerPage)
+                            .map(attempt => createAttemptElement(attempt))
+                            .join('');
+                            
+                        // Update pagination info
+                        const totalItems = filteredAttempts.length;
+                        document.getElementById('startRange').textContent = totalItems ? 1 : 0;
+                        document.getElementById('endRange').textContent = Math.min(itemsPerPage, totalItems);
+                        document.getElementById('totalItems').textContent = totalItems;
+                        document.getElementById('prevPage').disabled = true;
+                        document.getElementById('nextPage').disabled = totalItems <= itemsPerPage;
+                        
+                        // Update visualizations with filtered data
+                        updateVisualizations(filteredAttempts);
                     }
-                    
-                    updateUI();
-                    updateVisualizations(filterAttempts(attempts));
                 } catch (error) {
                     console.error('Error processing message:', error);
                 }
