@@ -37,7 +37,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
+            background-color: rgba(255, 255, 255, 0.8);
             display: flex;
             justify-content: center;
             align-items: center;
@@ -45,6 +45,7 @@
             opacity: 1;
             transition: opacity 0.3s ease-out, visibility 0.3s ease-out;
             visibility: visible;
+            backdrop-filter: blur(4px);
         }
 
         #loadingOverlay.hidden {
@@ -56,18 +57,18 @@
         .loading-spinner {
             width: 50px;
             height: 50px;
-            border: 5px solid #f3f3f3;
-            border-top: 5px solid #3498db;
+            border: 5px solid #e5e7eb;
+            border-top: 5px solid #3b82f6;
             border-radius: 50%;
             animation: spin 1s linear infinite;
             margin-right: 15px;
         }
 
         .loading-text {
-            color: white;
+            color: #1f2937;
             font-size: 1.2rem;
             font-weight: 500;
-            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+            text-shadow: 0 1px 2px rgba(255, 255, 255, 0.1);
         }
 
         @keyframes spin {
@@ -87,6 +88,7 @@
 
         .dark .loading-text {
             color: #f3f4f6;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
         }
 
         /* Core dark mode theme configuration */
