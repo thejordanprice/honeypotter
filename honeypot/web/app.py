@@ -61,9 +61,9 @@ def get_attempts(db: Session = Depends(get_db)):
     attempts = db.query(LoginAttempt).order_by(LoginAttempt.timestamp.desc()).all()
     return [attempt.to_dict() for attempt in attempts]
 
-@app.get("/api/export/ips")
-def export_ips(db: Session = Depends(get_db), download: bool = False):
-    """Export all unique IP addresses that have attempted to connect."""
+@app.get("/api/export/plaintext")
+def export_plaintext(db: Session = Depends(get_db), download: bool = False):
+    """Export all login attempts in plaintext format."""
     ips = db.query(LoginAttempt.client_ip).distinct().all()
     ip_list = "\n".join([ip[0] for ip in ips])
     
