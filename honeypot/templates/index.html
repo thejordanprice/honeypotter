@@ -1164,6 +1164,36 @@
                     });
             };
 
+            socket.onmessage = function(event) {
+                try {
+                    const newAttempt = JSON.parse(event.data);
+                    console.log('Received new attempt:', newAttempt);
+                    
+                    // Add the new attempt to the beginning of the array
+                    attempts.unshift(newAttempt);
+                    
+                    // Update the total attempts counter
+                    document.getElementById('totalAttempts').textContent = attempts.length;
+                    
+                    // Update map with new attempt
+                    updateMap(newAttempt);
+                    
+                    // Update UI with new data
+                    // Reset to first page to show newest attempt
+                    currentPage = 1;
+                    updateUI();
+                    
+                    // Flash the connection status indicator to show activity
+                    const indicator = document.getElementById('connectionStatusIndicator');
+                    indicator.style.transform = 'scale(1.2)';
+                    setTimeout(() => {
+                        indicator.style.transform = 'scale(1)';
+                    }, 200);
+                } catch (error) {
+                    console.error('Error processing WebSocket message:', error);
+                }
+            };
+
             socket.onerror = function(error) {
                 updateConnectionStatus('WebSocket error: ' + error.message, true);
                 console.error('WebSocket error:', error);
