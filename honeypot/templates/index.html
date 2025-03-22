@@ -508,18 +508,23 @@
             display: flex;
             align-items: center;
             gap: 0.5rem;
-            transition: background-color 0.2s ease;
+            transition: background-color 0.2s ease, transform 0.2s ease;
             border-radius: 0.375rem;
+            background-color: #f3f4f6;  /* Light gray background in light mode */
+        }
+
+        .dark #mobileMenu button {
+            background-color: #374151;  /* Darker background in dark mode */
         }
 
         #mobileMenu button:hover {
-            background-color: #f3f4f6;
+            background-color: #e5e7eb;  /* Slightly darker on hover in light mode */
             transform: translateX(4px);
-            transition: all 0.2s ease;
         }
 
         .dark #mobileMenu button:hover {
-            background-color: #374151;
+            background-color: #4b5563;  /* Darker on hover in dark mode */
+            transform: translateX(4px);
         }
 
         @media (min-width: 769px) {
