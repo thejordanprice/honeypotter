@@ -834,7 +834,7 @@
                         overlay.classList.remove('active');
                         setTimeout(() => overlay.remove(), 300);
                     }
-                    window.open('/api/export/ips', '_blank');
+                    window.open('/api/export/plaintext', '_blank');
                 });
             }
 
@@ -1959,7 +1959,7 @@
         // Expo
         document.getElementById('exportIPs').addEventListener('click', () => {
             // Open in new tab
-            window.open('/api/export/ips', '_blank');
+            window.open('/api/export/plaintext', '_blank');
         });
 
         // Hamburger Menu
@@ -2020,7 +2020,7 @@
                 overlay.classList.remove('active');
                 setTimeout(() => overlay.remove(), 300);
             }
-            window.open('/api/export/ips', '_blank');
+            window.open('/api/export/plaintext', '_blank');
         });
 
         document.getElementById('darkModeToggleMenu').addEventListener('click', () => {
