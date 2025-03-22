@@ -1524,23 +1524,28 @@
                 // Generate time labels based on interval size
                 for (let i = 0; i < intervals; i++) {
                     const date = new Date(startDate);
-                    date.setUTCHours(date.getUTCHours() + (i * intervalSize));
-                    
-                    if (intervalSize < 1) { // For sub-hour intervals
-                        timeLabels[i] = `${formatDate(date)} ${date.toLocaleString(undefined, {
+                    if (intervalSize < 1) {
+                        // For sub-hour intervals, increment by minutes
+                        const minutesToAdd = i * (intervalSize * 60); // Convert hours to minutes
+                        date.setUTCMinutes(date.getUTCMinutes() + minutesToAdd);
+                        timeLabels[i] = date.toLocaleString(undefined, {
                             hour: 'numeric',
                             minute: '2-digit',
                             hour12: true
-                        })}`;
-                    } else if (intervalSize === 24) { // Daily intervals
-                        timeLabels[i] = formatDate(date);
-                    } else if (intervalSize === 12) { // 12-hour intervals
-                        timeLabels[i] = `${formatDate(date)} ${date.getHours() >= 12 ? 'PM' : 'AM'}`;
-                    } else { // Hourly, 3-hour, or 6-hour intervals
-                        timeLabels[i] = `${formatDate(date)} ${date.toLocaleString(undefined, {
-                            hour: 'numeric',
-                            hour12: true
-                        })}`;
+                        });
+                    } else {
+                        // For hour or longer intervals, increment by hours
+                        date.setUTCHours(date.getUTCHours() + (i * intervalSize));
+                        if (intervalSize === 24) { // Daily intervals
+                            timeLabels[i] = formatDate(date);
+                        } else if (intervalSize === 12) { // 12-hour intervals
+                            timeLabels[i] = `${formatDate(date)} ${date.getHours() >= 12 ? 'PM' : 'AM'}`;
+                        } else { // Hourly, 3-hour, or 6-hour intervals
+                            timeLabels[i] = `${formatDate(date)} ${date.toLocaleString(undefined, {
+                                hour: 'numeric',
+                                hour12: true
+                            })}`;
+                        }
                     }
                 }
 
