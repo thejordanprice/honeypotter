@@ -88,7 +88,29 @@ def main():
             app,
             host=HOST,
             port=WEB_PORT,
-            log_level=LOG_LEVEL.lower()
+            log_level=LOG_LEVEL.lower(),
+            log_config={
+                "version": 1,
+                "disable_existing_loggers": False,
+                "formatters": {
+                    "default": {
+                        "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+                        "datefmt": "%Y-%m-%d %H:%M:%S"
+                    }
+                },
+                "handlers": {
+                    "default": {
+                        "formatter": "default",
+                        "class": "logging.StreamHandler",
+                        "stream": "ext://sys.stderr"
+                    }
+                },
+                "loggers": {
+                    "uvicorn": {"handlers": ["default"], "level": LOG_LEVEL.lower()},
+                    "uvicorn.access": {"handlers": ["default"], "level": LOG_LEVEL.lower()},
+                    "uvicorn.asgi": {"handlers": ["default"], "level": LOG_LEVEL.lower()}
+                }
+            }
         )
 
     except Exception as e:
