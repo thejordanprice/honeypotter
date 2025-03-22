@@ -12,7 +12,8 @@ class GeolocationService:
     def __init__(self):
         self.cache = {}
         self.last_request_time = 0
-        self.min_request_interval = 1  # Minimum seconds between requests
+        # ip-api.com allows 45 requests per minute (free tier)
+        self.min_request_interval = 60 / 45  # ~1.33 seconds between requests
 
     def get_location(self, ip: str) -> Optional[Dict]:
         """Get geolocation data for an IP address."""
@@ -32,22 +33,24 @@ class GeolocationService:
                 time.sleep(self.min_request_interval - time_since_last_request)
 
             # Make API request
-            response = requests.get(f'https://ipapi.co/{ip}/json/')
+            response = requests.get(f'http://ip-api.com/json/{ip}')
             self.last_request_time = time.time()
 
             if response.status_code == 200:
                 data = response.json()
-                if 'error' not in data:
+                if data.get('status') == 'success':
                     location_data = {
-                        'latitude': float(data.get('latitude', 0)),
-                        'longitude': float(data.get('longitude', 0)),
-                        'country': data.get('country_name'),
+                        'latitude': float(data.get('lat', 0)),
+                        'longitude': float(data.get('lon', 0)),
+                        'country': data.get('country'),
                         'city': data.get('city'),
-                        'region': data.get('region')
+                        'region': data.get('regionName')
                     }
                     # Cache the result
                     self.cache[ip] = location_data
                     return location_data
+                else:
+                    logger.warning(f"IP-API returned error for IP {ip}: {data.get('message', 'Unknown error')}")
             
             logger.warning(f"Failed to get location for IP {ip}: {response.text}")
             return None
