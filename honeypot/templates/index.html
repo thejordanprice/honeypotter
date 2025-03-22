@@ -1437,13 +1437,12 @@
                 if (hoursDiff <= 48) {  // If 48 hours or less, show hourly intervals
                     // Calculate the number of hours to show
                     const hoursToShow = Math.max(hoursDiff + 1, 12); // Show at least 12 hours
-                    const startDate = new Date(oldestDate);
+                    const startDate = new Date(oldestDate.getTime());
                     startDate.setMinutes(0, 0, 0); // Start at the beginning of the hour
                     
                     timeLabels = Array.from({length: hoursToShow}, (_, i) => {
                         const date = new Date(startDate);
                         date.setHours(date.getHours() + i);
-                        // Use toLocaleString for consistent local time display
                         return `${formatDate(date)} ${date.toLocaleString(undefined, {
                             hour: 'numeric',
                             hour12: true
@@ -1458,7 +1457,9 @@
 
                     sortedAttempts.forEach(attempt => {
                         const date = new Date(attempt.timestamp + 'Z');
-                        const hourIndex = Math.floor((date - startDate) / (1000 * 60 * 60));
+                        const attemptHour = new Date(date.getTime());
+                        attemptHour.setMinutes(0, 0, 0);
+                        const hourIndex = Math.floor((attemptHour - startDate) / (1000 * 60 * 60));
                         if (hourIndex >= 0 && hourIndex < hoursToShow) {
                             if (attempt.protocol === 'ssh') sshData[hourIndex]++;
                             else if (attempt.protocol === 'telnet') telnetData[hourIndex]++;
