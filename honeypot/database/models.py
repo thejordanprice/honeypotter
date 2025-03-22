@@ -3,7 +3,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo  # Built-in module, no installation needed
 from sqlalchemy import Column, Integer, String, DateTime, Float, create_engine, Enum
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, scoped_session
 from honeypot.core.config import DATABASE_URL
 import enum
 
@@ -50,9 +50,18 @@ class LoginAttempt(Base):
             'region': self.region
         }
 
-# Create database engine and session factory
-engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+# Create database engine with thread-safe connection pool
+engine = create_engine(
+    DATABASE_URL,
+    connect_args={"check_same_thread": False},  # Allow cross-thread usage
+    pool_size=20,  # Maximum number of connections in the pool
+    max_overflow=0  # Maximum number of connections that can be created beyond pool_size
+)
+
+# Create thread-safe session factory
+SessionLocal = scoped_session(
+    sessionmaker(autocommit=False, autoflush=False, bind=engine)
+)
 
 def init_db():
     """Initialize the database by creating all tables."""
@@ -64,4 +73,5 @@ def get_db():
     try:
         yield db
     finally:
-        db.close() 
+        db.close()
+        SessionLocal.remove()  # Remove session from registry 
