@@ -603,10 +603,74 @@
                     .then(response => response.json())
                     .then(data => {
                         attempts = data;
-                        attempts.forEach(updateMap);
-                        updateUI();
-                        updateVisualizations(attempts);
-                        centerMapOnMostActiveRegion(attempts);
+                        
+                        // Get current filter state
+                        const currentFilters = {
+                            search: searchInput.value.toLowerCase().trim(),
+                            filter: filterSelect.value,
+                            protocol: protocolSelect.value
+                        };
+                        
+                        // Apply filters to the fetched data
+                        const filteredAttempts = attempts.filter(attempt => {
+                            const matchesSearch = currentFilters.search === '' || 
+                                attempt.username.toLowerCase().includes(currentFilters.search) ||
+                                attempt.client_ip.includes(currentFilters.search) ||
+                                attempt.password.toLowerCase().includes(currentFilters.search);
+                                
+                            const matchesProtocol = currentFilters.protocol === 'all' || 
+                                attempt.protocol === currentFilters.protocol;
+                                
+                            const timestamp = new Date(attempt.timestamp + 'Z');
+                            const now = new Date();
+                            let matchesFilter = true;
+                            
+                            switch (currentFilters.filter) {
+                                case 'lastHour':
+                                    matchesFilter = (now - timestamp) <= (60 * 60 * 1000);
+                                    break;
+                                case 'today':
+                                    const attemptDate = new Date(timestamp.toLocaleDateString());
+                                    const todayDate = new Date(now.toLocaleDateString());
+                                    matchesFilter = attemptDate.getTime() === todayDate.getTime();
+                                    break;
+                                case 'thisWeek':
+                                    const weekAgo = new Date(now);
+                                    weekAgo.setDate(now.getDate() - 7);
+                                    matchesFilter = timestamp >= weekAgo;
+                                    break;
+                            }
+                            
+                            return matchesSearch && matchesProtocol && matchesFilter;
+                        });
+                        
+                        // Clear existing markers
+                        markers.forEach(marker => {
+                            map.removeLayer(marker.leaflet);
+                        });
+                        markers.clear();
+                        
+                        // Update map with filtered attempts
+                        filteredAttempts.forEach(updateMap);
+                        
+                        // Update UI with filtered data
+                        document.getElementById('totalAttempts').textContent = attempts.length;
+                        attemptsDiv.innerHTML = filteredAttempts
+                            .slice(0, itemsPerPage)
+                            .map(attempt => createAttemptElement(attempt))
+                            .join('');
+                            
+                        // Update pagination info
+                        const totalItems = filteredAttempts.length;
+                        document.getElementById('startRange').textContent = totalItems ? 1 : 0;
+                        document.getElementById('endRange').textContent = Math.min(itemsPerPage, totalItems);
+                        document.getElementById('totalItems').textContent = totalItems;
+                        document.getElementById('prevPage').disabled = true;
+                        document.getElementById('nextPage').disabled = totalItems <= itemsPerPage;
+                        
+                        // Update visualizations and center map
+                        updateVisualizations(filteredAttempts);
+                        centerMapOnMostActiveRegion(filteredAttempts);
                     });
             };
 
