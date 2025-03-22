@@ -1064,6 +1064,8 @@
                     attempt.country
                 ].filter(Boolean).join(', ');
 
+                const passwordDisplay = attempt.protocol === 'rdp' ? '[Password Unavailable]' : attempt.password;
+
                 const popupContent = `
                     <div class="location-popup">
                         <strong>${location}</strong><br>
@@ -1236,7 +1238,7 @@
                 attempt.country
             ].filter(Boolean).join(', ');
 
-            const passwordDisplay = attempt.protocol === 'rdp' ? '[RDP Password Unavailable]' : attempt.password;
+            const passwordDisplay = attempt.protocol === 'rdp' ? '[Password Unavailable]' : attempt.password;
 
             return `
                 <div class="bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition-colors">
