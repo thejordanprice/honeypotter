@@ -1438,11 +1438,11 @@
                     // Calculate the number of hours to show
                     const hoursToShow = Math.max(hoursDiff + 1, 12); // Show at least 12 hours
                     const startDate = new Date(oldestDate.getTime());
-                    startDate.setMinutes(0, 0, 0); // Start at the beginning of the hour
+                    startDate.setUTCMinutes(0, 0, 0); // Start at the beginning of the hour in UTC
                     
                     timeLabels = Array.from({length: hoursToShow}, (_, i) => {
                         const date = new Date(startDate);
-                        date.setHours(date.getHours() + i);
+                        date.setUTCHours(date.getUTCHours() + i);
                         return `${formatDate(date)} ${date.toLocaleString(undefined, {
                             hour: 'numeric',
                             hour12: true
@@ -1458,7 +1458,7 @@
                     sortedAttempts.forEach(attempt => {
                         const date = new Date(attempt.timestamp + 'Z');
                         const attemptHour = new Date(date.getTime());
-                        attemptHour.setMinutes(0, 0, 0);
+                        attemptHour.setUTCMinutes(0, 0, 0);
                         const hourIndex = Math.floor((attemptHour - startDate) / (1000 * 60 * 60));
                         if (hourIndex >= 0 && hourIndex < hoursToShow) {
                             if (attempt.protocol === 'ssh') sshData[hourIndex]++;
@@ -1472,11 +1472,11 @@
                     const intervalsPerDay = 4; // 6-hour intervals
                     const totalIntervals = Math.ceil(hoursDiff / 6);
                     const startDate = new Date(oldestDate);
-                    startDate.setMinutes(0, 0, 0); // Start at the beginning of the hour
+                    startDate.setUTCMinutes(0, 0, 0); // Start at the beginning of the hour in UTC
                     
                     timeLabels = Array.from({length: totalIntervals}, (_, i) => {
                         const date = new Date(startDate);
-                        date.setHours(date.getHours() + (i * 6));
+                        date.setUTCHours(date.getUTCHours() + (i * 6));
                         return `${formatDate(date)} ${formatHour(date.getHours())}`;
                     });
                     
@@ -1501,11 +1501,11 @@
                     // More than 7 days - show daily intervals
                     const daysToShow = Math.min(30, daysDiff + 1);
                     const startDate = new Date(oldestDate);
-                    startDate.setHours(0, 0, 0, 0); // Start at beginning of day
+                    startDate.setUTCHours(0, 0, 0, 0); // Start at beginning of day in UTC
                     
                     timeLabels = Array.from({length: daysToShow}, (_, i) => {
                         const date = new Date(startDate);
-                        date.setDate(date.getDate() + i);
+                        date.setUTCDate(date.getUTCDate() + i);
                         return formatDate(date);
                     });
                     
