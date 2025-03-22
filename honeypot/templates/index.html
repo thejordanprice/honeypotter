@@ -27,6 +27,55 @@
             font-size: 14px;
             line-height: 1.4;
         }
+
+        /* Loading overlay styles */
+        #loadingOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        .loading-text {
+            color: white;
+            margin-left: 15px;
+            font-size: 1.2rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Dark mode adjustments for loading overlay */
+        .dark #loadingOverlay {
+            background-color: rgba(0, 0, 0, 0.7);
+        }
+
+        .dark .loading-spinner {
+            border-color: #374151;
+            border-top-color: #60a5fa;
+        }
+
+        .dark .loading-text {
+            color: #f3f4f6;
+        }
+
         /* Core dark mode theme configuration */
         .dark body { background-color: rgb(17, 24, 39); }
         .dark nav { background-color: rgb(31, 41, 55); }
@@ -409,6 +458,12 @@
         </svg>
     </div>
 
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Loading data...</div>
+    </div>
+
     <script>
         // Initialize theme based on user preference or system settings
         if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
@@ -671,6 +726,14 @@
                         // Update visualizations and center map
                         updateVisualizations(filteredAttempts);
                         centerMapOnMostActiveRegion(filteredAttempts);
+
+                        // Hide loading overlay once everything is loaded
+                        document.getElementById('loadingOverlay').style.display = 'none';
+                    })
+                    .catch(error => {
+                        console.error('Error fetching data:', error);
+                        // Hide loading overlay even if there's an error
+                        document.getElementById('loadingOverlay').style.display = 'none';
                     });
             };
 
