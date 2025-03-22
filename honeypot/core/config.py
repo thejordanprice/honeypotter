@@ -10,8 +10,8 @@ load_dotenv()
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 # Server settings
-HOST = os.getenv('HOST', '127.0.0.1')
-SSH_PORT = int(os.getenv('SSH_PORT', 2222))
+HOST = os.getenv('HOST', '0.0.0.0')
+SSH_PORT = int(os.getenv('SSH_PORT', 22))
 TELNET_PORT = int(os.getenv('TELNET_PORT', 23))
 FTP_PORT = int(os.getenv('FTP_PORT', 21))
 WEB_PORT = int(os.getenv('WEB_PORT', 8080))
