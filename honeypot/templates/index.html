@@ -517,7 +517,16 @@
                     marker.leaflet.addTo(map);
                 }
 
-                marker.attempts.add(attempt);
+                // Create a unique key for each attempt using timestamp and IP
+                const attemptKey = `${attempt.timestamp}_${attempt.client_ip}_${attempt.username}_${attempt.protocol}`;
+                const previousSize = marker.attempts.size;
+                marker.attempts.add(attemptKey);
+                
+                // Log if this was actually a new attempt
+                if (marker.attempts.size > previousSize) {
+                    console.log(`New unique attempt at ${key}: ${attemptKey}`);
+                    console.log(`Location now has ${marker.attempts.size} unique attempts`);
+                }
                 
                 const location = [
                     attempt.city,
