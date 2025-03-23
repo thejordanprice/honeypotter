@@ -265,13 +265,15 @@ function createAttemptElement(attempt) {
         attempt.country
     ].filter(Boolean).join(', ');
 
-    const passwordDisplay = attempt.protocol === 'rdp' ? '[Password Unavailable]' : attempt.password;
+    const usernameDisplay = attempt.username ? attempt.username : '[User Null]';
+    const passwordDisplay = attempt.protocol === 'rdp' ? '[Password Unavailable]' : 
+                          (attempt.password ? attempt.password : '[Password Null]');
 
     return `
         <div class="bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition-colors">
             <div class="flex flex-col sm:flex-row justify-between gap-2">
                 <span class="font-semibold break-all">
-                    ${attempt.username}@${attempt.client_ip}
+                    ${usernameDisplay}@${attempt.client_ip}
                     <span class="inline-block px-2 py-1 text-xs rounded-full ml-2">
                         ${attempt.protocol.toUpperCase()}
                     </span>
