@@ -1,4 +1,4 @@
-honeypot.log
 honeypot.db
 venv/*
 .env
+honeypot.log
