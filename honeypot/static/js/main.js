@@ -191,16 +191,15 @@ function createRollingDigit(oldDigit, newDigit) {
 // Function to update counter with rolling animation
 function updateCounterWithAnimation(elementId, newValue) {
     const element = document.getElementById(elementId);
-    const currentValue = element.textContent;
-    const newValueStr = newValue.toString().padStart(Math.max(currentValue.length, 1), '0');
-    const currentValueStr = currentValue.toString().padStart(newValueStr.length, '0');
+    const currentValue = parseInt(element.textContent) || 0;
+    const newValueStr = newValue.toString();
     
     // Clear the element
     element.innerHTML = '';
     
     // Create digit containers for each number
     for (let i = 0; i < newValueStr.length; i++) {
-        const oldDigit = currentValueStr[i] || '0';
+        const oldDigit = currentValue.toString()[i] || '0';
         const newDigit = newValueStr[i];
         
         // Only animate if the digits are different
