@@ -86,9 +86,9 @@ function updateServiceStatus() {
 
             for (const [service, status] of Object.entries(data)) {
                 const serviceElement = document.createElement('div');
-                serviceElement.className = 'bg-white dark:bg-gray-700 rounded-lg p-4 shadow-sm border border-gray-100 dark:border-gray-600';
+                serviceElement.className = 'bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm border border-gray-200 dark:border-gray-700';
                 
-                const statusColor = status.running ? 'text-green-500' : 'text-red-500';
+                const statusColor = status.running ? 'text-green-500 dark:text-green-400' : 'text-red-500 dark:text-red-400';
                 const statusIcon = status.running ? '●' : '○';
                 
                 serviceElement.innerHTML = `
@@ -99,20 +99,19 @@ function updateServiceStatus() {
                         </div>
                     </div>
                     <div class="space-y-2 text-[11px] font-medium">
-                        <div class="flex items-center text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-600/50 rounded px-2 py-1">
+                        <div class="flex items-center text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-700 rounded px-2 py-1">
                             <svg class="w-3 h-3 mr-1.5 flex-shrink-0 opacity-75" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                             </svg>
                             <span class="truncate">Port ${status.port}</span>
                         </div>
-                        ${status.pid ? `
-                        <div class="flex items-center text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-600/50 rounded px-2 py-1">
+                        
+                        <div class="flex items-center text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-700 rounded px-2 py-1">
                             <svg class="w-3 h-3 mr-1.5 flex-shrink-0 opacity-75" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                             </svg>
                             <span class="truncate">PID ${status.pid}</span>
                         </div>
-                        ` : ''}
                     </div>
                 `;
                 

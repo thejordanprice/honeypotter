@@ -293,8 +293,8 @@
 
     <!-- System Status Modal -->
     <div id="systemStatusModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 backdrop-filter backdrop-blur-sm">
-        <div class="bg-white dark:bg-gray-800 w-11/12 max-w-4xl rounded-lg shadow-xl max-h-[90vh] flex flex-col overflow-hidden transform transition-transform duration-300" onclick="event.stopPropagation()">
-            <div class="flex-none bg-white dark:bg-gray-800 rounded-t-lg w-full">
+        <div class="bg-white dark:bg-gray-900 w-11/12 max-w-4xl rounded-lg shadow-xl max-h-[90vh] flex flex-col overflow-hidden transform transition-transform duration-300" onclick="event.stopPropagation()">
+            <div class="flex-none bg-white dark:bg-gray-900 rounded-t-lg w-full">
                 <div class="flex justify-between items-center p-6 border-b border-gray-200 dark:border-gray-700">
                     <h2 class="text-xl font-semibold text-gray-900 dark:text-white">System Status</h2>
                     <button id="closeSystemStatusModal" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors">
@@ -304,48 +304,48 @@
                     </button>
                 </div>
             </div>
-            <div class="modal-content flex-grow overflow-y-auto">
+            <div class="modal-content flex-grow overflow-y-auto dark:bg-gray-900">
                 <div class="p-6 space-y-8">
                     <!-- System Metrics -->
                     <div>
                         <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Resources</h3>
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                             <!-- CPU Usage -->
-                            <div class="bg-white dark:bg-gray-700 rounded-lg p-5 shadow-sm border border-gray-100 dark:border-gray-600">
+                            <div class="bg-white dark:bg-gray-800 rounded-lg p-5 shadow-sm border border-gray-200 dark:border-gray-700">
                                 <div class="flex items-center justify-between mb-3">
-                                    <h4 class="text-sm font-medium text-gray-500 dark:text-gray-400">CPU Usage</h4>
+                                    <h4 class="text-sm font-medium text-gray-600 dark:text-gray-300">CPU Usage</h4>
                                     <span id="cpuPercent" class="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">-%</span>
                                 </div>
-                                <div class="w-full bg-gray-100 dark:bg-gray-600 rounded-full h-1.5">
-                                    <div id="cpuBar" class="bg-blue-500 h-1.5 rounded-full transition-all duration-300 ease-in-out" style="width: 0%"></div>
+                                <div class="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-1.5">
+                                    <div id="cpuBar" class="bg-blue-500 dark:bg-blue-400 h-1.5 rounded-full transition-all duration-300 ease-in-out" style="width: 0%"></div>
                                 </div>
                             </div>
                             
                             <!-- Memory Usage -->
-                            <div class="bg-white dark:bg-gray-700 rounded-lg p-5 shadow-sm border border-gray-100 dark:border-gray-600">
+                            <div class="bg-white dark:bg-gray-800 rounded-lg p-5 shadow-sm border border-gray-200 dark:border-gray-700">
                                 <div class="flex items-center justify-between mb-3">
-                                    <h4 class="text-sm font-medium text-gray-500 dark:text-gray-400">Memory Usage</h4>
+                                    <h4 class="text-sm font-medium text-gray-600 dark:text-gray-300">Memory Usage</h4>
                                     <span id="memoryPercent" class="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">-%</span>
                                 </div>
-                                <div class="w-full bg-gray-100 dark:bg-gray-600 rounded-full h-1.5">
-                                    <div id="memoryBar" class="bg-green-500 h-1.5 rounded-full transition-all duration-300 ease-in-out" style="width: 0%"></div>
+                                <div class="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-1.5">
+                                    <div id="memoryBar" class="bg-green-500 dark:bg-green-400 h-1.5 rounded-full transition-all duration-300 ease-in-out" style="width: 0%"></div>
                                 </div>
                             </div>
                             
                             <!-- Disk Usage -->
-                            <div class="bg-white dark:bg-gray-700 rounded-lg p-5 shadow-sm border border-gray-100 dark:border-gray-600">
+                            <div class="bg-white dark:bg-gray-800 rounded-lg p-5 shadow-sm border border-gray-200 dark:border-gray-700">
                                 <div class="flex items-center justify-between mb-3">
-                                    <h4 class="text-sm font-medium text-gray-500 dark:text-gray-400">Disk Usage</h4>
+                                    <h4 class="text-sm font-medium text-gray-600 dark:text-gray-300">Disk Usage</h4>
                                     <span id="diskPercent" class="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">-%</span>
                                 </div>
-                                <div class="w-full bg-gray-100 dark:bg-gray-600 rounded-full h-1.5">
-                                    <div id="diskBar" class="bg-yellow-500 h-1.5 rounded-full transition-all duration-300 ease-in-out" style="width: 0%"></div>
+                                <div class="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-1.5">
+                                    <div id="diskBar" class="bg-yellow-500 dark:bg-yellow-400 h-1.5 rounded-full transition-all duration-300 ease-in-out" style="width: 0%"></div>
                                 </div>
                             </div>
                             
                             <!-- Network Traffic -->
-                            <div class="bg-white dark:bg-gray-700 rounded-lg p-5 shadow-sm border border-gray-100 dark:border-gray-600">
-                                <h4 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3">Network Traffic</h4>
+                            <div class="bg-white dark:bg-gray-800 rounded-lg p-5 shadow-sm border border-gray-200 dark:border-gray-700">
+                                <h4 class="text-sm font-medium text-gray-600 dark:text-gray-300 mb-3">Network Traffic</h4>
                                 <div class="space-y-2">
                                     <div class="flex justify-between items-center">
                                         <span class="text-xs text-gray-500 dark:text-gray-400">Sent</span>
