@@ -9,6 +9,7 @@ from typing import List
 from pathlib import Path
 from honeypot.core.config import TEMPLATE_DIR, STATIC_DIR, HOST, WEB_PORT
 from honeypot.database.models import get_db, LoginAttempt
+import ipaddress
 
 app = FastAPI(title="Honeypot Monitor")
 
@@ -65,13 +66,15 @@ def get_attempts(db: Session = Depends(get_db)):
 def export_plaintext(db: Session = Depends(get_db), download: bool = False):
     """Export all login attempts in plaintext format."""
     ips = db.query(LoginAttempt.client_ip).distinct().all()
-    ip_list = "\n".join([ip[0] for ip in ips])
+    # Convert IPs to a list and sort them numerically using ipaddress module
+    ip_list = sorted([ip[0] for ip in ips], key=lambda x: int(ipaddress.ip_address(x)))
+    ip_text = "\n".join(ip_list)
     
     if download:
-        return PlainTextResponse(ip_list, headers={
+        return PlainTextResponse(ip_text, headers={
             "Content-Disposition": "attachment; filename=attempted_ips.txt"
         })
-    return PlainTextResponse(ip_list)
+    return PlainTextResponse(ip_text)
 
 async def broadcast_attempt(attempt: dict):
     """Broadcast a login attempt to all connected clients."""
