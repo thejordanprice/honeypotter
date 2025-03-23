@@ -189,40 +189,32 @@
     </div>
 
     <!-- FAQ Modal -->
-    <div id="faqModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50">
-        <div class="bg-white dark:bg-gray-800 w-11/12 max-w-2xl rounded-lg shadow-xl">
-            <div class="sticky top-0 bg-white dark:bg-gray-800 p-6 border-b border-gray-200 dark:border-gray-700 rounded-t-lg">
-                <div class="flex justify-between items-center">
-                    <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Frequently Asked Questions</h2>
-                    <button id="closeFaqModal" class="p-2 rounded-lg text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                        </svg>
-                    </button>
-                </div>
+    <div id="faqModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-gray-800 w-11/12 max-w-2xl rounded-lg shadow-xl max-h-[90vh] flex flex-col" onclick="event.stopPropagation()">
+            <div class="flex-none bg-white dark:bg-gray-800 rounded-t-lg w-full">
+                <h2 class="text-2xl font-bold text-gray-900 dark:text-white p-6">Frequently Asked Questions</h2>
             </div>
-            <div class="modal-content p-6">
+            <div class="modal-content flex-grow overflow-y-auto p-6">
                 <div class="space-y-6">
-                    <div>
+                    <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
                         <h3 class="text-lg font-semibold mb-2">What is Honeypotter?</h3>
                         <p class="text-gray-600 dark:text-gray-300">Honeypotter is a honeypot monitoring system that tracks and visualizes attempted unauthorized access to various network services (SSH, Telnet, FTP, SMTP, RDP). It helps security researchers and system administrators understand attack patterns and origins.</p>
                     </div>
-                    <div>
+                    <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
                         <h3 class="text-lg font-semibold mb-2">How does it work?</h3>
                         <p class="text-gray-600 dark:text-gray-300">The system sets up decoy services that log connection attempts, usernames, passwords, and IP addresses. This data is then analyzed and displayed in real-time through various charts and visualizations.</p>
                     </div>
-                    <div>
+                    <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
                         <h3 class="text-lg font-semibold mb-2">What information is collected?</h3>
-                        <p class="text-gray-600 dark:text-gray-300">For each connection attempt, we log:
-                            <ul class="list-disc ml-6 mt-2">
-                                <li>IP address and geolocation data</li>
-                                <li>Attempted username and password</li>
-                                <li>Protocol used (SSH, Telnet, etc.)</li>
-                                <li>Timestamp of the attempt</li>
-                            </ul>
-                        </p>
+                        <p class="text-gray-600 dark:text-gray-300">For each connection attempt, we log:</p>
+                        <ul class="list-disc ml-6 mt-2 text-gray-600 dark:text-gray-300">
+                            <li>IP address and geolocation data</li>
+                            <li>Attempted username and password</li>
+                            <li>Protocol used (SSH, Telnet, etc.)</li>
+                            <li>Timestamp of the attempt</li>
+                        </ul>
                     </div>
-                    <div>
+                    <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
                         <h3 class="text-lg font-semibold mb-2">Is this legal?</h3>
                         <p class="text-gray-600 dark:text-gray-300">Yes. Honeypots are legal security tools used for research and defense. We don't engage with attackers or collect any data beyond what they voluntarily provide in their connection attempts.</p>
                     </div>
@@ -233,6 +225,23 @@
 
     <script src="/static/js/charts.js"></script>
     <script src="/static/js/visualizations.js"></script>
+    <script>
+        // Add this before the main.js script
+        document.addEventListener('DOMContentLoaded', function() {
+            const faqModal = document.getElementById('faqModal');
+            const faqButton = document.getElementById('faqButton');
+
+            // Show modal
+            faqButton.addEventListener('click', () => {
+                faqModal.classList.remove('hidden');
+            });
+
+            // Hide modal when clicking outside
+            faqModal.addEventListener('click', () => {
+                faqModal.classList.add('hidden');
+            });
+        });
+    </script>
     <script src="/static/js/main.js"></script>
 </body>
 </html> 
