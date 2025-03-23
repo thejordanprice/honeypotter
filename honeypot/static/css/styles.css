@@ -221,7 +221,7 @@
     -webkit-transform: translate3d(0,0,0);
     transform: translate3d(0,0,0);
     will-change: transform;
-    right: min(20px, calc(100vw - 60px));
+    right: clamp(20px, 5vw, 20px);
 }
 
 #connectionStatusIndicator.connected {
@@ -415,7 +415,7 @@
     
     #connectionStatusIndicator {
         bottom: 10px;
-        right: min(10px, calc(100vw - 46px));
+        right: clamp(10px, 5vw, 10px);
         width: 36px;
         height: 36px;
         padding: 6px;
