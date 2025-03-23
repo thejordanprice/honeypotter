@@ -320,8 +320,9 @@
     display: none;
     align-items: flex-start;
     justify-content: center;
-    backdrop-filter: blur(3px);
+    backdrop-filter: blur(4px);
     overflow-y: auto;
+    padding: 1rem;
     -webkit-overflow-scrolling: touch;
 }
 
@@ -332,10 +333,10 @@
 }
 
 #faqModal .bg-white {
-    transform: scale(0.9);
+    transform: translateY(-20px) scale(0.95);
     opacity: 0;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    margin: 1rem;
+    margin: auto;
     width: calc(100% - 2rem);
     max-height: calc(100vh - 2rem);
     overflow-y: auto;
@@ -343,8 +344,40 @@
 }
 
 #faqModal:not(.hidden) .bg-white {
-    transform: scale(1);
+    transform: translateY(0) scale(1);
     opacity: 1;
+}
+
+#faqModal .sticky {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    border-top-left-radius: 0.5rem;
+    border-top-right-radius: 0.5rem;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+#closeFaqModal {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+#closeFaqModal:hover {
+    transform: scale(1.1);
+}
+
+#closeFaqModal:active {
+    transform: scale(0.95);
+}
+
+.modal-content {
+    -webkit-overflow-scrolling: touch;
+    overflow-y: auto;
+    max-height: 100%;
+    padding-bottom: 2rem;
 }
 
 /* Responsive layout adjustments */
@@ -377,13 +410,12 @@
     }
     
     #faqModal {
-        align-items: center;
         padding: 2rem;
     }
     
     #faqModal .bg-white {
         margin: 0;
-        max-height: 90vh;
+        max-height: 85vh;
     }
 }
 
@@ -432,18 +464,4 @@
 .dark #mobileMenu button:hover {
     background-color: #4b5563;
     transform: translateX(4px);
-}
-
-/* FAQ Modal specific styles */
-#closeFaqModal {
-    padding: 0.75rem;
-    margin: -0.75rem;
-    cursor: pointer;
-}
-
-.modal-content {
-    -webkit-overflow-scrolling: touch;
-    overflow-y: auto;
-    max-height: 100%;
-    padding-bottom: 2rem;
 } 
