@@ -145,12 +145,72 @@ const connectionStatus = document.getElementById("connectionStatus");
 let attempts = [];
 let socket = null;
 
-// Add function to update counter with animation
+// Function to create a rolling digit element
+function createRollingDigit(oldDigit, newDigit) {
+    const container = document.createElement('div');
+    container.className = 'digit-container';
+    
+    const digit = document.createElement('div');
+    digit.className = 'rolling-digit';
+    digit.textContent = oldDigit;
+    
+    container.appendChild(digit);
+    
+    // Use requestAnimationFrame for smoother animation
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            // Start the transition
+            digit.classList.add('slide-up');
+            
+            // After the slide-up animation
+            setTimeout(() => {
+                digit.textContent = newDigit;
+                digit.classList.remove('slide-up');
+                digit.classList.add('slide-down');
+                
+                requestAnimationFrame(() => {
+                    digit.classList.remove('slide-down');
+                });
+            }, 150);
+        });
+    });
+    
+    return container;
+}
+
+// Function to update counter with rolling animation
 function updateCounterWithAnimation(elementId, newValue) {
     const element = document.getElementById(elementId);
-    element.textContent = newValue;
+    const currentValue = element.textContent;
+    const newValueStr = newValue.toString().padStart(Math.max(currentValue.length, 1), '0');
+    const currentValueStr = currentValue.toString().padStart(newValueStr.length, '0');
+    
+    // Clear the element
+    element.innerHTML = '';
+    
+    // Create digit containers for each number
+    for (let i = 0; i < newValueStr.length; i++) {
+        const oldDigit = currentValueStr[i] || '0';
+        const newDigit = newValueStr[i];
+        
+        // Only animate if the digits are different
+        if (oldDigit !== newDigit) {
+            const digitContainer = createRollingDigit(oldDigit, newDigit);
+            element.appendChild(digitContainer);
+        } else {
+            // If digits are the same, just display without animation
+            const container = document.createElement('div');
+            container.className = 'digit-container';
+            const digit = document.createElement('div');
+            digit.className = 'rolling-digit';
+            digit.textContent = newDigit;
+            container.appendChild(digit);
+            element.appendChild(container);
+        }
+    }
+
+    // Add the counter-update class for the color animation
     element.classList.remove('counter-update');
-    // Force a reflow to restart the animation
     void element.offsetWidth;
     element.classList.add('counter-update');
 }
@@ -230,8 +290,11 @@ function connectWebSocket() {
                 
                 const filteredAttempts = filterAttempts(attempts);
                 
-                updateUI();
+                // Initialize the counters with animation
+                updateCounterWithAnimation('totalAttempts', attempts.length);
                 updateUniqueAttackersCount();
+                
+                updateUI();
                 
                 setTimeout(() => toggleLoadingOverlay(false), 500);
             })
@@ -362,8 +425,6 @@ const itemsPerPage = 10;
 function updateUI() {
     const filteredAttempts = filterAttempts(attempts);
     const totalItems = filteredAttempts.length;
-    
-    document.getElementById('totalAttempts').textContent = attempts.length;
     
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
