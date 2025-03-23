@@ -52,28 +52,43 @@ function formatBytes(bytes) {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
+// Function to update system metrics with animation
+function updateMetricWithAnimation(elementId, newValue) {
+    const element = document.getElementById(elementId);
+    const currentValue = parseFloat(element.textContent) || 0;
+    
+    if (currentValue !== newValue) {
+        element.textContent = `${newValue}%`;
+        element.classList.remove('metric-update');
+        void element.offsetWidth; // Trigger reflow
+        element.classList.add('metric-update');
+    }
+}
+
 // Update system metrics
 function updateSystemMetrics() {
     fetch('/api/system/metrics')
         .then(response => response.json())
         .then(data => {
-            // Update CPU usage
-            document.getElementById('cpuPercent').textContent = `${data.cpu.percent.toFixed(1)}%`;
+            // Update CPU usage with animation
+            updateMetricWithAnimation('cpuPercent', data.cpu.percent.toFixed(1));
             document.getElementById('cpuBar').style.width = `${data.cpu.percent}%`;
-
-            // Update memory usage
-            document.getElementById('memoryPercent').textContent = `${data.memory.percent.toFixed(1)}%`;
+            
+            // Update memory usage with animation
+            updateMetricWithAnimation('memoryPercent', data.memory.percent.toFixed(1));
             document.getElementById('memoryBar').style.width = `${data.memory.percent}%`;
-
-            // Update disk usage
-            document.getElementById('diskPercent').textContent = `${data.disk.percent.toFixed(1)}%`;
+            
+            // Update disk usage with animation
+            updateMetricWithAnimation('diskPercent', data.disk.percent.toFixed(1));
             document.getElementById('diskBar').style.width = `${data.disk.percent}%`;
-
-            // Update network traffic
+            
+            // Update network stats
             document.getElementById('networkSent').textContent = formatBytes(data.network.bytes_sent);
             document.getElementById('networkReceived').textContent = formatBytes(data.network.bytes_recv);
         })
-        .catch(error => console.error('Error fetching system metrics:', error));
+        .catch(error => {
+            console.error('Error fetching system metrics:', error);
+        });
 }
 
 // Update service status

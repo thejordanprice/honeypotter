@@ -23,6 +23,14 @@
         .counter-update {
             animation: counterUpdate 0.5s ease;
         }
+        @keyframes metricUpdate {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        .metric-update {
+            animation: metricUpdate 0.3s ease;
+        }
     </style>
 </head>
 <body class="bg-gray-100">
@@ -274,8 +282,8 @@
                             <!-- CPU Usage -->
                             <div class="bg-white dark:bg-gray-800 rounded-lg p-5 shadow-sm border border-gray-200 dark:border-gray-700">
                                 <div class="flex items-center justify-between mb-3">
-                                    <h4 class="text-sm font-medium text-gray-600 dark:text-gray-300">CPU Usage</h4>
-                                    <span id="cpuPercent" class="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">-%</span>
+                                    <h4 class="text-sm font-medium text-gray-600 dark:text-gray-300">CPU</h4>
+                                    <span id="cpuPercent" class="text-2xl font-bold text-gray-900 dark:text-white tracking-tight metric-update">-%</span>
                                 </div>
                                 <div class="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-1.5">
                                     <div id="cpuBar" class="bg-blue-500 dark:bg-blue-400 h-1.5 rounded-full transition-all duration-300 ease-in-out" style="width: 0%"></div>
@@ -285,8 +293,8 @@
                             <!-- Memory Usage -->
                             <div class="bg-white dark:bg-gray-800 rounded-lg p-5 shadow-sm border border-gray-200 dark:border-gray-700">
                                 <div class="flex items-center justify-between mb-3">
-                                    <h4 class="text-sm font-medium text-gray-600 dark:text-gray-300">Memory Usage</h4>
-                                    <span id="memoryPercent" class="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">-%</span>
+                                    <h4 class="text-sm font-medium text-gray-600 dark:text-gray-300">Memory</h4>
+                                    <span id="memoryPercent" class="text-2xl font-bold text-gray-900 dark:text-white tracking-tight metric-update">-%</span>
                                 </div>
                                 <div class="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-1.5">
                                     <div id="memoryBar" class="bg-green-500 dark:bg-green-400 h-1.5 rounded-full transition-all duration-300 ease-in-out" style="width: 0%"></div>
@@ -296,8 +304,8 @@
                             <!-- Disk Usage -->
                             <div class="bg-white dark:bg-gray-800 rounded-lg p-5 shadow-sm border border-gray-200 dark:border-gray-700">
                                 <div class="flex items-center justify-between mb-3">
-                                    <h4 class="text-sm font-medium text-gray-600 dark:text-gray-300">Disk Usage</h4>
-                                    <span id="diskPercent" class="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">-%</span>
+                                    <h4 class="text-sm font-medium text-gray-600 dark:text-gray-300">Disk</h4>
+                                    <span id="diskPercent" class="text-2xl font-bold text-gray-900 dark:text-white tracking-tight metric-update">-%</span>
                                 </div>
                                 <div class="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-1.5">
                                     <div id="diskBar" class="bg-yellow-500 dark:bg-yellow-400 h-1.5 rounded-full transition-all duration-300 ease-in-out" style="width: 0%"></div>
