@@ -197,12 +197,37 @@ function updateAllTimeData(sortedAttempts, now, timeLabels, sshData, telnetData,
 
     const intervals = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * intervalSize));
 
-    timeLabels.length = intervals;
-    sshData.length = intervals;
-    telnetData.length = intervals;
-    ftpData.length = intervals;
-    smtpData.length = intervals;
-    rdpData.length = intervals;
+    // For 15-minute intervals, check if we're in an incomplete interval
+    if (intervalSize < 1) {
+        const currentMinute = now.getMinutes();
+        const currentInterval = Math.floor(currentMinute / (intervalSize * 60));
+        const minutesIntoInterval = currentMinute % (intervalSize * 60);
+        
+        // If we're in the middle of an interval, reduce the number of intervals by 1
+        if (minutesIntoInterval > 0) {
+            timeLabels.length = intervals - 1;
+            sshData.length = intervals - 1;
+            telnetData.length = intervals - 1;
+            ftpData.length = intervals - 1;
+            smtpData.length = intervals - 1;
+            rdpData.length = intervals - 1;
+        } else {
+            timeLabels.length = intervals;
+            sshData.length = intervals;
+            telnetData.length = intervals;
+            ftpData.length = intervals;
+            smtpData.length = intervals;
+            rdpData.length = intervals;
+        }
+    } else {
+        timeLabels.length = intervals;
+        sshData.length = intervals;
+        telnetData.length = intervals;
+        ftpData.length = intervals;
+        smtpData.length = intervals;
+        rdpData.length = intervals;
+    }
+
     sshData.fill(0);
     telnetData.fill(0);
     ftpData.fill(0);
