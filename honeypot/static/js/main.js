@@ -372,14 +372,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 overlay.className = 'menu-overlay';
                 document.body.appendChild(overlay);
                 
-                requestAnimationFrame(() => {
-                    overlay.classList.add('active');
-                });
+                // Force a reflow before adding the active class
+                overlay.offsetHeight;
+                overlay.classList.add('active');
             } else {
                 const overlay = document.querySelector('.menu-overlay');
                 if (overlay) {
                     overlay.classList.remove('active');
-                    setTimeout(() => overlay.remove(), 300);
+                    overlay.addEventListener('transitionend', () => {
+                        overlay.remove();
+                    }, { once: true });
                 }
             }
         });
@@ -392,17 +394,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const overlay = document.querySelector('.menu-overlay');
             if (overlay) {
                 overlay.classList.remove('active');
-                setTimeout(() => overlay.remove(), 300);
+                overlay.addEventListener('transitionend', () => {
+                    overlay.remove();
+                }, { once: true });
             }
         }
     });
-
-    // Prevent menu from closing when clicking inside
-    if (mobileMenu) {
-        mobileMenu.addEventListener('click', (e) => {
-            e.stopPropagation();
-        });
-    }
 
     // Menu item click handlers
     if (exportIPsMenu) {
@@ -411,7 +408,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const overlay = document.querySelector('.menu-overlay');
             if (overlay) {
                 overlay.classList.remove('active');
-                setTimeout(() => overlay.remove(), 300);
+                overlay.addEventListener('transitionend', () => {
+                    overlay.remove();
+                }, { once: true });
             }
             window.open('/api/export/plaintext', '_blank');
         });
@@ -424,7 +423,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const overlay = document.querySelector('.menu-overlay');
             if (overlay) {
                 overlay.classList.remove('active');
-                setTimeout(() => overlay.remove(), 300);
+                overlay.addEventListener('transitionend', () => {
+                    overlay.remove();
+                }, { once: true });
             }
             window.open('/api/export/json', '_blank');
         });
@@ -437,7 +438,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const overlay = document.querySelector('.menu-overlay');
             if (overlay) {
                 overlay.classList.remove('active');
-                setTimeout(() => overlay.remove(), 300);
+                overlay.addEventListener('transitionend', () => {
+                    overlay.remove();
+                }, { once: true });
             }
             window.open('/api/export/csv', '_blank');
         });
@@ -465,7 +468,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const overlay = document.querySelector('.menu-overlay');
             if (overlay) {
                 overlay.classList.remove('active');
-                setTimeout(() => overlay.remove(), 300);
+                overlay.addEventListener('transitionend', () => {
+                    overlay.remove();
+                }, { once: true });
             }
 
             setMapTheme(isDark);
@@ -496,9 +501,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const overlay = document.querySelector('.menu-overlay');
             if (overlay) {
                 overlay.classList.remove('active');
-                setTimeout(() => overlay.remove(), 300);
+                overlay.addEventListener('transitionend', () => {
+                    overlay.remove();
+                }, { once: true });
             }
             faqModal.classList.remove('hidden');
+            // Force a reflow before any animations
+            faqModal.offsetHeight;
         });
     }
 
@@ -522,7 +531,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 const overlay = document.querySelector('.menu-overlay');
                 if (overlay) {
                     overlay.classList.remove('active');
-                    setTimeout(() => overlay.remove(), 300);
+                    overlay.addEventListener('transitionend', () => {
+                        overlay.remove();
+                    }, { once: true });
                 }
             }
             

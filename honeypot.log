@@ -2573,3 +2573,90 @@ ConnectionResetError: [Errno 54] Connection reset by peer
 2025-03-22 21:43:40,257 - uvicorn.error - INFO - connection open
 2025-03-22 21:43:40,282 - uvicorn.access - INFO - 127.0.0.1:62193 - "GET /api/attempts HTTP/1.1" 200
 2025-03-22 21:43:44,267 - uvicorn.access - INFO - 127.0.0.1:62193 - "GET /api/export/csv HTTP/1.1" 200
+2025-03-22 22:05:16,512 - __main__ - INFO - Database initialized successfully
+2025-03-22 22:05:16,513 - honeypot.core.ssh_server - INFO - Generated ECDSA host key: 6face01c5126ad02ea9072df7f04904f
+2025-03-22 22:05:16,513 - __main__ - INFO - SSH Honeypot thread started on port 2222
+2025-03-22 22:05:16,513 - __main__ - INFO - Telnet Honeypot thread started on port 2323
+2025-03-22 22:05:16,513 - honeypot.core.base_server - INFO - TELNET Honeypot listening on 0.0.0.0:2323
+2025-03-22 22:05:16,513 - honeypot.core.base_server - INFO - SSH Honeypot listening on 0.0.0.0:2222
+2025-03-22 22:05:16,513 - __main__ - INFO - FTP Honeypot thread started on port 2121
+2025-03-22 22:05:16,513 - honeypot.core.base_server - INFO - FTP Honeypot listening on 0.0.0.0:2121
+2025-03-22 22:05:16,513 - __main__ - INFO - SMTP Honeypot thread started on port 2525
+2025-03-22 22:05:16,513 - honeypot.core.base_server - INFO - SMTP Honeypot listening on 0.0.0.0:2525
+2025-03-22 22:05:16,513 - __main__ - INFO - RDP Honeypot thread started on port 3389
+2025-03-22 22:05:16,513 - __main__ - INFO - Starting web interface on port 8080
+2025-03-22 22:05:16,513 - honeypot.core.rdp_server - INFO - RDP honeypot listening on 0.0.0.0:3389
+2025-03-22 22:05:16,523 - uvicorn.error - INFO - Started server process [23263]
+2025-03-22 22:05:16,524 - uvicorn.error - INFO - Waiting for application startup.
+2025-03-22 22:05:16,524 - uvicorn.error - INFO - Application startup complete.
+2025-03-22 22:05:16,524 - uvicorn.error - INFO - Uvicorn running on http://0.0.0.0:8080 (Press CTRL+C to quit)
+2025-03-22 22:05:18,122 - uvicorn.access - INFO - 127.0.0.1:62592 - "GET / HTTP/1.1" 200
+2025-03-22 22:05:18,139 - uvicorn.access - INFO - 127.0.0.1:62595 - "GET /static/js/charts.js HTTP/1.1" 200
+2025-03-22 22:05:18,139 - uvicorn.access - INFO - 127.0.0.1:62597 - "GET /static/js/main.js HTTP/1.1" 200
+2025-03-22 22:05:18,140 - uvicorn.access - INFO - 127.0.0.1:62592 - "GET /static/css/styles.css HTTP/1.1" 200
+2025-03-22 22:05:18,140 - uvicorn.access - INFO - 127.0.0.1:62596 - "GET /static/js/visualizations.js HTTP/1.1" 200
+2025-03-22 22:05:18,621 - uvicorn.error - INFO - ('127.0.0.1', 62601) - "WebSocket /ws" [accepted]
+2025-03-22 22:05:18,622 - uvicorn.error - INFO - connection open
+2025-03-22 22:05:18,643 - uvicorn.access - INFO - 127.0.0.1:62597 - "GET /api/attempts HTTP/1.1" 200
+2025-03-22 22:05:23,996 - uvicorn.error - INFO - connection closed
+2025-03-22 22:05:23,998 - uvicorn.access - INFO - 127.0.0.1:62602 - "GET / HTTP/1.1" 200
+2025-03-22 22:05:24,017 - uvicorn.access - INFO - 127.0.0.1:62606 - "GET /static/js/visualizations.js HTTP/1.1" 200
+2025-03-22 22:05:24,018 - uvicorn.access - INFO - 127.0.0.1:62602 - "GET /static/css/styles.css HTTP/1.1" 200
+2025-03-22 22:05:24,018 - uvicorn.access - INFO - 127.0.0.1:62605 - "GET /static/js/charts.js HTTP/1.1" 200
+2025-03-22 22:05:24,019 - uvicorn.access - INFO - 127.0.0.1:62607 - "GET /static/js/main.js HTTP/1.1" 200
+2025-03-22 22:05:24,366 - uvicorn.error - INFO - ('127.0.0.1', 62608) - "WebSocket /ws" [accepted]
+2025-03-22 22:05:24,366 - uvicorn.error - INFO - connection open
+2025-03-22 22:05:24,383 - uvicorn.access - INFO - 127.0.0.1:62607 - "GET /api/attempts HTTP/1.1" 200
+2025-03-22 22:06:20,857 - uvicorn.error - INFO - connection closed
+2025-03-22 22:06:20,862 - uvicorn.access - INFO - 127.0.0.1:62634 - "GET / HTTP/1.1" 200
+2025-03-22 22:06:20,879 - uvicorn.access - INFO - 127.0.0.1:62634 - "GET /static/css/styles.css HTTP/1.1" 200
+2025-03-22 22:06:20,880 - uvicorn.access - INFO - 127.0.0.1:62635 - "GET /static/js/charts.js HTTP/1.1" 200
+2025-03-22 22:06:20,881 - uvicorn.access - INFO - 127.0.0.1:62636 - "GET /static/js/visualizations.js HTTP/1.1" 200
+2025-03-22 22:06:20,881 - uvicorn.access - INFO - 127.0.0.1:62637 - "GET /static/js/main.js HTTP/1.1" 200
+2025-03-22 22:06:21,192 - uvicorn.error - INFO - ('127.0.0.1', 62640) - "WebSocket /ws" [accepted]
+2025-03-22 22:06:21,193 - uvicorn.error - INFO - connection open
+2025-03-22 22:06:21,214 - uvicorn.access - INFO - 127.0.0.1:62637 - "GET /api/attempts HTTP/1.1" 200
+2025-03-22 22:06:26,263 - uvicorn.error - INFO - connection closed
+2025-03-22 22:06:26,268 - uvicorn.access - INFO - 127.0.0.1:62644 - "GET / HTTP/1.1" 200
+2025-03-22 22:06:26,282 - uvicorn.access - INFO - 127.0.0.1:62644 - "GET /static/css/styles.css HTTP/1.1" 200
+2025-03-22 22:06:26,284 - uvicorn.access - INFO - 127.0.0.1:62648 - "GET /static/js/visualizations.js HTTP/1.1" 200
+2025-03-22 22:06:26,284 - uvicorn.access - INFO - 127.0.0.1:62649 - "GET /static/js/main.js HTTP/1.1" 200
+2025-03-22 22:06:26,284 - uvicorn.access - INFO - 127.0.0.1:62647 - "GET /static/js/charts.js HTTP/1.1" 200
+2025-03-22 22:06:26,572 - uvicorn.error - INFO - ('127.0.0.1', 62653) - "WebSocket /ws" [accepted]
+2025-03-22 22:06:26,573 - uvicorn.error - INFO - connection open
+2025-03-22 22:06:26,588 - uvicorn.access - INFO - 127.0.0.1:62649 - "GET /api/attempts HTTP/1.1" 200
+2025-03-22 22:06:32,429 - uvicorn.error - INFO - connection closed
+2025-03-22 22:06:32,432 - uvicorn.access - INFO - 127.0.0.1:62654 - "GET / HTTP/1.1" 200
+2025-03-22 22:06:32,446 - uvicorn.access - INFO - 127.0.0.1:62654 - "GET /static/css/styles.css HTTP/1.1" 200
+2025-03-22 22:06:32,447 - uvicorn.access - INFO - 127.0.0.1:62659 - "GET /static/js/main.js HTTP/1.1" 200
+2025-03-22 22:06:32,448 - uvicorn.access - INFO - 127.0.0.1:62657 - "GET /static/js/charts.js HTTP/1.1" 200
+2025-03-22 22:06:32,448 - uvicorn.access - INFO - 127.0.0.1:62658 - "GET /static/js/visualizations.js HTTP/1.1" 200
+2025-03-22 22:06:32,890 - uvicorn.error - INFO - ('127.0.0.1', 62663) - "WebSocket /ws" [accepted]
+2025-03-22 22:06:32,890 - uvicorn.error - INFO - connection open
+2025-03-22 22:06:32,904 - uvicorn.access - INFO - 127.0.0.1:62659 - "GET /api/attempts HTTP/1.1" 200
+2025-03-22 22:07:40,917 - uvicorn.error - INFO - connection closed
+2025-03-22 22:07:40,920 - uvicorn.access - INFO - 127.0.0.1:62682 - "GET / HTTP/1.1" 200
+2025-03-22 22:07:40,934 - uvicorn.access - INFO - 127.0.0.1:62682 - "GET /static/css/styles.css HTTP/1.1" 304
+2025-03-22 22:07:40,935 - uvicorn.access - INFO - 127.0.0.1:62683 - "GET /static/js/charts.js HTTP/1.1" 200
+2025-03-22 22:07:40,935 - uvicorn.access - INFO - 127.0.0.1:62684 - "GET /static/js/main.js HTTP/1.1" 304
+2025-03-22 22:07:40,998 - uvicorn.error - INFO - ('127.0.0.1', 62685) - "WebSocket /ws" [accepted]
+2025-03-22 22:07:40,998 - uvicorn.error - INFO - connection open
+2025-03-22 22:07:41,019 - uvicorn.access - INFO - 127.0.0.1:62682 - "GET /api/attempts HTTP/1.1" 200
+2025-03-22 22:07:47,992 - uvicorn.error - INFO - connection closed
+2025-03-22 22:07:47,995 - uvicorn.access - INFO - 127.0.0.1:62686 - "GET / HTTP/1.1" 200
+2025-03-22 22:07:48,012 - uvicorn.access - INFO - 127.0.0.1:62687 - "GET /static/js/charts.js HTTP/1.1" 200
+2025-03-22 22:07:48,013 - uvicorn.access - INFO - 127.0.0.1:62686 - "GET /static/css/styles.css HTTP/1.1" 200
+2025-03-22 22:07:48,014 - uvicorn.access - INFO - 127.0.0.1:62688 - "GET /static/js/visualizations.js HTTP/1.1" 200
+2025-03-22 22:07:48,014 - uvicorn.access - INFO - 127.0.0.1:62689 - "GET /static/js/main.js HTTP/1.1" 200
+2025-03-22 22:07:48,399 - uvicorn.error - INFO - ('127.0.0.1', 62692) - "WebSocket /ws" [accepted]
+2025-03-22 22:07:48,399 - uvicorn.error - INFO - connection open
+2025-03-22 22:07:48,417 - uvicorn.access - INFO - 127.0.0.1:62689 - "GET /api/attempts HTTP/1.1" 200
+2025-03-22 22:07:54,506 - uvicorn.error - INFO - connection closed
+2025-03-22 22:07:54,508 - uvicorn.access - INFO - 127.0.0.1:62697 - "GET / HTTP/1.1" 200
+2025-03-22 22:07:54,525 - uvicorn.access - INFO - 127.0.0.1:62700 - "GET /static/js/charts.js HTTP/1.1" 200
+2025-03-22 22:07:54,525 - uvicorn.access - INFO - 127.0.0.1:62701 - "GET /static/js/visualizations.js HTTP/1.1" 200
+2025-03-22 22:07:54,525 - uvicorn.access - INFO - 127.0.0.1:62697 - "GET /static/css/styles.css HTTP/1.1" 200
+2025-03-22 22:07:54,526 - uvicorn.access - INFO - 127.0.0.1:62702 - "GET /static/js/main.js HTTP/1.1" 200
+2025-03-22 22:07:55,145 - uvicorn.error - INFO - ('127.0.0.1', 62706) - "WebSocket /ws" [accepted]
+2025-03-22 22:07:55,146 - uvicorn.error - INFO - connection open
+2025-03-22 22:07:55,162 - uvicorn.access - INFO - 127.0.0.1:62702 - "GET /api/attempts HTTP/1.1" 200

@@ -10,7 +10,7 @@ const attemptsChart = new Chart(
                     label: 'SSH',
                     data: [],
                     borderColor: document.documentElement.classList.contains('dark') 
-                        ? 'rgba(139, 92, 246, 0.7)'
+                        ? 'rgba(167, 139, 250, 0.8)'
                         : '#6d28d9',
                     backgroundColor: 'transparent',
                     borderWidth: 2,
@@ -22,7 +22,7 @@ const attemptsChart = new Chart(
                     label: 'Telnet',
                     data: [],
                     borderColor: document.documentElement.classList.contains('dark')
-                        ? 'rgba(59, 130, 246, 0.7)'
+                        ? 'rgba(96, 165, 250, 0.8)'
                         : '#2563eb',
                     backgroundColor: 'transparent',
                     borderWidth: 2,
@@ -34,7 +34,7 @@ const attemptsChart = new Chart(
                     label: 'FTP',
                     data: [],
                     borderColor: document.documentElement.classList.contains('dark')
-                        ? 'rgba(16, 185, 129, 0.7)'
+                        ? 'rgba(52, 211, 153, 0.8)'
                         : '#059669',
                     backgroundColor: 'transparent',
                     borderWidth: 2,
@@ -46,7 +46,7 @@ const attemptsChart = new Chart(
                     label: 'SMTP',
                     data: [],
                     borderColor: document.documentElement.classList.contains('dark')
-                        ? 'rgba(245, 158, 11, 0.7)'
+                        ? 'rgba(251, 191, 36, 0.8)'
                         : '#d97706',
                     backgroundColor: 'transparent',
                     borderWidth: 2,
@@ -58,7 +58,7 @@ const attemptsChart = new Chart(
                     label: 'RDP',
                     data: [],
                     borderColor: document.documentElement.classList.contains('dark')
-                        ? 'rgba(236, 72, 153, 0.7)'
+                        ? 'rgba(244, 114, 182, 0.8)'
                         : '#db2777',
                     backgroundColor: 'transparent',
                     borderWidth: 2,
@@ -76,7 +76,7 @@ const attemptsChart = new Chart(
                     beginAtZero: true,
                     ticks: {
                         stepSize: 1,
-                        color: document.documentElement.classList.contains('dark') ? '#f3f4f6' : '#1f2937'
+                        color: document.documentElement.classList.contains('dark') ? '#9ca3af' : '#1f2937'
                     },
                     grid: {
                         color: document.documentElement.classList.contains('dark') ? '#374151' : '#e5e7eb'
@@ -84,7 +84,7 @@ const attemptsChart = new Chart(
                 },
                 x: {
                     ticks: {
-                        color: document.documentElement.classList.contains('dark') ? '#f3f4f6' : '#1f2937'
+                        color: document.documentElement.classList.contains('dark') ? '#9ca3af' : '#1f2937'
                     },
                     grid: {
                         color: document.documentElement.classList.contains('dark') ? '#374151' : '#e5e7eb'
@@ -96,7 +96,7 @@ const attemptsChart = new Chart(
                     display: true,
                     position: 'bottom',
                     labels: {
-                        color: document.documentElement.classList.contains('dark') ? '#f3f4f6' : '#1f2937'
+                        color: document.documentElement.classList.contains('dark') ? '#9ca3af' : '#1f2937'
                     }
                 },
                 title: {
@@ -122,7 +122,7 @@ const usernamesChart = new Chart(
                     label: 'SSH',
                     data: [],
                     backgroundColor: document.documentElement.classList.contains('dark')
-                        ? 'rgba(139, 92, 246, 0.8)'
+                        ? 'rgba(167, 139, 250, 0.8)'
                         : 'rgba(109, 40, 217, 0.8)',
                     borderRadius: 4
                 },
@@ -130,7 +130,7 @@ const usernamesChart = new Chart(
                     label: 'Telnet',
                     data: [],
                     backgroundColor: document.documentElement.classList.contains('dark')
-                        ? 'rgba(59, 130, 246, 0.8)'
+                        ? 'rgba(96, 165, 250, 0.8)'
                         : 'rgba(37, 99, 235, 0.8)',
                     borderRadius: 4
                 },
@@ -138,7 +138,7 @@ const usernamesChart = new Chart(
                     label: 'FTP',
                     data: [],
                     backgroundColor: document.documentElement.classList.contains('dark')
-                        ? 'rgba(16, 185, 129, 0.8)'
+                        ? 'rgba(52, 211, 153, 0.8)'
                         : 'rgba(5, 150, 105, 0.8)',
                     borderRadius: 4
                 },
@@ -146,7 +146,7 @@ const usernamesChart = new Chart(
                     label: 'SMTP',
                     data: [],
                     backgroundColor: document.documentElement.classList.contains('dark')
-                        ? 'rgba(245, 158, 11, 0.8)'
+                        ? 'rgba(251, 191, 36, 0.8)'
                         : 'rgba(217, 119, 6, 0.8)',
                     borderRadius: 4
                 },
@@ -154,7 +154,7 @@ const usernamesChart = new Chart(
                     label: 'RDP',
                     data: [],
                     backgroundColor: document.documentElement.classList.contains('dark')
-                        ? 'rgba(236, 72, 153, 0.8)'
+                        ? 'rgba(244, 114, 182, 0.8)'
                         : 'rgba(219, 39, 119, 0.8)',
                     borderRadius: 4
                 }
@@ -169,7 +169,7 @@ const usernamesChart = new Chart(
                     stacked: true,
                     ticks: {
                         stepSize: 1,
-                        color: document.documentElement.classList.contains('dark') ? '#f3f4f6' : '#1f2937'
+                        color: document.documentElement.classList.contains('dark') ? '#9ca3af' : '#1f2937'
                     },
                     grid: {
                         color: document.documentElement.classList.contains('dark') ? '#374151' : '#e5e7eb'
@@ -178,7 +178,7 @@ const usernamesChart = new Chart(
                 x: {
                     stacked: true,
                     ticks: {
-                        color: document.documentElement.classList.contains('dark') ? '#f3f4f6' : '#1f2937'
+                        color: document.documentElement.classList.contains('dark') ? '#9ca3af' : '#1f2937'
                     },
                     grid: {
                         color: document.documentElement.classList.contains('dark') ? '#374151' : '#e5e7eb'
@@ -190,7 +190,7 @@ const usernamesChart = new Chart(
                     display: true,
                     position: 'bottom',
                     labels: {
-                        color: document.documentElement.classList.contains('dark') ? '#f3f4f6' : '#1f2937'
+                        color: document.documentElement.classList.contains('dark') ? '#9ca3af' : '#1f2937'
                     }
                 }
             }
@@ -207,7 +207,7 @@ const ipsChart = new Chart(
             datasets: [{
                 data: [],
                 backgroundColor: document.documentElement.classList.contains('dark')
-                    ? 'rgba(139, 92, 246, 0.8)'
+                    ? 'rgba(167, 139, 250, 0.8)'
                     : 'rgba(109, 40, 217, 0.8)',
                 borderRadius: 4
             }]
@@ -220,7 +220,7 @@ const ipsChart = new Chart(
                 y: {
                     beginAtZero: true,
                     ticks: {
-                        color: document.documentElement.classList.contains('dark') ? '#f3f4f6' : '#1f2937'
+                        color: document.documentElement.classList.contains('dark') ? '#9ca3af' : '#1f2937'
                     },
                     grid: {
                         color: document.documentElement.classList.contains('dark') ? '#374151' : '#e5e7eb'
@@ -230,7 +230,7 @@ const ipsChart = new Chart(
                     beginAtZero: true,
                     ticks: {
                         stepSize: 1,
-                        color: document.documentElement.classList.contains('dark') ? '#f3f4f6' : '#1f2937'
+                        color: document.documentElement.classList.contains('dark') ? '#9ca3af' : '#1f2937'
                     },
                     grid: {
                         color: document.documentElement.classList.contains('dark') ? '#374151' : '#e5e7eb'
@@ -262,7 +262,7 @@ const countriesChart = new Chart(
             datasets: [{
                 data: [],
                 backgroundColor: document.documentElement.classList.contains('dark')
-                    ? 'rgba(59, 130, 246, 0.8)'
+                    ? 'rgba(96, 165, 250, 0.8)'
                     : 'rgba(37, 99, 235, 0.8)',
                 borderRadius: 4
             }]
@@ -275,7 +275,7 @@ const countriesChart = new Chart(
                 y: {
                     beginAtZero: true,
                     ticks: {
-                        color: document.documentElement.classList.contains('dark') ? '#f3f4f6' : '#1f2937'
+                        color: document.documentElement.classList.contains('dark') ? '#9ca3af' : '#1f2937'
                     },
                     grid: {
                         color: document.documentElement.classList.contains('dark') ? '#374151' : '#e5e7eb'
@@ -285,7 +285,7 @@ const countriesChart = new Chart(
                     beginAtZero: true,
                     ticks: {
                         stepSize: 1,
-                        color: document.documentElement.classList.contains('dark') ? '#f3f4f6' : '#1f2937'
+                        color: document.documentElement.classList.contains('dark') ? '#9ca3af' : '#1f2937'
                     },
                     grid: {
                         color: document.documentElement.classList.contains('dark') ? '#374151' : '#e5e7eb'
@@ -311,34 +311,45 @@ const countriesChart = new Chart(
 // Function to update chart colors when theme changes
 function updateChartColors(chart, isDark, textColor, gridColor) {
     // Update scales colors
-    chart.options.scales.x.ticks.color = textColor;
-    chart.options.scales.y.ticks.color = textColor;
-    chart.options.scales.x.grid.color = gridColor;
-    chart.options.scales.y.grid.color = gridColor;
+    chart.options.scales.x.ticks.color = isDark ? '#9ca3af' : '#1f2937';  // Dimmer text in dark mode
+    chart.options.scales.y.ticks.color = isDark ? '#9ca3af' : '#1f2937';  // Dimmer text in dark mode
+    chart.options.scales.x.grid.color = isDark ? '#374151' : '#e5e7eb';   // Lighter grid lines in dark mode
+    chart.options.scales.y.grid.color = isDark ? '#374151' : '#e5e7eb';   // Lighter grid lines in dark mode
     
     // Update legend colors if present
     if (chart.options.plugins.legend.display) {
-        chart.options.plugins.legend.labels.color = textColor;
+        chart.options.plugins.legend.labels.color = isDark ? '#9ca3af' : '#1f2937';  // Dimmer text in dark mode
     }
     
     // Update dataset colors based on chart type
     if (chart === attemptsChart) {
-        chart.data.datasets[0].borderColor = isDark ? 'rgba(139, 92, 246, 0.7)' : '#6d28d9';
-        chart.data.datasets[1].borderColor = isDark ? 'rgba(59, 130, 246, 0.7)' : '#2563eb';
-        chart.data.datasets[2].borderColor = isDark ? 'rgba(16, 185, 129, 0.7)' : '#059669';
-        chart.data.datasets[3].borderColor = isDark ? 'rgba(245, 158, 11, 0.7)' : '#d97706';
-        chart.data.datasets[4].borderColor = isDark ? 'rgba(236, 72, 153, 0.7)' : '#db2777';
+        chart.data.datasets[0].borderColor = isDark ? 'rgba(167, 139, 250, 0.8)' : '#6d28d9';  // Brighter purple
+        chart.data.datasets[1].borderColor = isDark ? 'rgba(96, 165, 250, 0.8)' : '#2563eb';    // Brighter blue
+        chart.data.datasets[2].borderColor = isDark ? 'rgba(52, 211, 153, 0.8)' : '#059669';    // Brighter green
+        chart.data.datasets[3].borderColor = isDark ? 'rgba(251, 191, 36, 0.8)' : '#d97706';    // Brighter yellow
+        chart.data.datasets[4].borderColor = isDark ? 'rgba(244, 114, 182, 0.8)' : '#db2777';   // Brighter pink
     } else if (chart === usernamesChart) {
-        chart.data.datasets[0].backgroundColor = isDark ? 'rgba(139, 92, 246, 0.6)' : 'rgba(109, 40, 217, 0.8)';
-        chart.data.datasets[1].backgroundColor = isDark ? 'rgba(59, 130, 246, 0.6)' : 'rgba(37, 99, 235, 0.8)';
-        chart.data.datasets[2].backgroundColor = isDark ? 'rgba(16, 185, 129, 0.6)' : 'rgba(5, 150, 105, 0.8)';
-        chart.data.datasets[3].backgroundColor = isDark ? 'rgba(245, 158, 11, 0.6)' : 'rgba(217, 119, 6, 0.8)';
-        chart.data.datasets[4].backgroundColor = isDark ? 'rgba(236, 72, 153, 0.6)' : 'rgba(219, 39, 119, 0.8)';
+        chart.data.datasets[0].backgroundColor = isDark ? 'rgba(167, 139, 250, 0.8)' : 'rgba(109, 40, 217, 0.8)';
+        chart.data.datasets[1].backgroundColor = isDark ? 'rgba(96, 165, 250, 0.8)' : 'rgba(37, 99, 235, 0.8)';
+        chart.data.datasets[2].backgroundColor = isDark ? 'rgba(52, 211, 153, 0.8)' : 'rgba(5, 150, 105, 0.8)';
+        chart.data.datasets[3].backgroundColor = isDark ? 'rgba(251, 191, 36, 0.8)' : 'rgba(217, 119, 6, 0.8)';
+        chart.data.datasets[4].backgroundColor = isDark ? 'rgba(244, 114, 182, 0.8)' : 'rgba(219, 39, 119, 0.8)';
     } else if (chart === ipsChart) {
-        chart.data.datasets[0].backgroundColor = isDark ? 'rgba(139, 92, 246, 0.6)' : 'rgba(109, 40, 217, 0.8)';
+        chart.data.datasets[0].backgroundColor = isDark ? 'rgba(167, 139, 250, 0.8)' : 'rgba(109, 40, 217, 0.8)';
     } else if (chart === countriesChart) {
-        chart.data.datasets[0].backgroundColor = isDark ? 'rgba(59, 130, 246, 0.6)' : 'rgba(37, 99, 235, 0.8)';
+        chart.data.datasets[0].backgroundColor = isDark ? 'rgba(96, 165, 250, 0.8)' : 'rgba(37, 99, 235, 0.8)';
     }
     
     chart.update();
-} 
+}
+
+// Apply dark mode colors on page load if dark mode is enabled
+document.addEventListener('DOMContentLoaded', () => {
+    const isDark = document.documentElement.classList.contains('dark');
+    if (isDark) {
+        updateChartColors(attemptsChart, true);
+        updateChartColors(usernamesChart, true);
+        updateChartColors(ipsChart, true);
+        updateChartColors(countriesChart, true);
+    }
+}); 
