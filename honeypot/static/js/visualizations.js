@@ -170,11 +170,11 @@ function updateAllTimeData(sortedAttempts, now, timeLabels, sshData, telnetData,
     if (totalHoursDiff <= 1) {
         intervalSize = 5/60;
         startDate.setUTCMinutes(Math.floor(startDate.getUTCMinutes() / 5) * 5, 0, 0);
-        endDate.setUTCMinutes(Math.ceil(endDate.getUTCMinutes() / 5) * 5, 59, 999);
+        endDate.setUTCMinutes(Math.floor(endDate.getUTCMinutes() / 5) * 5, 0, 0);
     } else if (totalHoursDiff <= 3) {
         intervalSize = 15/60;
         startDate.setUTCMinutes(Math.floor(startDate.getUTCMinutes() / 15) * 15, 0, 0);
-        endDate.setUTCMinutes(Math.ceil(endDate.getUTCMinutes() / 15) * 15, 59, 999);
+        endDate.setUTCMinutes(Math.floor(endDate.getUTCMinutes() / 15) * 15, 0, 0);
     } else if (totalDaysDiff <= 2) {
         intervalSize = 1;
     } else if (totalDaysDiff <= 7) {
