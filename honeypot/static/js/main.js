@@ -436,6 +436,19 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    const exportCSVMenu = document.getElementById('exportCSVMenu');
+    if (exportCSVMenu) {
+        exportCSVMenu.addEventListener('click', () => {
+            mobileMenu.classList.add('hidden');
+            const overlay = document.querySelector('.menu-overlay');
+            if (overlay) {
+                overlay.classList.remove('active');
+                setTimeout(() => overlay.remove(), 300);
+            }
+            window.open('/api/export/csv', '_blank');
+        });
+    }
+
     if (darkModeToggleMenu) {
         darkModeToggleMenu.addEventListener('click', () => {
             const isDark = document.documentElement.classList.toggle('dark');

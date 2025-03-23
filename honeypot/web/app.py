@@ -113,6 +113,45 @@ def export_json(db: Session = Depends(get_db), download: bool = False):
         )
     return Response(json_data, media_type="application/json")
 
+@app.get("/api/export/csv")
+def export_csv(db: Session = Depends(get_db), download: bool = False):
+    """Export all login attempts in CSV format."""
+    attempts = db.query(LoginAttempt).all()
+    
+    # Create CSV header
+    csv_data = "timestamp,protocol,client_ip,username,password,country,city,region,latitude,longitude\n"
+    
+    def escape_field(value):
+        """Helper to properly escape and quote CSV fields."""
+        if value is None or value == "":
+            return ""
+        # Replace double quotes with two double quotes and wrap in quotes
+        return '"{}"'.format(str(value).replace('"', '""'))
+    
+    # Add data rows
+    for attempt in attempts:
+        row = [
+            attempt.timestamp.isoformat() if attempt.timestamp else "",
+            attempt.protocol.value if attempt.protocol else "",
+            attempt.client_ip or "",
+            escape_field(attempt.username),
+            escape_field(attempt.password),
+            escape_field(attempt.country),
+            escape_field(attempt.city),
+            escape_field(attempt.region),
+            str(attempt.latitude) if attempt.latitude is not None else "",
+            str(attempt.longitude) if attempt.longitude is not None else ""
+        ]
+        csv_data += ",".join(row) + "\n"
+    
+    if download:
+        return Response(
+            csv_data,
+            media_type="text/csv",
+            headers={"Content-Disposition": "attachment; filename=login_attempts.csv"}
+        )
+    return Response(csv_data, media_type="text/csv")
+
 async def broadcast_attempt(attempt: dict):
     """Broadcast a login attempt to all connected clients."""
     message = json.dumps(attempt)
