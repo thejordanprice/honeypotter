@@ -3,6 +3,9 @@ import requests
 import logging
 from typing import Optional, Dict
 import time
+import json
+import os
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +17,31 @@ class GeolocationService:
         self.last_request_time = 0
         # ip-api.com allows 45 requests per minute (free tier)
         self.min_request_interval = 60 / 45  # ~1.33 seconds between requests
+        
+        # Set up cache file path in the same directory as this module
+        self.cache_file = Path(__file__).parent / 'geolocation_cache.json'
+        self._load_cache()
+
+    def _load_cache(self):
+        """Load the cache from file if it exists."""
+        try:
+            if self.cache_file.exists():
+                with open(self.cache_file, 'r') as f:
+                    self.cache = json.load(f)
+                logger.info(f"Loaded {len(self.cache)} cached IP locations")
+        except Exception as e:
+            logger.error(f"Error loading geolocation cache: {str(e)}")
+            self.cache = {}
+
+    def _save_cache(self):
+        """Save the cache to file."""
+        try:
+            # Ensure the directory exists
+            self.cache_file.parent.mkdir(parents=True, exist_ok=True)
+            with open(self.cache_file, 'w') as f:
+                json.dump(self.cache, f)
+        except Exception as e:
+            logger.error(f"Error saving geolocation cache: {str(e)}")
 
     def get_location(self, ip: str) -> Optional[Dict]:
         """Get geolocation data for an IP address."""
@@ -46,8 +74,9 @@ class GeolocationService:
                         'city': data.get('city'),
                         'region': data.get('regionName')
                     }
-                    # Cache the result
+                    # Cache the result in memory and file
                     self.cache[ip] = location_data
+                    self._save_cache()
                     return location_data
                 else:
                     logger.warning(f"IP-API returned error for IP {ip}: {data.get('message', 'Unknown error')}")
