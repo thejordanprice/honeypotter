@@ -86,33 +86,33 @@
     </nav>
 
     <div class="container mx-auto px-4 pb-8">
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-8">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-8 overflow-hidden">
             <h2 class="text-xl font-semibold mb-4">Attack Map</h2>
-            <div id="map"></div>
+            <div id="map" class="w-full"></div>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 overflow-hidden">
                 <h2 class="text-xl font-semibold mb-4">Protocol Activity</h2>
-                <div class="chart-container">
+                <div class="chart-container w-full">
                     <canvas id="attemptsChart"></canvas>
                 </div>
             </div>
-            <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 overflow-hidden">
                 <h2 class="text-xl font-semibold mb-4">Top Usernames</h2>
-                <div class="chart-container">
+                <div class="chart-container w-full">
                     <canvas id="usernamesChart"></canvas>
                 </div>
             </div>
-            <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 overflow-hidden">
                 <h2 class="text-xl font-semibold mb-4">Source IPs</h2>
-                <div class="chart-container">
+                <div class="chart-container w-full">
                     <canvas id="ipsChart"></canvas>
                 </div>
             </div>
-            <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 overflow-hidden">
                 <h2 class="text-xl font-semibold mb-4">Top Countries</h2>
-                <div class="chart-container">
+                <div class="chart-container w-full">
                     <canvas id="countriesChart"></canvas>
                 </div>
             </div>
@@ -181,8 +181,8 @@
     </div>
 
     <!-- Loading Overlay -->
-    <div id="loadingOverlay">
-        <div class="flex items-center bg-white dark:bg-gray-800 rounded-lg p-6 shadow-xl">
+    <div id="loadingOverlay" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div class="flex items-center bg-white dark:bg-gray-800 rounded-lg p-6 shadow-xl max-w-full mx-4">
             <div class="loading-spinner"></div>
             <div class="loading-text">Loading data...</div>
         </div>
@@ -190,7 +190,7 @@
 
     <!-- FAQ Modal -->
     <div id="faqModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-        <div class="bg-white dark:bg-gray-800 w-11/12 max-w-2xl rounded-lg shadow-xl max-h-[90vh] flex flex-col" onclick="event.stopPropagation()">
+        <div class="bg-white dark:bg-gray-800 w-11/12 max-w-2xl rounded-lg shadow-xl max-h-[90vh] flex flex-col overflow-hidden" onclick="event.stopPropagation()">
             <div class="flex-none bg-white dark:bg-gray-800 rounded-t-lg w-full">
                 <h2 class="text-2xl font-bold text-gray-900 dark:text-white p-6">Frequently Asked Questions</h2>
             </div>
