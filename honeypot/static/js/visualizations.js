@@ -214,11 +214,7 @@ function updateAllTimeData(sortedAttempts, now, timeLabels, sshData, telnetData,
         if (intervalSize < 1) {
             const minutesToAdd = i * (intervalSize * 60);
             date.setUTCMinutes(date.getUTCMinutes() + minutesToAdd);
-            timeLabels[i] = date.toLocaleString(undefined, {
-                hour: 'numeric',
-                minute: '2-digit',
-                hour12: true
-            });
+            timeLabels[i] = formatTimeWithMinutes(date.getHours(), date.getMinutes());
         } else {
             date.setUTCHours(date.getUTCHours() + (i * intervalSize));
             if (intervalSize === 24) {
@@ -236,10 +232,17 @@ function updateAllTimeData(sortedAttempts, now, timeLabels, sshData, telnetData,
 
     sortedAttempts.forEach(attempt => {
         const date = new Date(attempt.timestamp + 'Z');
-        const intervalIndex = Math.floor((date - startDate) / (1000 * 60 * 60 * intervalSize));
-        
-        if (intervalIndex >= 0 && intervalIndex < intervals) {
-            incrementProtocolData(attempt.protocol, intervalIndex, sshData, telnetData, ftpData, smtpData, rdpData);
+        if (intervalSize < 1) {
+            const minutesSinceStart = Math.floor((date - startDate) / (1000 * 60));
+            const intervalIndex = Math.floor(minutesSinceStart / (intervalSize * 60));
+            if (intervalIndex >= 0 && intervalIndex < intervals) {
+                incrementProtocolData(attempt.protocol, intervalIndex, sshData, telnetData, ftpData, smtpData, rdpData);
+            }
+        } else {
+            const intervalIndex = Math.floor((date - startDate) / (1000 * 60 * 60 * intervalSize));
+            if (intervalIndex >= 0 && intervalIndex < intervals) {
+                incrementProtocolData(attempt.protocol, intervalIndex, sshData, telnetData, ftpData, smtpData, rdpData);
+            }
         }
     });
 }
