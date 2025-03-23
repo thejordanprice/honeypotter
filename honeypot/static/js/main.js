@@ -145,6 +145,12 @@ const connectionStatus = document.getElementById("connectionStatus");
 let attempts = [];
 let socket = null;
 
+// Add function to count unique attackers
+function updateUniqueAttackersCount() {
+    const uniqueIPs = new Set(attempts.map(attempt => attempt.client_ip));
+    document.getElementById('uniqueAttackers').textContent = uniqueIPs.size;
+}
+
 function updateConnectionStatus(status, isError = false) {
     const indicator = document.getElementById('connectionStatusIndicator');
     const svg = indicator.querySelector('svg');
@@ -212,6 +218,7 @@ function connectWebSocket() {
                 const filteredAttempts = filterAttempts(attempts);
                 
                 updateUI();
+                updateUniqueAttackersCount();
                 
                 setTimeout(() => toggleLoadingOverlay(false), 500);
             })
@@ -229,6 +236,7 @@ function connectWebSocket() {
             attempts.unshift(newAttempt);
             
             document.getElementById('totalAttempts').textContent = attempts.length;
+            updateUniqueAttackersCount();
             
             updateMap(newAttempt);
             
