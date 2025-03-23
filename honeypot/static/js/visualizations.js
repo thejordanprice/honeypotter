@@ -176,51 +176,50 @@ function updateAllTimeData(sortedAttempts, now, timeLabels, sshData, telnetData,
 
     let intervalSize;
     if (totalHoursDiff <= 1) {
-        intervalSize = 5/60;
+        intervalSize = 5/60; // 5-minute intervals
         startDate.setUTCMinutes(Math.floor(startDate.getUTCMinutes() / 5) * 5, 0, 0);
-        endDate.setUTCMinutes(Math.floor(endDate.getUTCMinutes() / 5) * 5, 0, 0);
+        endDate.setUTCMinutes(Math.ceil(endDate.getUTCMinutes() / 5) * 5, 0, 0);
     } else if (totalHoursDiff <= 3) {
-        intervalSize = 15/60;
+        intervalSize = 15/60; // 15-minute intervals
         startDate.setUTCMinutes(Math.floor(startDate.getUTCMinutes() / 15) * 15, 0, 0);
-        endDate.setUTCMinutes(Math.floor(endDate.getUTCMinutes() / 15) * 15, 0, 0);
+        endDate.setUTCMinutes(Math.ceil(endDate.getUTCMinutes() / 15) * 15, 0, 0);
     } else if (totalDaysDiff <= 2) {
-        intervalSize = 1;
-    } else if (totalDaysDiff <= 7) {
-        intervalSize = 3;
-    } else if (totalDaysDiff <= 14) {
-        intervalSize = 6;
-    } else if (totalDaysDiff <= 30) {
-        intervalSize = 12;
-    } else {
-        intervalSize = 24;
-    }
-
-    if (intervalSize >= 1) {
+        intervalSize = 1; // 1-hour intervals
         startDate.setUTCMinutes(0, 0, 0);
-        startDate.setUTCHours(Math.floor(startDate.getUTCHours() / intervalSize) * intervalSize);
-        
-        endDate.setUTCMinutes(59, 59, 999);
-        endDate.setUTCHours(Math.ceil(endDate.getUTCHours() / intervalSize) * intervalSize);
+        endDate.setUTCHours(endDate.getUTCHours() + 1);
+        endDate.setUTCMinutes(0, 0, 0);
+    } else if (totalDaysDiff <= 7) {
+        intervalSize = 3; // 3-hour intervals
+        startDate.setUTCMinutes(0, 0, 0);
+        startDate.setUTCHours(Math.floor(startDate.getUTCHours() / 3) * 3);
+        endDate.setUTCHours(Math.ceil(endDate.getUTCHours() / 3) * 3);
+        endDate.setUTCMinutes(0, 0, 0);
+    } else if (totalDaysDiff <= 14) {
+        intervalSize = 6; // 6-hour intervals
+        startDate.setUTCMinutes(0, 0, 0);
+        startDate.setUTCHours(Math.floor(startDate.getUTCHours() / 6) * 6);
+        endDate.setUTCHours(Math.ceil(endDate.getUTCHours() / 6) * 6);
+        endDate.setUTCMinutes(0, 0, 0);
+    } else if (totalDaysDiff <= 30) {
+        intervalSize = 12; // 12-hour intervals
+        startDate.setUTCMinutes(0, 0, 0);
+        startDate.setUTCHours(Math.floor(startDate.getUTCHours() / 12) * 12);
+        endDate.setUTCHours(Math.ceil(endDate.getUTCHours() / 12) * 12);
+        endDate.setUTCMinutes(0, 0, 0);
+    } else {
+        intervalSize = 24; // 24-hour intervals
+        startDate.setUTCHours(0, 0, 0, 0);
+        endDate.setUTCHours(24, 0, 0, 0);
     }
 
     const intervals = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * intervalSize));
 
-    // For sub-hour intervals (like 15-min), always show one less interval to avoid premature display
-    if (intervalSize < 1) {
-        timeLabels.length = intervals - 1;
-        sshData.length = intervals - 1;
-        telnetData.length = intervals - 1;
-        ftpData.length = intervals - 1;
-        smtpData.length = intervals - 1;
-        rdpData.length = intervals - 1;
-    } else {
-        timeLabels.length = intervals;
-        sshData.length = intervals;
-        telnetData.length = intervals;
-        ftpData.length = intervals;
-        smtpData.length = intervals;
-        rdpData.length = intervals;
-    }
+    timeLabels.length = intervals;
+    sshData.length = intervals;
+    telnetData.length = intervals;
+    ftpData.length = intervals;
+    smtpData.length = intervals;
+    rdpData.length = intervals;
 
     sshData.fill(0);
     telnetData.fill(0);
@@ -239,7 +238,10 @@ function updateAllTimeData(sortedAttempts, now, timeLabels, sshData, telnetData,
             if (intervalSize === 24) {
                 timeLabels[i] = formatDate(date);
             } else if (intervalSize === 12) {
-                timeLabels[i] = `${formatDate(date)} ${date.getHours() >= 12 ? 'PM' : 'AM'}`;
+                timeLabels[i] = `${formatDate(date)} ${date.toLocaleString(undefined, {
+                    hour: 'numeric',
+                    hour12: true
+                })}`;
             } else {
                 timeLabels[i] = `${formatDate(date)} ${date.toLocaleString(undefined, {
                     hour: 'numeric',
