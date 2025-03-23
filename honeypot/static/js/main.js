@@ -12,9 +12,10 @@ function formatDateToLocalTime(isoString) {
     });
 }
 
-// Initialize theme based on user preference or system settings
+// Initialize theme based on user preference, system preference, or default to light mode
 if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
     document.documentElement.classList.add('dark');
+    localStorage.theme = 'dark';
     const lightIconMenu = document.getElementById('lightIconMenu');
     const darkIconMenu = document.getElementById('darkIconMenu');
     const themeText = document.getElementById('themeText');
@@ -26,6 +27,8 @@ if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.match
         themeText.textContent = 'Light Mode';
     }
 } else {
+    // Default to light mode if no preference is set or system is light mode
+    localStorage.theme = 'light';
     const themeText = document.getElementById('themeText');
     if (themeText) {
         themeText.textContent = 'Dark Mode';
