@@ -1,10 +1,10 @@
 """FastAPI web application for the SSH Honeypot."""
-from fastapi import FastAPI, WebSocket, Depends, Request
+import json
+from fastapi import FastAPI, WebSocket, Depends, Request, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from sqlalchemy.orm import Session
-import json
 from typing import List
 from pathlib import Path
 from honeypot.core.config import TEMPLATE_DIR, STATIC_DIR, HOST, WEB_PORT
@@ -75,6 +75,43 @@ def export_plaintext(db: Session = Depends(get_db), download: bool = False):
             "Content-Disposition": "attachment; filename=attempted_ips.txt"
         })
     return PlainTextResponse(ip_text)
+
+@app.get("/api/export/json")
+def export_json(db: Session = Depends(get_db), download: bool = False):
+    """Export all login attempts in JSON format."""
+    attempts = db.query(LoginAttempt).all()
+    attempts_data = []
+    
+    for attempt in attempts:
+        attempt_dict = {
+            "client_ip": attempt.client_ip,
+            "username": attempt.username,
+            "password": attempt.password,
+            "protocol": attempt.protocol.value if attempt.protocol else None,
+            "country": attempt.country,
+            "city": attempt.city,
+            "region": attempt.region,
+            "latitude": attempt.latitude,
+            "longitude": attempt.longitude
+        }
+        
+        # Handle timestamp conversion safely
+        if attempt.timestamp:
+            attempt_dict["timestamp"] = attempt.timestamp.isoformat()
+        else:
+            attempt_dict["timestamp"] = None
+            
+        attempts_data.append(attempt_dict)
+    
+    json_data = json.dumps(attempts_data, indent=2)
+    
+    if download:
+        return Response(
+            json_data,
+            media_type="application/json",
+            headers={"Content-Disposition": "attachment; filename=login_attempts.json"}
+        )
+    return Response(json_data, media_type="application/json")
 
 async def broadcast_attempt(attempt: dict):
     """Broadcast a login attempt to all connected clients."""

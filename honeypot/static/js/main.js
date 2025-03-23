@@ -423,6 +423,19 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    const exportJSONMenu = document.getElementById('exportJSONMenu');
+    if (exportJSONMenu) {
+        exportJSONMenu.addEventListener('click', () => {
+            mobileMenu.classList.add('hidden');
+            const overlay = document.querySelector('.menu-overlay');
+            if (overlay) {
+                overlay.classList.remove('active');
+                setTimeout(() => overlay.remove(), 300);
+            }
+            window.open('/api/export/json', '_blank');
+        });
+    }
+
     if (darkModeToggleMenu) {
         darkModeToggleMenu.addEventListener('click', () => {
             const isDark = document.documentElement.classList.toggle('dark');
