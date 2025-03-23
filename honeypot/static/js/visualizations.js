@@ -214,10 +214,7 @@ function updateAllTimeData(sortedAttempts, now, timeLabels, sshData, telnetData,
         if (intervalSize < 1) {
             const minutesToAdd = i * (intervalSize * 60);
             date.setUTCMinutes(date.getUTCMinutes() + minutesToAdd);
-            // Add the interval size to get the end time of the interval
-            const intervalEndDate = new Date(date);
-            intervalEndDate.setUTCMinutes(intervalEndDate.getUTCMinutes() + (intervalSize * 60));
-            timeLabels[i] = intervalEndDate.toLocaleString(undefined, {
+            timeLabels[i] = date.toLocaleString(undefined, {
                 hour: 'numeric',
                 minute: '2-digit',
                 hour12: true
