@@ -184,33 +184,39 @@ function updateAllTimeData(sortedAttempts, now, timeLabels, sshData, telnetData,
         intervalSize = 15/60; // 15-minute intervals
         startDate.setUTCMinutes(Math.floor(startDate.getUTCMinutes() / 15) * 15, 0, 0);
         endDate.setUTCMinutes(Math.ceil(endDate.getUTCMinutes() / 15) * 15, 0, 0);
+    } else if (totalHoursDiff <= 6) {
+        intervalSize = 30/60; // 30-minute intervals
+        startDate.setUTCMinutes(Math.floor(startDate.getUTCMinutes() / 30) * 30, 0, 0);
+        endDate.setUTCMinutes(Math.ceil(endDate.getUTCMinutes() / 30) * 30, 0, 0);
     } else if (totalDaysDiff <= 2) {
         intervalSize = 1; // 1-hour intervals
         startDate.setUTCMinutes(0, 0, 0);
         endDate.setUTCHours(endDate.getUTCHours() + 1);
         endDate.setUTCMinutes(0, 0, 0);
     } else if (totalDaysDiff <= 7) {
-        intervalSize = 3; // 3-hour intervals
+        intervalSize = 2; // 2-hour intervals
         startDate.setUTCMinutes(0, 0, 0);
-        startDate.setUTCHours(Math.floor(startDate.getUTCHours() / 3) * 3);
-        endDate.setUTCHours(Math.ceil(endDate.getUTCHours() / 3) * 3);
+        startDate.setUTCHours(Math.floor(startDate.getUTCHours() / 2) * 2);
+        endDate.setUTCHours(Math.ceil(endDate.getUTCHours() / 2) * 2);
         endDate.setUTCMinutes(0, 0, 0);
     } else if (totalDaysDiff <= 14) {
+        intervalSize = 4; // 4-hour intervals
+        startDate.setUTCMinutes(0, 0, 0);
+        startDate.setUTCHours(Math.floor(startDate.getUTCHours() / 4) * 4);
+        endDate.setUTCHours(Math.ceil(endDate.getUTCHours() / 4) * 4);
+        endDate.setUTCMinutes(0, 0, 0);
+    } else if (totalDaysDiff <= 30) {
         intervalSize = 6; // 6-hour intervals
         startDate.setUTCMinutes(0, 0, 0);
         startDate.setUTCHours(Math.floor(startDate.getUTCHours() / 6) * 6);
         endDate.setUTCHours(Math.ceil(endDate.getUTCHours() / 6) * 6);
         endDate.setUTCMinutes(0, 0, 0);
-    } else if (totalDaysDiff <= 30) {
+    } else {
         intervalSize = 12; // 12-hour intervals
         startDate.setUTCMinutes(0, 0, 0);
         startDate.setUTCHours(Math.floor(startDate.getUTCHours() / 12) * 12);
         endDate.setUTCHours(Math.ceil(endDate.getUTCHours() / 12) * 12);
         endDate.setUTCMinutes(0, 0, 0);
-    } else {
-        intervalSize = 24; // 24-hour intervals
-        startDate.setUTCHours(0, 0, 0, 0);
-        endDate.setUTCHours(24, 0, 0, 0);
     }
 
     const intervals = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * intervalSize));
