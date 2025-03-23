@@ -323,6 +323,11 @@
     -webkit-overflow-scrolling: touch;
 }
 
+#faqModal:not(.hidden) {
+    opacity: 1;
+    visibility: visible;
+}
+
 #faqModal .bg-white {
     transform: scale(0.9);
     opacity: 0;
@@ -332,6 +337,11 @@
     max-height: calc(100vh - 2rem);
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
+}
+
+#faqModal:not(.hidden) .bg-white {
+    transform: scale(1);
+    opacity: 1;
 }
 
 /* Responsive layout adjustments */
