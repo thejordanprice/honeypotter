@@ -35,6 +35,7 @@ if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.match
 // Initialize map with light/dark theme support
 const map = L.map('map').setView([20, 0], 2);
 let currentTileLayer;
+let heatLayer;
 
 // Function to center map on most active region
 function centerMapOnMostActiveRegion(attempts) {
@@ -94,50 +95,43 @@ function setMapTheme(isDark) {
 // Initial theme setup
 setMapTheme(document.documentElement.classList.contains('dark'));
 
-// Store map markers to prevent duplicate markers at same location
-const markers = new Map();
-
 function updateMap(attempt) {
-    if (attempt.latitude && attempt.longitude) {
-        const key = `${attempt.latitude},${attempt.longitude}`;
-        let marker = markers.get(key);
-        
-        if (!marker) {
-            marker = {
-                leaflet: L.marker([attempt.latitude, attempt.longitude]),
-                attempts: new Set()
-            };
-            markers.set(key, marker);
-            marker.leaflet.addTo(map);
-        }
+    if (!attempt.latitude || !attempt.longitude) return;
 
-        const attemptKey = `${attempt.timestamp}_${attempt.client_ip}_${attempt.username}_${attempt.protocol}`;
-        const previousSize = marker.attempts.size;
-        marker.attempts.add(attemptKey);
-        
-        if (marker.attempts.size > previousSize) {
-            console.log(`New unique attempt at ${key}: ${attemptKey}`);
-            console.log(`Location now has ${marker.attempts.size} unique attempts`);
-        }
-        
-        const location = [
-            attempt.city,
-            attempt.region,
-            attempt.country
-        ].filter(Boolean).join(', ');
-
-        const passwordDisplay = attempt.protocol === 'rdp' ? '[Password Unavailable]' : attempt.password;
-
-        const popupContent = `
-            <div class="location-popup">
-                <strong>${location}</strong><br>
-                Total Attempts: ${marker.attempts.size}<br>
-                Latest: ${attempt.username}@${attempt.client_ip}
-            </div>
-        `;
-        
-        marker.leaflet.bindPopup(popupContent);
+    // Remove existing heat layer if it exists
+    if (heatLayer) {
+        map.removeLayer(heatLayer);
     }
+
+    // Get all attempts with valid coordinates
+    const validAttempts = attempts.filter(a => a.latitude && a.longitude);
+    
+    // Create heatmap data points with intensity based on frequency
+    const locationFrequency = {};
+    validAttempts.forEach(a => {
+        const key = `${a.latitude},${a.longitude}`;
+        locationFrequency[key] = (locationFrequency[key] || 0) + 1;
+    });
+
+    const heatData = validAttempts.map(a => {
+        const key = `${a.latitude},${a.longitude}`;
+        const intensity = Math.min(locationFrequency[key] / 5, 1); // Normalize intensity
+        return [a.latitude, a.longitude, intensity];
+    });
+
+    // Create and add the heat layer
+    heatLayer = L.heatLayer(heatData, {
+        radius: 25,
+        blur: 15,
+        maxZoom: 10,
+        max: 1.0,
+        gradient: {
+            0.4: 'blue',
+            0.6: 'lime',
+            0.8: 'yellow',
+            1.0: 'red'
+        }
+    }).addTo(map);
 }
 
 const attemptsDiv = document.getElementById("attempts");

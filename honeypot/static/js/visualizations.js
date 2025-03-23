@@ -19,14 +19,15 @@ function formatTimeWithMinutes(hour, minutes) {
 let isInitialLoad = true;
 
 function updateVisualizations(filteredAttempts) {
-    // Clear existing markers from the map
-    markers.forEach(marker => {
-        map.removeLayer(marker.leaflet);
-    });
-    markers.clear();
+    // Clear existing heatmap layer
+    if (heatLayer) {
+        map.removeLayer(heatLayer);
+    }
 
     // Update map with filtered attempts
-    filteredAttempts.forEach(updateMap);
+    if (filteredAttempts.length > 0) {
+        updateMap(filteredAttempts[0]); // This will create a new heatmap with all filtered attempts
+    }
     
     // Only center map on initial load
     if (isInitialLoad) {
