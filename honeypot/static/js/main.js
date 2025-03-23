@@ -150,27 +150,37 @@ function createRollingDigit(oldDigit, newDigit) {
     const container = document.createElement('div');
     container.className = 'digit-container';
     
-    const digit = document.createElement('div');
-    digit.className = 'rolling-digit';
-    digit.textContent = oldDigit;
+    // Create old digit element
+    const oldDigitElement = document.createElement('div');
+    oldDigitElement.className = 'rolling-digit';
+    oldDigitElement.textContent = oldDigit;
     
-    container.appendChild(digit);
+    // Create new digit element
+    const newDigitElement = document.createElement('div');
+    newDigitElement.className = 'rolling-digit new-digit';
+    newDigitElement.textContent = newDigit;
+    
+    container.appendChild(oldDigitElement);
+    container.appendChild(newDigitElement);
     
     // Use requestAnimationFrame for smoother animation
     requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-            // Start the transition
-            digit.classList.add('slide-up');
+            // Start the transition - old digit slides down and out
+            oldDigitElement.classList.add('slide-up');
             
-            // After the slide-up animation
+            // After a small delay, bring in the new digit
             setTimeout(() => {
-                digit.textContent = newDigit;
-                digit.classList.remove('slide-up');
-                digit.classList.add('slide-down');
+                newDigitElement.style.transition = 'transform 0.3s ease-in-out, opacity 0.3s ease-in-out';
+                newDigitElement.style.transform = 'translateY(-50%)';
+                newDigitElement.style.opacity = '1';
                 
-                requestAnimationFrame(() => {
-                    digit.classList.remove('slide-down');
-                });
+                // Clean up after animation
+                setTimeout(() => {
+                    container.removeChild(oldDigitElement);
+                    newDigitElement.style.position = 'absolute';
+                    newDigitElement.className = 'rolling-digit';
+                }, 300);
             }, 150);
         });
     });

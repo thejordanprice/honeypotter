@@ -42,16 +42,24 @@
             top: 50%;
             transform: translateY(-50%);
             backface-visibility: hidden;
-            transition: transform 0.3s ease-in-out;
+            transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out;
         }
 
         .rolling-digit.slide-up {
-            transform: translateY(-150%);
+            transform: translateY(150%);
             opacity: 0;
         }
 
         .rolling-digit.slide-down {
-            transform: translateY(50%);
+            transform: translateY(-150%);
+            opacity: 0;
+        }
+
+        .rolling-digit.new-digit {
+            position: absolute;
+            left: 0;
+            right: 0;
+            transform: translateY(-150%);
             opacity: 0;
         }
     </style>
