@@ -94,15 +94,15 @@ function updateServiceStatus() {
                 // Make colors more vibrant and ensure proper status check
                 const isRunning = status.running === true; // Explicit boolean check
                 const statusColor = isRunning 
-                    ? 'text-green-500 dark:text-green-400 dark:brightness-150' 
-                    : 'text-red-500 dark:text-red-400 dark:brightness-150';
+                    ? 'text-green-500 dark:text-green-500' 
+                    : 'text-red-500 dark:text-red-500';
                 const statusIcon = isRunning ? '●' : '○';
                 
                 serviceElement.innerHTML = `
                     <div class="flex items-center justify-between mb-2.5">
                         <h4 class="font-medium text-gray-900 dark:text-white text-sm">${service.toUpperCase()}</h4>
                         <div class="flex items-center gap-1">
-                            <span class="text-lg leading-none font-bold ${statusColor}" style="filter: brightness(1.5);">${statusIcon}</span>
+                            <span class="text-lg leading-none font-bold ${statusColor}">${statusIcon}</span>
                         </div>
                     </div>
                     <div class="space-y-2 text-[11px] font-medium">

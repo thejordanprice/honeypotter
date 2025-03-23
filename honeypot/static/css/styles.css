@@ -135,6 +135,14 @@
 .dark a:hover { color: #93c5fd; }
 .dark input::placeholder { color: #9ca3af; }
 
+/* Status indicator colors in dark mode */
+.dark .text-green-500 {
+    color: #22c55e !important;
+}
+.dark .text-red-500 {
+    color: #ef4444 !important;
+}
+
 /* Semantic color preservation */
 .dark .text-red-600 { color: #dc2626 !important; }
 .dark .text-green-600 { color: #059669 !important; }
