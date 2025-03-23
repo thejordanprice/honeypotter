@@ -1,0 +1,436 @@
+/* Chart container styles */
+.chart-container {
+    position: relative;
+    height: 300px;
+    width: 100%;
+}
+
+/* Map styles */
+#map {
+    height: 400px;
+    width: 100%;
+    border-radius: 0.5rem;
+    z-index: 1;
+    position: relative;
+}
+
+.location-popup {
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+/* Loading overlay styles */
+#loadingOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(255, 255, 255, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    opacity: 1;
+    transition: opacity 0.3s ease-out, visibility 0.3s ease-out;
+    visibility: visible;
+    backdrop-filter: blur(4px);
+}
+
+#loadingOverlay.hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.loading-spinner {
+    width: 50px;
+    height: 50px;
+    border: 5px solid #e5e7eb;
+    border-top: 5px solid #3b82f6;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-right: 15px;
+}
+
+.loading-text {
+    color: #1f2937;
+    font-size: 1.2rem;
+    font-weight: 500;
+    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.1);
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Dark mode adjustments for loading overlay */
+.dark #loadingOverlay {
+    background-color: rgba(0, 0, 0, 0.7);
+}
+
+.dark .loading-spinner {
+    border-color: #374151;
+    border-top-color: #60a5fa;
+}
+
+.dark .loading-text {
+    color: #f3f4f6;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+/* Core dark mode theme configuration */
+.dark body { background-color: rgb(17, 24, 39); }
+.dark nav { background-color: rgb(31, 41, 55); }
+.dark h1, .dark h2 { color: rgb(255, 255, 255); }
+.dark .bg-white { background-color: rgb(31, 41, 55); }
+.dark .text-gray-800 { color: rgb(243, 244, 246); }
+.dark .text-gray-600 { color: rgb(209, 213, 219); }
+.dark .bg-gray-50 { background-color: rgb(55, 65, 81); }
+.dark .hover\:bg-gray-100:hover { background-color: rgb(75, 85, 99); }
+.dark .border-gray-200 { border-color: rgb(75, 85, 99); }
+
+/* Smooth transitions for theme switching */
+* {
+    transition: background-color 0.2s ease-out, color 0.2s ease-out;
+}
+
+/* Dark mode color scheme overrides */
+.dark body { 
+    background-color: #1a1a1a;
+}
+.dark .bg-white { 
+    background-color: #2d2d2d !important;
+}
+.dark .bg-gray-100 { 
+    background-color: #1a1a1a !important;
+}
+.dark .bg-gray-50 { 
+    background-color: #3d3d3d !important;
+}
+.dark .text-gray-800 { 
+    color: #f3f4f6 !important;
+}
+.dark .text-gray-600 { 
+    color: #d1d5db !important;
+}
+.dark .border-gray-200 { 
+    border-color: #4b5563 !important;
+}
+.dark .shadow { 
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.3);
+}
+.dark .hover\:bg-gray-100:hover { 
+    background-color: #4b5563 !important;
+}
+
+/* Dark mode text and interactive elements */
+.dark * { color: #f3f4f6; }
+.dark svg { color: #f3f4f6; }
+.dark a { color: #60a5fa; }
+.dark a:hover { color: #93c5fd; }
+.dark input::placeholder { color: #9ca3af; }
+
+/* Semantic color preservation */
+.dark .text-red-600 { color: #dc2626 !important; }
+.dark .text-green-600 { color: #059669 !important; }
+
+/* Form elements dark mode styling */
+.dark input, 
+.dark select { 
+    background-color: #3d3d3d !important;
+    color: #f3f4f6 !important;
+    border-color: #4b5563 !important;
+}
+.dark button:not(#darkModeToggle) {
+    background-color: #3d3d3d !important;
+    color: #f3f4f6 !important;
+}
+.dark button:not(#darkModeToggle):hover {
+    background-color: #4b5563 !important;
+}
+.dark #attempts > div {
+    background-color: #3d3d3d !important;
+}
+.dark #attempts > div:hover {
+    background-color: #4b5563 !important;
+}
+
+/* Chart component dark mode adjustments */
+.dark .chart-container {
+    color: #f3f4f6;
+}
+
+/* Leaflet map controls dark mode preservation */
+.dark .leaflet-control-zoom a,
+.dark .leaflet-control-zoom-in,
+.dark .leaflet-control-zoom-out,
+.dark .leaflet-control * {
+    color: #000 !important;
+    background-color: #fff !important;
+}
+
+.dark .leaflet-control-zoom a:hover,
+.dark .leaflet-control-zoom-in:hover,
+.dark .leaflet-control-zoom-out:hover {
+    background-color: #f4f4f4 !important;
+}
+
+.dark .leaflet-control-attribution {
+    color: #000 !important;
+    background-color: rgba(255, 255, 255, 0.8) !important;
+}
+
+.dark .leaflet-control-attribution a {
+    color: #0078A8 !important;
+}
+
+/* Custom attribution styling */
+.leaflet-control-attribution {
+    font-size: 8px !important;
+    padding: 2px 4px !important;
+    background-color: rgba(255, 255, 255, 0.7) !important;
+}
+
+.leaflet-control-attribution a {
+    font-size: 8px !important;
+}
+
+/* Dark mode map tile styling */
+.dark-tiles {
+    filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7);
+}
+
+/* Connection status indicator styles */
+#connectionStatusIndicator {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 1000;
+    padding: 8px;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+}
+
+#connectionStatusIndicator.connected {
+    background-color: rgb(22, 163, 74);
+}
+
+#connectionStatusIndicator.reconnecting {
+    background-color: rgb(234, 179, 8);
+}
+
+#connectionStatusIndicator.disconnected {
+    background-color: rgb(220, 38, 38);
+}
+
+#connectionStatusIndicator svg {
+    width: 24px;
+    height: 24px;
+    color: white;
+}
+
+.dark #connectionStatusIndicator.connected {
+    background-color: rgb(34, 197, 94);
+}
+
+.dark #connectionStatusIndicator.reconnecting {
+    background-color: rgb(250, 204, 21);
+}
+
+.dark #connectionStatusIndicator.disconnected {
+    background-color: rgb(239, 68, 68);
+}
+
+/* Mobile Menu Styles */
+#mobileMenu {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.9);
+    width: calc(100vw - 2rem);
+    max-width: 20rem;
+    background-color: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+}
+
+#mobileMenu.hidden {
+    display: flex !important;
+    opacity: 0;
+    visibility: hidden;
+    transform: translate(-50%, -50%) scale(0.9);
+}
+
+#mobileMenu:not(.hidden) {
+    opacity: 1;
+    visibility: visible;
+    transform: translate(-50%, -50%) scale(1);
+    pointer-events: auto;
+}
+
+/* Menu overlay styles */
+.menu-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 900;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    backdrop-filter: blur(3px);
+}
+
+.menu-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* FAQ Modal Styles */
+#faqModal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1100;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    backdrop-filter: blur(3px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+#faqModal .bg-white {
+    transform: scale(0.9);
+    opacity: 0;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    margin: 1rem;
+    width: calc(100% - 2rem);
+    max-height: calc(100vh - 2rem);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Responsive layout adjustments */
+@media (max-width: 768px) {
+    .chart-container {
+        height: 250px;
+    }
+    
+    #map {
+        height: 300px;
+    }
+    
+    .container {
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+    }
+    
+    nav .container {
+        max-width: 100%;
+    }
+
+    .chart-js-render-monitor {
+        font-size: 12px;
+    }
+}
+
+@media (min-width: 640px) {
+    .sm\:inline {
+        display: inline;
+    }
+    
+    #faqModal {
+        align-items: center;
+        padding: 2rem;
+    }
+    
+    #faqModal .bg-white {
+        margin: 0;
+        max-height: 90vh;
+    }
+}
+
+@media (min-width: 769px) {
+    #mobileMenu {
+        position: absolute;
+        top: calc(100% + 0.5rem);
+        left: auto;
+        right: 0;
+        transform: scale(0.9);
+        transform-origin: top right;
+        width: 16rem;
+    }
+
+    #mobileMenu.hidden {
+        transform: scale(0.9);
+    }
+
+    #mobileMenu:not(.hidden) {
+        transform: scale(1);
+    }
+}
+
+/* Mobile menu button hover states */
+#mobileMenu button {
+    width: 100%;
+    text-align: left;
+    padding: 0.75rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: background-color 0.2s ease, transform 0.2s ease;
+    border-radius: 0.375rem;
+    background-color: #f3f4f6;
+}
+
+.dark #mobileMenu button {
+    background-color: #374151;
+}
+
+#mobileMenu button:hover {
+    background-color: #e5e7eb;
+    transform: translateX(4px);
+}
+
+.dark #mobileMenu button:hover {
+    background-color: #4b5563;
+    transform: translateX(4px);
+}
+
+/* FAQ Modal specific styles */
+#closeFaqModal {
+    padding: 0.75rem;
+    margin: -0.75rem;
+    cursor: pointer;
+}
+
+.modal-content {
+    -webkit-overflow-scrolling: touch;
+    overflow-y: auto;
+    max-height: 100%;
+    padding-bottom: 2rem;
+} 
