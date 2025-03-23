@@ -145,83 +145,17 @@ const connectionStatus = document.getElementById("connectionStatus");
 let attempts = [];
 let socket = null;
 
-// Function to create a rolling digit element
-function createRollingDigit(oldDigit, newDigit) {
-    const container = document.createElement('div');
-    container.className = 'digit-container';
-    
-    // Create old digit element
-    const oldDigitElement = document.createElement('div');
-    oldDigitElement.className = 'rolling-digit';
-    oldDigitElement.textContent = oldDigit;
-    
-    // Create new digit element
-    const newDigitElement = document.createElement('div');
-    newDigitElement.className = 'rolling-digit new-digit';
-    newDigitElement.textContent = newDigit;
-    
-    container.appendChild(oldDigitElement);
-    container.appendChild(newDigitElement);
-    
-    // Use requestAnimationFrame for smoother animation
-    requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-            // Start the transition - old digit slides down and out
-            oldDigitElement.classList.add('slide-up');
-            
-            // After a small delay, bring in the new digit
-            setTimeout(() => {
-                newDigitElement.style.transition = 'transform 0.3s ease-in-out, opacity 0.3s ease-in-out';
-                newDigitElement.style.transform = 'translateY(-50%)';
-                newDigitElement.style.opacity = '1';
-                
-                // Clean up after animation
-                setTimeout(() => {
-                    container.removeChild(oldDigitElement);
-                    newDigitElement.style.position = 'absolute';
-                    newDigitElement.className = 'rolling-digit';
-                }, 300);
-            }, 150);
-        });
-    });
-    
-    return container;
-}
-
-// Function to update counter with rolling animation
+// Function to update counter with simple animation
 function updateCounterWithAnimation(elementId, newValue) {
     const element = document.getElementById(elementId);
     const currentValue = parseInt(element.textContent) || 0;
-    const newValueStr = newValue.toString();
     
-    // Clear the element
-    element.innerHTML = '';
-    
-    // Create digit containers for each number
-    for (let i = 0; i < newValueStr.length; i++) {
-        const oldDigit = currentValue.toString()[i] || '0';
-        const newDigit = newValueStr[i];
-        
-        // Only animate if the digits are different
-        if (oldDigit !== newDigit) {
-            const digitContainer = createRollingDigit(oldDigit, newDigit);
-            element.appendChild(digitContainer);
-        } else {
-            // If digits are the same, just display without animation
-            const container = document.createElement('div');
-            container.className = 'digit-container';
-            const digit = document.createElement('div');
-            digit.className = 'rolling-digit';
-            digit.textContent = newDigit;
-            container.appendChild(digit);
-            element.appendChild(container);
-        }
+    if (currentValue !== newValue) {
+        element.textContent = newValue;
+        element.classList.remove('counter-update');
+        void element.offsetWidth; // Trigger reflow
+        element.classList.add('counter-update');
     }
-
-    // Add the counter-update class for the color animation
-    element.classList.remove('counter-update');
-    void element.offsetWidth;
-    element.classList.add('counter-update');
 }
 
 // Add function to count unique attackers
