@@ -251,12 +251,13 @@
 
 /* Mobile Menu Styles */
 #mobileMenu {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%) scale(0.9);
-    width: calc(100vw - 2rem);
-    max-width: 20rem;
+    position: absolute;
+    top: calc(100% + 0.5rem);
+    left: auto;
+    right: 0;
+    transform: scale(0.9);
+    transform-origin: top right;
+    width: 16rem;
     background-color: white;
     border-radius: 0.5rem;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
@@ -270,17 +271,18 @@
 }
 
 #mobileMenu.hidden {
-    display: flex !important;
     opacity: 0;
     visibility: hidden;
-    transform: translate(-50%, -50%) scale(0.9);
+    transform: scale(0.9);
+    display: none;
 }
 
 #mobileMenu:not(.hidden) {
     opacity: 1;
     visibility: visible;
-    transform: translate(-50%, -50%) scale(1);
+    transform: scale(1);
     pointer-events: auto;
+    display: flex;
 }
 
 /* Menu overlay styles */
@@ -315,7 +317,7 @@
     opacity: 0;
     visibility: hidden;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    display: flex;
+    display: none;
     align-items: flex-start;
     justify-content: center;
     backdrop-filter: blur(3px);
@@ -326,6 +328,7 @@
 #faqModal:not(.hidden) {
     opacity: 1;
     visibility: visible;
+    display: flex;
 }
 
 #faqModal .bg-white {
