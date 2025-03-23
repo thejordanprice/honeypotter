@@ -152,9 +152,9 @@ function updateCounterWithAnimation(elementId, newValue) {
     
     if (currentValue !== newValue) {
         element.textContent = newValue;
-        element.classList.remove('counter-update');
+        element.classList.remove('metric-update');
         void element.offsetWidth; // Trigger reflow
-        element.classList.add('counter-update');
+        element.classList.add('metric-update');
     }
 }
 
