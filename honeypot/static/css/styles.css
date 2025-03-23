@@ -208,8 +208,8 @@
 /* Connection status indicator styles */
 #connectionStatusIndicator {
     position: fixed;
-    bottom: 20px;
-    right: 20px;
+    bottom: 16px;
+    right: 16px;
     z-index: 1000;
     padding: 8px;
     border-radius: 50%;
@@ -223,7 +223,6 @@
     -webkit-transform: translate3d(0,0,0);
     transform: translate3d(0,0,0);
     will-change: transform;
-    right: clamp(20px, 5vw, 20px);
 }
 
 #connectionStatusIndicator.connected {
@@ -418,8 +417,6 @@
     }
     
     #connectionStatusIndicator {
-        bottom: 10px;
-        right: clamp(10px, 5vw, 10px);
         width: 36px;
         height: 36px;
         padding: 6px;
