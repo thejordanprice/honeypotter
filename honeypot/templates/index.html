@@ -117,6 +117,12 @@
                                     </svg>
                                     <span>Export CSV</span>
                                 </button>
+                                <button id="systemStatusButton" class="w-full p-2 flex items-center gap-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                                    <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                    <span>System Status</span>
+                                </button>
                                 <button id="faqButton" class="w-full p-2 flex items-center gap-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
                                     <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -285,8 +291,90 @@
         </div>
     </div>
 
+    <!-- System Status Modal -->
+    <div id="systemStatusModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 backdrop-filter backdrop-blur-sm">
+        <div class="bg-white dark:bg-gray-800 w-11/12 max-w-4xl rounded-lg shadow-xl max-h-[90vh] flex flex-col overflow-hidden transform transition-transform duration-300" onclick="event.stopPropagation()">
+            <div class="flex-none bg-white dark:bg-gray-800 rounded-t-lg w-full">
+                <div class="flex justify-between items-center p-6 border-b border-gray-200 dark:border-gray-700">
+                    <h2 class="text-xl font-semibold text-gray-900 dark:text-white">System Status</h2>
+                    <button id="closeSystemStatusModal" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div class="modal-content flex-grow overflow-y-auto">
+                <div class="p-6 space-y-8">
+                    <!-- System Metrics -->
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Resources</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <!-- CPU Usage -->
+                            <div class="bg-white dark:bg-gray-700 rounded-lg p-5 shadow-sm border border-gray-100 dark:border-gray-600">
+                                <div class="flex items-center justify-between mb-3">
+                                    <h4 class="text-sm font-medium text-gray-500 dark:text-gray-400">CPU Usage</h4>
+                                    <span id="cpuPercent" class="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">-%</span>
+                                </div>
+                                <div class="w-full bg-gray-100 dark:bg-gray-600 rounded-full h-1.5">
+                                    <div id="cpuBar" class="bg-blue-500 h-1.5 rounded-full transition-all duration-300 ease-in-out" style="width: 0%"></div>
+                                </div>
+                            </div>
+                            
+                            <!-- Memory Usage -->
+                            <div class="bg-white dark:bg-gray-700 rounded-lg p-5 shadow-sm border border-gray-100 dark:border-gray-600">
+                                <div class="flex items-center justify-between mb-3">
+                                    <h4 class="text-sm font-medium text-gray-500 dark:text-gray-400">Memory Usage</h4>
+                                    <span id="memoryPercent" class="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">-%</span>
+                                </div>
+                                <div class="w-full bg-gray-100 dark:bg-gray-600 rounded-full h-1.5">
+                                    <div id="memoryBar" class="bg-green-500 h-1.5 rounded-full transition-all duration-300 ease-in-out" style="width: 0%"></div>
+                                </div>
+                            </div>
+                            
+                            <!-- Disk Usage -->
+                            <div class="bg-white dark:bg-gray-700 rounded-lg p-5 shadow-sm border border-gray-100 dark:border-gray-600">
+                                <div class="flex items-center justify-between mb-3">
+                                    <h4 class="text-sm font-medium text-gray-500 dark:text-gray-400">Disk Usage</h4>
+                                    <span id="diskPercent" class="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">-%</span>
+                                </div>
+                                <div class="w-full bg-gray-100 dark:bg-gray-600 rounded-full h-1.5">
+                                    <div id="diskBar" class="bg-yellow-500 h-1.5 rounded-full transition-all duration-300 ease-in-out" style="width: 0%"></div>
+                                </div>
+                            </div>
+                            
+                            <!-- Network Traffic -->
+                            <div class="bg-white dark:bg-gray-700 rounded-lg p-5 shadow-sm border border-gray-100 dark:border-gray-600">
+                                <h4 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3">Network Traffic</h4>
+                                <div class="space-y-2">
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-xs text-gray-500 dark:text-gray-400">Sent</span>
+                                        <span id="networkSent" class="text-sm font-medium text-gray-900 dark:text-white">-</span>
+                                    </div>
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-xs text-gray-500 dark:text-gray-400">Received</span>
+                                        <span id="networkReceived" class="text-sm font-medium text-gray-900 dark:text-white">-</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Service Status -->
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Services</h3>
+                        <div id="serviceStatus" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+                            <!-- Service status items will be inserted here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="/static/js/charts.js"></script>
     <script src="/static/js/visualizations.js"></script>
+    <script src="/static/js/system-monitor.js"></script>
     <script>
         // Add this before the main.js script
         document.addEventListener('DOMContentLoaded', function() {

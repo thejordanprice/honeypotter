@@ -7,11 +7,21 @@ from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from sqlalchemy.orm import Session
 from typing import List
 from pathlib import Path
-from honeypot.core.config import TEMPLATE_DIR, STATIC_DIR, HOST, WEB_PORT
+from honeypot.core.config import TEMPLATE_DIR, STATIC_DIR, HOST, WEB_PORT, SSH_PORT, TELNET_PORT, FTP_PORT, SMTP_PORT, RDP_PORT
 from honeypot.database.models import get_db, LoginAttempt
+from honeypot.core.system_monitor import SystemMonitor
 import ipaddress
 
 app = FastAPI(title="Honeypot Monitor")
+
+# Initialize system monitor
+system_monitor = SystemMonitor({
+    'ssh': SSH_PORT,
+    'telnet': TELNET_PORT,
+    'ftp': FTP_PORT,
+    'smtp': SMTP_PORT,
+    'rdp': RDP_PORT
+})
 
 # Mount static files directory
 static_path = Path(STATIC_DIR)
@@ -32,9 +42,24 @@ async def home(request: Request):
         {
             "request": request,
             "ws_host": HOST,
-            "ws_port": WEB_PORT  # Use the same port as the web server
+            "ws_port": WEB_PORT
         }
     )
+
+@app.get("/api/system/metrics")
+async def get_system_metrics():
+    """Get current system metrics."""
+    return JSONResponse(system_monitor.get_system_metrics())
+
+@app.get("/api/system/services")
+async def get_service_status():
+    """Get status of monitored services."""
+    return JSONResponse(system_monitor.get_service_status())
+
+@app.get("/api/system/logs")
+async def get_system_logs(lines: int = 100):
+    """Get recent system logs."""
+    return JSONResponse(system_monitor.get_system_logs(lines))
 
 @app.get("/config")
 async def get_config():

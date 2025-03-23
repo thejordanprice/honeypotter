@@ -309,8 +309,9 @@
     visibility: visible;
 }
 
-/* FAQ Modal Styles */
-#faqModal {
+/* FAQ Modal and System Status Modal Styles */
+#faqModal,
+#systemStatusModal {
     position: fixed;
     top: 0;
     left: 0;
@@ -331,42 +332,30 @@
     padding: 1rem;
     -webkit-overflow-scrolling: touch;
     pointer-events: none;
-    -webkit-transform: translate3d(0,0,0);
-    transform: translate3d(0,0,0);
 }
 
-#faqModal:not(.hidden) {
+#faqModal:not(.hidden),
+#systemStatusModal:not(.hidden) {
     opacity: 1;
     visibility: visible;
     pointer-events: auto;
 }
 
-#faqModal .bg-white {
+#faqModal > div,
+#systemStatusModal > div {
     transform: translateY(100%);
     opacity: 0;
     transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    margin: auto;
-    width: calc(100% - 2rem);
-    max-height: calc(100vh - 2rem);
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
 }
 
-#faqModal:not(.hidden) .bg-white {
+#faqModal:not(.hidden) > div,
+#systemStatusModal:not(.hidden) > div {
     transform: translateY(0);
     opacity: 1;
 }
 
-#faqModal .sticky {
-    position: sticky;
-    top: 0;
-    z-index: 10;
-    border-top-left-radius: 0.5rem;
-    border-top-right-radius: 0.5rem;
-    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-}
-
-#closeFaqModal {
+#closeFaqModal,
+#closeSystemStatusModal {
     position: relative;
     display: flex;
     align-items: center;
@@ -374,11 +363,13 @@
     transition: all 0.2s ease;
 }
 
-#closeFaqModal:hover {
+#closeFaqModal:hover,
+#closeSystemStatusModal:hover {
     transform: scale(1.1) rotate(90deg);
 }
 
-#closeFaqModal:active {
+#closeFaqModal:active,
+#closeSystemStatusModal:active {
     transform: scale(0.95);
 }
 
