@@ -15,6 +15,9 @@ function formatTimeWithMinutes(hour, minutes) {
     return `${h}:${minutes.toString().padStart(2, '0')}${ampm}`;
 }
 
+// Add flag to track initial load
+let isInitialLoad = true;
+
 function updateVisualizations(filteredAttempts) {
     // Clear existing markers from the map
     markers.forEach(marker => {
@@ -24,7 +27,12 @@ function updateVisualizations(filteredAttempts) {
 
     // Update map with filtered attempts
     filteredAttempts.forEach(updateMap);
-    centerMapOnMostActiveRegion(filteredAttempts);
+    
+    // Only center map on initial load
+    if (isInitialLoad) {
+        centerMapOnMostActiveRegion(filteredAttempts);
+        isInitialLoad = false;
+    }
 
     // Get current time and filter value
     const now = new Date();
