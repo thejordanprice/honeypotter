@@ -14,6 +14,16 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+    <style>
+        @keyframes counterUpdate {
+            0% { color: inherit; }
+            50% { color: #ef4444; }
+            100% { color: inherit; }
+        }
+        .counter-update {
+            animation: counterUpdate 0.5s ease;
+        }
+    </style>
 </head>
 <body class="bg-gray-100">
     <nav class="bg-white dark:bg-gray-800 shadow-lg mb-8">

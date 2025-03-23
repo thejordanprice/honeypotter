@@ -145,10 +145,23 @@ const connectionStatus = document.getElementById("connectionStatus");
 let attempts = [];
 let socket = null;
 
+// Add function to update counter with animation
+function updateCounterWithAnimation(elementId, newValue) {
+    const element = document.getElementById(elementId);
+    element.textContent = newValue;
+    element.classList.remove('counter-update');
+    // Force a reflow to restart the animation
+    void element.offsetWidth;
+    element.classList.add('counter-update');
+}
+
 // Add function to count unique attackers
 function updateUniqueAttackersCount() {
     const uniqueIPs = new Set(attempts.map(attempt => attempt.client_ip));
-    document.getElementById('uniqueAttackers').textContent = uniqueIPs.size;
+    const currentCount = parseInt(document.getElementById('uniqueAttackers').textContent);
+    if (currentCount !== uniqueIPs.size) {
+        updateCounterWithAnimation('uniqueAttackers', uniqueIPs.size);
+    }
 }
 
 function updateConnectionStatus(status, isError = false) {
@@ -233,10 +246,16 @@ function connectWebSocket() {
             const newAttempt = JSON.parse(event.data);
             console.log('Received new attempt:', newAttempt);
             
-            attempts.unshift(newAttempt);
+            // Check if this IP is new before adding the attempt
+            const isNewAttacker = !attempts.some(attempt => attempt.client_ip === newAttempt.client_ip);
             
-            document.getElementById('totalAttempts').textContent = attempts.length;
-            updateUniqueAttackersCount();
+            attempts.unshift(newAttempt);
+            updateCounterWithAnimation('totalAttempts', attempts.length);
+            
+            // Only update unique attackers if this is a new IP
+            if (isNewAttacker) {
+                updateUniqueAttackersCount();
+            }
             
             updateMap(newAttempt);
             
