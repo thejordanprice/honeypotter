@@ -75,25 +75,26 @@ function updateVisualizations(filteredAttempts) {
     let smtpData = [];
     let rdpData = [];
     let sipData = [];
+    let mysqlData = [];
 
     // Sort attempts by timestamp
     const sortedAttempts = [...filteredAttempts].sort((a, b) => 
-        new Date(a.timestamp + 'Z') - new Date(b.timestamp + 'Z')
+        new Date(a.timestamp) - new Date(b.timestamp)
     );
 
     // Update time-based data based on filter
     if (filterValue === 'lastHour') {
-        updateLastHourData(sortedAttempts, now, timeLabels, sshData, telnetData, ftpData, smtpData, rdpData, sipData);
+        updateLastHourData(sortedAttempts, now, timeLabels, sshData, telnetData, ftpData, smtpData, rdpData, sipData, mysqlData);
     } else if (filterValue === 'today') {
-        updateTodayData(sortedAttempts, now, timeLabels, sshData, telnetData, ftpData, smtpData, rdpData, sipData);
+        updateTodayData(sortedAttempts, now, timeLabels, sshData, telnetData, ftpData, smtpData, rdpData, sipData, mysqlData);
     } else if (filterValue === 'thisWeek') {
-        updateThisWeekData(sortedAttempts, now, timeLabels, sshData, telnetData, ftpData, smtpData, rdpData, sipData);
+        updateThisWeekData(sortedAttempts, now, timeLabels, sshData, telnetData, ftpData, smtpData, rdpData, sipData, mysqlData);
     } else {
-        updateAllTimeData(sortedAttempts, now, timeLabels, sshData, telnetData, ftpData, smtpData, rdpData, sipData);
+        updateAllTimeData(sortedAttempts, now, timeLabels, sshData, telnetData, ftpData, smtpData, rdpData, sipData, mysqlData);
     }
 
     // Update the attempts chart
-    updateAttemptsChart(timeLabels, sshData, telnetData, ftpData, smtpData, rdpData, sipData);
+    updateAttemptsChart(timeLabels, sshData, telnetData, ftpData, smtpData, rdpData, sipData, mysqlData);
 
     // Update username distribution chart
     updateUsernameChart(filteredAttempts);
@@ -105,7 +106,7 @@ function updateVisualizations(filteredAttempts) {
     updateCountryChart(filteredAttempts);
 }
 
-function updateLastHourData(sortedAttempts, now, timeLabels, sshData, telnetData, ftpData, smtpData, rdpData, sipData) {
+function updateLastHourData(sortedAttempts, now, timeLabels, sshData, telnetData, ftpData, smtpData, rdpData, sipData, mysqlData) {
     const intervals = 12; // 5-minute intervals
     const currentMinute = now.getMinutes();
     const startMinute = currentMinute - (currentMinute % 5); // Round down to nearest 5
@@ -122,12 +123,14 @@ function updateLastHourData(sortedAttempts, now, timeLabels, sshData, telnetData
     smtpData.length = intervals;
     rdpData.length = intervals;
     sipData.length = intervals;
+    mysqlData.length = intervals;
     sshData.fill(0);
     telnetData.fill(0);
     ftpData.fill(0);
     smtpData.fill(0);
     rdpData.fill(0);
     sipData.fill(0);
+    mysqlData.fill(0);
 
     sortedAttempts.forEach(attempt => {
         const date = new Date(attempt.timestamp + 'Z');
@@ -135,13 +138,13 @@ function updateLastHourData(sortedAttempts, now, timeLabels, sshData, telnetData
         if (minutesAgo <= 60) {
             const intervalIndex = Math.floor((60 - minutesAgo) / 5);
             if (intervalIndex >= 0 && intervalIndex < intervals) {
-                incrementProtocolData(attempt.protocol, intervalIndex, sshData, telnetData, ftpData, smtpData, rdpData, sipData);
+                incrementProtocolData(attempt.protocol, intervalIndex, sshData, telnetData, ftpData, smtpData, rdpData, sipData, mysqlData);
             }
         }
     });
 }
 
-function updateTodayData(sortedAttempts, now, timeLabels, sshData, telnetData, ftpData, smtpData, rdpData, sipData) {
+function updateTodayData(sortedAttempts, now, timeLabels, sshData, telnetData, ftpData, smtpData, rdpData, sipData, mysqlData) {
     const currentHour = now.getHours();
     for (let i = 0; i <= currentHour; i++) {
         timeLabels.push(formatHour(i));
@@ -153,23 +156,25 @@ function updateTodayData(sortedAttempts, now, timeLabels, sshData, telnetData, f
     smtpData.length = currentHour + 1;
     rdpData.length = currentHour + 1;
     sipData.length = currentHour + 1;
+    mysqlData.length = currentHour + 1;
     sshData.fill(0);
     telnetData.fill(0);
     ftpData.fill(0);
     smtpData.fill(0);
     rdpData.fill(0);
     sipData.fill(0);
+    mysqlData.fill(0);
 
     sortedAttempts.forEach(attempt => {
         const date = new Date(attempt.timestamp + 'Z');
         if (date.toLocaleDateString() === now.toLocaleDateString()) {
             const hour = date.getHours();
-            incrementProtocolData(attempt.protocol, hour, sshData, telnetData, ftpData, smtpData, rdpData, sipData);
+            incrementProtocolData(attempt.protocol, hour, sshData, telnetData, ftpData, smtpData, rdpData, sipData, mysqlData);
         }
     });
 }
 
-function updateThisWeekData(sortedAttempts, now, timeLabels, sshData, telnetData, ftpData, smtpData, rdpData, sipData) {
+function updateThisWeekData(sortedAttempts, now, timeLabels, sshData, telnetData, ftpData, smtpData, rdpData, sipData, mysqlData) {
     for (let i = 0; i < 7; i++) {
         const d = new Date(now);
         d.setDate(d.getDate() - (6 - i));
@@ -182,24 +187,26 @@ function updateThisWeekData(sortedAttempts, now, timeLabels, sshData, telnetData
     smtpData.length = 7;
     rdpData.length = 7;
     sipData.length = 7;
+    mysqlData.length = 7;
     sshData.fill(0);
     telnetData.fill(0);
     ftpData.fill(0);
     smtpData.fill(0);
     rdpData.fill(0);
     sipData.fill(0);
+    mysqlData.fill(0);
 
     sortedAttempts.forEach(attempt => {
         const date = new Date(attempt.timestamp + 'Z');
         const daysAgo = Math.floor((now - date) / (1000 * 60 * 60 * 24));
         if (daysAgo < 7) {
             const dayIndex = 6 - daysAgo;
-            incrementProtocolData(attempt.protocol, dayIndex, sshData, telnetData, ftpData, smtpData, rdpData, sipData);
+            incrementProtocolData(attempt.protocol, dayIndex, sshData, telnetData, ftpData, smtpData, rdpData, sipData, mysqlData);
         }
     });
 }
 
-function updateAllTimeData(sortedAttempts, now, timeLabels, sshData, telnetData, ftpData, smtpData, rdpData, sipData) {
+function updateAllTimeData(sortedAttempts, now, timeLabels, sshData, telnetData, ftpData, smtpData, rdpData, sipData, mysqlData) {
     if (sortedAttempts.length === 0) return;
 
     const oldestDate = new Date(sortedAttempts[0].timestamp + 'Z');
@@ -263,6 +270,7 @@ function updateAllTimeData(sortedAttempts, now, timeLabels, sshData, telnetData,
     smtpData.length = intervals;
     rdpData.length = intervals;
     sipData.length = intervals;
+    mysqlData.length = intervals;
 
     sshData.fill(0);
     telnetData.fill(0);
@@ -270,6 +278,7 @@ function updateAllTimeData(sortedAttempts, now, timeLabels, sshData, telnetData,
     smtpData.fill(0);
     rdpData.fill(0);
     sipData.fill(0);
+    mysqlData.fill(0);
 
     for (let i = 0; i < intervals; i++) {
         const date = new Date(startDate);
@@ -301,18 +310,18 @@ function updateAllTimeData(sortedAttempts, now, timeLabels, sshData, telnetData,
             const minutesSinceStart = Math.floor((date - startDate) / (1000 * 60));
             const intervalIndex = Math.floor(minutesSinceStart / (intervalSize * 60));
             if (intervalIndex >= 0 && intervalIndex < intervals) {
-                incrementProtocolData(attempt.protocol, intervalIndex, sshData, telnetData, ftpData, smtpData, rdpData, sipData);
+                incrementProtocolData(attempt.protocol, intervalIndex, sshData, telnetData, ftpData, smtpData, rdpData, sipData, mysqlData);
             }
         } else {
             const intervalIndex = Math.floor((date - startDate) / (1000 * 60 * 60 * intervalSize));
             if (intervalIndex >= 0 && intervalIndex < intervals) {
-                incrementProtocolData(attempt.protocol, intervalIndex, sshData, telnetData, ftpData, smtpData, rdpData, sipData);
+                incrementProtocolData(attempt.protocol, intervalIndex, sshData, telnetData, ftpData, smtpData, rdpData, sipData, mysqlData);
             }
         }
     });
 }
 
-function incrementProtocolData(protocol, index, sshData, telnetData, ftpData, smtpData, rdpData, sipData) {
+function incrementProtocolData(protocol, index, sshData, telnetData, ftpData, smtpData, rdpData, sipData, mysqlData) {
     switch (protocol) {
         case 'ssh':
             sshData[index]++;
@@ -332,10 +341,13 @@ function incrementProtocolData(protocol, index, sshData, telnetData, ftpData, sm
         case 'sip':
             sipData[index]++;
             break;
+        case 'mysql':
+            mysqlData[index]++;
+            break;
     }
 }
 
-function updateAttemptsChart(timeLabels, sshData, telnetData, ftpData, smtpData, rdpData, sipData) {
+function updateAttemptsChart(timeLabels, sshData, telnetData, ftpData, smtpData, rdpData, sipData, mysqlData) {
     attemptsChart.data.labels = timeLabels;
     attemptsChart.data.datasets[0].data = sshData;
     attemptsChart.data.datasets[1].data = telnetData;
@@ -343,23 +355,31 @@ function updateAttemptsChart(timeLabels, sshData, telnetData, ftpData, smtpData,
     attemptsChart.data.datasets[3].data = smtpData;
     attemptsChart.data.datasets[4].data = rdpData;
     attemptsChart.data.datasets[5].data = sipData;
+    attemptsChart.data.datasets[6].data = mysqlData;
     attemptsChart.update();
 }
 
 function updateUsernameChart(filteredAttempts) {
     const usernameData = {};
     filteredAttempts.forEach(attempt => {
-        if (!usernameData[attempt.username]) {
-            usernameData[attempt.username] = { ssh: 0, telnet: 0, ftp: 0, smtp: 0, rdp: 0, sip: 0 };
+        // Replace blank or null usernames with [User Null]
+        const username = attempt.username.trim() || '[User Null]';
+        if (!usernameData[username]) {
+            usernameData[username] = { ssh: 0, telnet: 0, ftp: 0, smtp: 0, rdp: 0, sip: 0, mysql: 0 };
         }
-        usernameData[attempt.username][attempt.protocol]++;
+        usernameData[username][attempt.protocol]++;
     });
 
+    // Sort by total attempts across all protocols
     const topUsernames = Object.entries(usernameData)
-        .sort((a, b) => (b[1].ssh + b[1].telnet + b[1].ftp + b[1].smtp + b[1].rdp + b[1].sip) - 
-                        (a[1].ssh + a[1].telnet + a[1].ftp + a[1].smtp + a[1].rdp + a[1].sip))
+        .sort((a, b) => {
+            const totalA = a[1].ssh + a[1].telnet + a[1].ftp + a[1].smtp + a[1].rdp + a[1].sip + a[1].mysql;
+            const totalB = b[1].ssh + b[1].telnet + b[1].ftp + b[1].smtp + b[1].rdp + b[1].sip + b[1].mysql;
+            return totalB - totalA;
+        })
         .slice(0, 5);
 
+    // Update chart data
     usernamesChart.data.labels = topUsernames.map(([username]) => username);
     usernamesChart.data.datasets[0].data = topUsernames.map(([, counts]) => counts.ssh);
     usernamesChart.data.datasets[1].data = topUsernames.map(([, counts]) => counts.telnet);
@@ -367,7 +387,10 @@ function updateUsernameChart(filteredAttempts) {
     usernamesChart.data.datasets[3].data = topUsernames.map(([, counts]) => counts.smtp);
     usernamesChart.data.datasets[4].data = topUsernames.map(([, counts]) => counts.rdp);
     usernamesChart.data.datasets[5].data = topUsernames.map(([, counts]) => counts.sip);
-    usernamesChart.update();
+    usernamesChart.data.datasets[6].data = topUsernames.map(([, counts]) => counts.mysql);
+
+    // Force chart update
+    usernamesChart.update('none');
 }
 
 function updateIPChart(filteredAttempts) {

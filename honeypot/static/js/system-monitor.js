@@ -105,7 +105,8 @@ function updateServiceStatus() {
                 ftp: { name: 'FTP', icon: '📁' },
                 smtp: { name: 'SMTP', icon: '📧' },
                 rdp: { name: 'RDP', icon: '🖥️' },
-                sip: { name: 'SIP', icon: '📞' }
+                sip: { name: 'SIP', icon: '📞' },
+                mysql: { name: 'MySQL', icon: '🗄️' }
             };
 
             Object.entries(serviceConfigs).forEach(([protocol, config]) => {

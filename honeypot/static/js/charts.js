@@ -53,6 +53,14 @@ const attemptsChart = new Chart(
                     backgroundColor: 'rgba(236, 72, 153, 0.1)',
                     tension: 0.4,
                     fill: true
+                },
+                {
+                    label: 'MySQL',
+                    data: [],
+                    borderColor: '#14b8a6',
+                    backgroundColor: 'rgba(20, 184, 166, 0.1)',
+                    tension: 0.4,
+                    fill: true
                 }
             ]
         },
@@ -141,6 +149,11 @@ const usernamesChart = new Chart(
                     label: 'SIP',
                     data: [],
                     backgroundColor: '#ec4899'
+                },
+                {
+                    label: 'MySQL',
+                    data: [],
+                    backgroundColor: '#14b8a6'
                 }
             ]
         },
@@ -180,6 +193,13 @@ const usernamesChart = new Chart(
                         padding: 8,
                         font: {
                             size: 11
+                        }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `${context.dataset.label}: ${context.raw}`;
                         }
                     }
                 }
@@ -319,6 +339,7 @@ function updateChartColors(chart, isDark, textColor, gridColor) {
         chart.data.datasets[3].borderColor = isDark ? '#f59e0b' : '#f59e0b';
         chart.data.datasets[4].borderColor = isDark ? '#8b5cf6' : '#8b5cf6';
         chart.data.datasets[5].borderColor = isDark ? '#ec4899' : '#ec4899';
+        chart.data.datasets[6].borderColor = isDark ? '#14b8a6' : '#14b8a6';
     } else if (chart === usernamesChart) {
         chart.data.datasets[0].backgroundColor = isDark ? '#ef4444' : '#ef4444';
         chart.data.datasets[1].backgroundColor = isDark ? '#3b82f6' : '#3b82f6';
@@ -326,6 +347,7 @@ function updateChartColors(chart, isDark, textColor, gridColor) {
         chart.data.datasets[3].backgroundColor = isDark ? '#f59e0b' : '#f59e0b';
         chart.data.datasets[4].backgroundColor = isDark ? '#8b5cf6' : '#8b5cf6';
         chart.data.datasets[5].backgroundColor = isDark ? '#ec4899' : '#ec4899';
+        chart.data.datasets[6].backgroundColor = isDark ? '#14b8a6' : '#14b8a6';
     } else if (chart === ipsChart) {
         chart.data.datasets[0].backgroundColor = isDark ? 'rgba(167, 139, 250, 0.8)' : 'rgba(109, 40, 217, 0.8)';
     } else if (chart === countriesChart) {
@@ -344,4 +366,29 @@ document.addEventListener('DOMContentLoaded', () => {
         updateChartColors(ipsChart, true);
         updateChartColors(countriesChart, true);
     }
-}); 
+});
+
+function updateUsernameChart(filteredAttempts) {
+    const usernameData = {};
+    filteredAttempts.forEach(attempt => {
+        if (!usernameData[attempt.username]) {
+            usernameData[attempt.username] = { ssh: 0, telnet: 0, ftp: 0, smtp: 0, rdp: 0, sip: 0, mysql: 0 };
+        }
+        usernameData[attempt.username][attempt.protocol]++;
+    });
+
+    const topUsernames = Object.entries(usernameData)
+        .sort((a, b) => (b[1].ssh + b[1].telnet + b[1].ftp + b[1].smtp + b[1].rdp + b[1].sip + b[1].mysql) - 
+                        (a[1].ssh + a[1].telnet + a[1].ftp + a[1].smtp + a[1].rdp + a[1].sip + a[1].mysql))
+        .slice(0, 5);
+
+    usernamesChart.data.labels = topUsernames.map(([username]) => username);
+    usernamesChart.data.datasets[0].data = topUsernames.map(([, counts]) => counts.ssh);
+    usernamesChart.data.datasets[1].data = topUsernames.map(([, counts]) => counts.telnet);
+    usernamesChart.data.datasets[2].data = topUsernames.map(([, counts]) => counts.ftp);
+    usernamesChart.data.datasets[3].data = topUsernames.map(([, counts]) => counts.smtp);
+    usernamesChart.data.datasets[4].data = topUsernames.map(([, counts]) => counts.rdp);
+    usernamesChart.data.datasets[5].data = topUsernames.map(([, counts]) => counts.sip);
+    usernamesChart.data.datasets[6].data = topUsernames.map(([, counts]) => counts.mysql);
+    usernamesChart.update();
+} 
