@@ -89,10 +89,46 @@ async def websocket_endpoint(websocket: WebSocket):
             active_connections.remove(websocket)
 
 @app.get("/api/attempts")
-def get_attempts(db: Session = Depends(get_db)):
-    """Get all login attempts."""
-    attempts = db.query(LoginAttempt).order_by(LoginAttempt.timestamp.desc()).all()
-    return [attempt.to_dict() for attempt in attempts]
+def get_attempts(
+    db: Session = Depends(get_db),
+    offset: int = 0,
+    limit: int = None,
+    count_only: bool = False
+):
+    """Get login attempts with pagination support.
+    
+    Args:
+        offset: Number of records to skip
+        limit: Maximum number of records to return
+        count_only: If True, only return the total count
+    """
+    # Get total count using optimized count query
+    total_count = db.query(LoginAttempt.id).count()
+    
+    if count_only:
+        return {"total": total_count}
+    
+    # Get paginated results with optimized query
+    query = db.query(LoginAttempt).order_by(LoginAttempt.timestamp.desc())
+    
+    if offset:
+        query = query.offset(offset)
+    if limit:
+        query = query.limit(limit)
+    
+    # Use yield_per for memory efficiency
+    # If total count is less than chunk size, don't use yield_per to avoid unnecessary overhead
+    attempts = []
+    if total_count < 1000:
+        attempts = [attempt.to_dict() for attempt in query.all()]
+    else:
+        for attempt in query.yield_per(1000):
+            attempts.append(attempt.to_dict())
+    
+    return {
+        "attempts": attempts,
+        "total": total_count
+    }
 
 @app.get("/api/export/plaintext")
 def export_plaintext(db: Session = Depends(get_db), download: bool = False):

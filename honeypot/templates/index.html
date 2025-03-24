@@ -31,6 +31,10 @@
         .metric-update {
             animation: metricUpdate 0.3s ease;
         }
+        .progress-circle {
+            transition: stroke-dashoffset 0.5s ease;
+            transform-origin: center;
+        }
     </style>
 </head>
 <body class="bg-gray-100">
@@ -214,9 +218,31 @@
 
     <!-- Loading Overlay -->
     <div id="loadingOverlay" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-        <div class="flex items-center bg-white dark:bg-gray-800 rounded-lg p-6 shadow-xl max-w-full mx-4">
-            <div class="loading-spinner"></div>
-            <div class="loading-text">Loading data...</div>
+        <div class="flex flex-col items-center bg-white dark:bg-gray-800 rounded-lg p-6 shadow-xl" style="width: 320px">
+            <div class="relative w-24 h-24 mb-4">
+                <!-- Circular background -->
+                <svg class="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                    <circle cx="18" cy="18" r="16" fill="none" 
+                        class="stroke-current text-gray-200 dark:text-gray-700"
+                        stroke-width="2"></circle>
+                    <!-- Progress circle -->
+                    <circle cx="18" cy="18" r="16" fill="none" 
+                        class="progress-circle stroke-current text-blue-500 dark:text-blue-400"
+                        stroke-width="2"
+                        stroke-dasharray="100"
+                        stroke-dashoffset="100"></circle>
+                </svg>
+                <!-- Percentage text -->
+                <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-2xl font-semibold loading-percentage w-full text-center">
+                    0%
+                </div>
+            </div>
+            <div class="text-gray-700 dark:text-gray-300 text-center w-full">
+                <div class="font-semibold mb-2 w-full whitespace-nowrap">Loading data...</div>
+                <div class="loading-count text-sm h-6 flex items-center justify-center w-full whitespace-nowrap">
+                    <span class="inline-block">0 of 0 records</span>
+                </div>
+            </div>
         </div>
     </div>
 

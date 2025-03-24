@@ -144,6 +144,44 @@ const protocolSelect = document.getElementById("protocolSelect");
 const connectionStatus = document.getElementById("connectionStatus");
 let attempts = [];
 let socket = null;
+let isLoadingData = false;
+let totalAttemptsCount = 0;
+let loadedAttemptsCount = 0;
+let animatedCount = 0;
+let animatedPercentage = 0;
+let countAnimationFrame = null;
+const CHUNK_SIZE = 1000; // Number of records per chunk
+
+// Function to animate number with easing
+function animateNumber(start, end, duration, onUpdate, onComplete) {
+    const startTime = performance.now();
+    const change = end - start;
+    
+    function easeOutQuad(t) {
+        return t * (2 - t);
+    }
+    
+    function update(currentTime) {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        
+        const currentValue = start + (change * easeOutQuad(progress));
+        onUpdate(Math.round(currentValue));
+        
+        if (progress < 1) {
+            requestAnimationFrame(update);
+        } else {
+            onComplete && onComplete();
+        }
+    }
+    
+    requestAnimationFrame(update);
+}
+
+// Function to format numbers with commas
+function formatNumber(num) {
+    return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
 
 // Function to update counter with simple animation
 function updateCounterWithAnimation(elementId, newValue) {
@@ -210,6 +248,148 @@ function toggleLoadingOverlay(show) {
 // Show loading overlay initially
 toggleLoadingOverlay(true);
 
+// Function to update loading progress with smooth animations
+function updateLoadingProgress() {
+    const loadingPercentage = document.querySelector('.loading-percentage');
+    const loadingCount = document.querySelector('.loading-count');
+    const progressCircle = document.querySelector('.progress-circle');
+    
+    if (loadingPercentage && loadingCount && progressCircle && totalAttemptsCount > 0) {
+        const targetPercentage = Math.round((loadedAttemptsCount / totalAttemptsCount) * 100);
+        const targetCount = loadedAttemptsCount;
+        
+        // Cancel any existing animation
+        if (countAnimationFrame) {
+            cancelAnimationFrame(countAnimationFrame);
+        }
+        
+        // Animate percentage and update circle
+        animateNumber(animatedPercentage, targetPercentage, 500, (value) => {
+            animatedPercentage = value;
+            loadingPercentage.textContent = `${value}%`;
+            
+            // Update progress circle
+            const circumference = 2 * Math.PI * 16; // r = 16 from SVG
+            const offset = circumference - (value / 100) * circumference;
+            progressCircle.style.strokeDasharray = `${circumference} ${circumference}`;
+            progressCircle.style.strokeDashoffset = offset;
+        });
+        
+        // Animate count
+        animateNumber(animatedCount, targetCount, 500, (value) => {
+            animatedCount = value;
+            loadingCount.textContent = `${formatNumber(value)} of ${formatNumber(totalAttemptsCount)} records`;
+        });
+        
+        // If we have fewer records than chunk size, update UI immediately
+        if (totalAttemptsCount < CHUNK_SIZE) {
+            updateUI();
+        }
+    }
+}
+
+// Function to reset loading animation state
+function resetLoadingAnimation() {
+    const loadingPercentage = document.querySelector('.loading-percentage');
+    const loadingCount = document.querySelector('.loading-count');
+    const progressCircle = document.querySelector('.progress-circle');
+    
+    if (loadingPercentage && loadingCount && progressCircle) {
+        loadingPercentage.textContent = '0%';
+        loadingCount.textContent = '0 of 0 records';
+        
+        const circumference = 2 * Math.PI * 16;
+        progressCircle.style.strokeDasharray = `${circumference} ${circumference}`;
+        progressCircle.style.strokeDashoffset = circumference;
+    }
+    
+    animatedCount = 0;
+    animatedPercentage = 0;
+}
+
+// Function to load data in chunks with delay between chunks to prevent overwhelming
+async function loadDataChunk(offset) {
+    try {
+        // Add a small delay between chunks to prevent overwhelming
+        if (offset > 0) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        
+        const response = await fetch(`/api/attempts?offset=${offset}&limit=${CHUNK_SIZE}`);
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('Error fetching data chunk:', error);
+        return { attempts: [], total: 0 };
+    }
+}
+
+// Function to load all data in chunks
+async function loadAllData() {
+    if (isLoadingData) return;
+    isLoadingData = true;
+    attempts = [];
+    loadedAttemptsCount = 0;
+    
+    // Reset animation state before starting
+    resetLoadingAnimation();
+    toggleLoadingOverlay(true);
+    
+    try {
+        // First, get the total count
+        const initialResponse = await fetch('/api/attempts?count_only=true');
+        const { total } = await initialResponse.json();
+        totalAttemptsCount = total;
+        
+        // Update loading count text with total
+        const loadingCount = document.querySelector('.loading-count');
+        if (loadingCount) {
+            loadingCount.textContent = `0 of ${formatNumber(total)} records`;
+        }
+        
+        // If we have no data, update UI and return early
+        if (total === 0) {
+            updateUI();
+            isLoadingData = false;
+            setTimeout(() => toggleLoadingOverlay(false), 500);
+            return;
+        }
+        
+        // Load data in chunks
+        for (let offset = 0; offset < total; offset += CHUNK_SIZE) {
+            const response = await loadDataChunk(offset);
+            const { attempts: chunkData } = response;
+            
+            if (!chunkData || chunkData.length === 0) {
+                console.warn(`No data received for chunk at offset ${offset}`);
+                continue;
+            }
+            
+            attempts = [...attempts, ...chunkData];
+            loadedAttemptsCount += chunkData.length;
+            
+            // Update loading progress after each chunk
+            updateLoadingProgress();
+            
+            // Update counters and UI immediately with each chunk
+            updateCounterWithAnimation('totalAttempts', attempts.length);
+            updateUniqueAttackersCount();
+            
+            // Update UI with partial data
+            updateUI();
+            
+            // Allow other tasks to process between chunks
+            await new Promise(resolve => setTimeout(resolve, 50));
+        }
+        
+    } catch (error) {
+        console.error('Error loading data:', error);
+    } finally {
+        isLoadingData = false;
+        setTimeout(() => toggleLoadingOverlay(false), 500);
+    }
+}
+
 function connectWebSocket() {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${protocol}//${window.location.host}/ws`;
@@ -220,31 +400,7 @@ function connectWebSocket() {
 
     socket.onopen = function() {
         updateConnectionStatus('Connected to WebSocket');
-        fetch('/api/attempts')
-            .then(response => response.json())
-            .then(data => {
-                attempts = data;
-                
-                const currentFilters = {
-                    search: searchInput.value.toLowerCase().trim(),
-                    filter: filterSelect.value,
-                    protocol: protocolSelect.value
-                };
-                
-                const filteredAttempts = filterAttempts(attempts);
-                
-                // Initialize the counters with animation
-                updateCounterWithAnimation('totalAttempts', attempts.length);
-                updateUniqueAttackersCount();
-                
-                updateUI();
-                
-                setTimeout(() => toggleLoadingOverlay(false), 500);
-            })
-            .catch(error => {
-                console.error('Error fetching data:', error);
-                toggleLoadingOverlay(false);
-            });
+        loadAllData(); // Use the new chunked loading function
     };
 
     socket.onmessage = function(event) {
