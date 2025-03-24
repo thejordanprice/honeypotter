@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Hardcoded directory name for the virtual environment
-VENV_DIR="myenv"
+VENV_DIR="python-venv"
 
 # Check if Python 3 is installed
 if ! command -v python3 &>/dev/null; then
