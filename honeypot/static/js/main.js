@@ -124,8 +124,8 @@ function updateMap(attempt) {
 
     // Create and add the heat layer
     heatLayer = L.heatLayer(heatData, {
-        radius: 25,
-        blur: 15,
+        radius: 15,
+        blur: 10,
         maxZoom: 10,
         max: 1.0,
         gradient: {
