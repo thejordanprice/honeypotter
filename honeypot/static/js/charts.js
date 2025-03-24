@@ -84,7 +84,13 @@ const attemptsChart = new Chart(
                     display: true,
                     position: 'bottom',
                     labels: {
-                        color: document.documentElement.classList.contains('dark') ? '#9ca3af' : '#1f2937'
+                        color: document.documentElement.classList.contains('dark') ? '#9ca3af' : '#1f2937',
+                        boxWidth: 8,
+                        boxHeight: 8,
+                        padding: 8,
+                        font: {
+                            size: 11
+                        }
                     }
                 },
                 title: {
@@ -168,7 +174,13 @@ const usernamesChart = new Chart(
                     display: true,
                     position: 'bottom',
                     labels: {
-                        color: document.documentElement.classList.contains('dark') ? '#9ca3af' : '#1f2937'
+                        color: document.documentElement.classList.contains('dark') ? '#9ca3af' : '#1f2937',
+                        boxWidth: 8,
+                        boxHeight: 8,
+                        padding: 8,
+                        font: {
+                            size: 11
+                        }
                     }
                 }
             }
