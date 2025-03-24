@@ -542,4 +542,13 @@ html, body {
 .chart-container {
     max-width: 100%;
     overflow: hidden;
+}
+
+/* Progress circle colors */
+.progress-circle {
+    stroke: #3b82f6; /* blue-500 in light mode */
+}
+
+.dark .progress-circle {
+    stroke: #93c5fd !important; /* blue-300 in dark mode */
 } 
