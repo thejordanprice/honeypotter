@@ -18,6 +18,7 @@ class Protocol(enum.Enum):
     SMTP = "smtp"
     RDP = "rdp"
     SIP = "sip"
+    MYSQL = "mysql"
 
 class LoginAttempt(Base):
     """Model for storing SSH login attempts."""

@@ -8,10 +8,11 @@ from honeypot.core.ftp_server import FTPHoneypot
 from honeypot.core.smtp_server import SMTPHoneypot
 from honeypot.core.rdp_server import RDPHoneypot
 from honeypot.core.sip_server import SIPHoneypot
+from honeypot.core.mysql_server import MySQLHoneypot
 from honeypot.database.models import init_db
 from honeypot.web.app import app
 from honeypot.core.config import (
-    HOST, SSH_PORT, TELNET_PORT, FTP_PORT, SMTP_PORT, RDP_PORT, SIP_PORT, WEB_PORT, 
+    HOST, SSH_PORT, TELNET_PORT, FTP_PORT, SMTP_PORT, RDP_PORT, SIP_PORT, MYSQL_PORT, WEB_PORT, 
     LOG_LEVEL, LOG_FILE
 )
 
@@ -84,6 +85,14 @@ def start_sip_server():
     except Exception as e:
         logger.error(f"SIP server failed: {str(e)}")
 
+def start_mysql_server():
+    """Start the MySQL honeypot server."""
+    try:
+        honeypot = MySQLHoneypot()
+        honeypot.start()
+    except Exception as e:
+        logger.error(f"MySQL server failed: {str(e)}")
+
 def main():
     """Main entry point for the application."""
     try:
@@ -130,6 +139,12 @@ def main():
         sip_thread.daemon = True
         sip_thread.start()
         logger.info(f"SIP Honeypot thread started on port {SIP_PORT}")
+
+        # Start MySQL server in a separate thread
+        mysql_thread = threading.Thread(target=start_mysql_server)
+        mysql_thread.daemon = True
+        mysql_thread.start()
+        logger.info(f"MySQL Honeypot thread started on port {MYSQL_PORT}")
 
         # Start the web application
         logger.info(f"Starting web interface on port {WEB_PORT}")
