@@ -99,23 +99,26 @@ function updateServiceStatus() {
             const serviceStatus = document.getElementById('serviceStatus');
             serviceStatus.innerHTML = '';
 
-            for (const [service, status] of Object.entries(data)) {
-                const serviceElement = document.createElement('div');
-                serviceElement.className = 'bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm border border-gray-200 dark:border-gray-700';
-                
-                // Debug the status value
-                console.log(`Service ${service} status:`, status);
-                
-                // Make colors more vibrant and ensure proper status check
-                const isRunning = status.running === true; // Explicit boolean check
-                const statusColor = isRunning 
-                    ? 'text-green-500 dark:text-green-500' 
-                    : 'text-red-500 dark:text-red-500';
+            const serviceConfigs = {
+                ssh: { name: 'SSH', icon: '🔒' },
+                telnet: { name: 'Telnet', icon: '🔌' },
+                ftp: { name: 'FTP', icon: '📁' },
+                smtp: { name: 'SMTP', icon: '📧' },
+                rdp: { name: 'RDP', icon: '🖥️' },
+                sip: { name: 'SIP', icon: '📞' }
+            };
+
+            Object.entries(serviceConfigs).forEach(([protocol, config]) => {
+                const serviceData = data[protocol] || {};
+                const isRunning = serviceData.running === true;
+                const statusColor = isRunning ? 'text-green-500 dark:text-green-500' : 'text-red-500 dark:text-red-500';
                 const statusIcon = isRunning ? '●' : '○';
                 
+                const serviceElement = document.createElement('div');
+                serviceElement.className = 'bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm border border-gray-200 dark:border-gray-700';
                 serviceElement.innerHTML = `
                     <div class="flex items-center justify-between mb-2.5">
-                        <h4 class="font-medium text-gray-900 dark:text-white text-sm">${service.toUpperCase()}</h4>
+                        <h4 class="font-medium text-gray-900 dark:text-white text-sm">${config.name}</h4>
                         <div class="flex items-center gap-1">
                             <span class="text-lg leading-none font-bold ${statusColor}">${statusIcon}</span>
                         </div>
@@ -125,20 +128,19 @@ function updateServiceStatus() {
                             <svg class="w-3 h-3 mr-1.5 flex-shrink-0 opacity-75" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                             </svg>
-                            <span class="truncate">Port ${status.port}</span>
+                            <span class="truncate">Port ${serviceData.port || 'N/A'}</span>
                         </div>
                         
                         <div class="flex items-center text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-700 rounded px-2 py-1">
                             <svg class="w-3 h-3 mr-1.5 flex-shrink-0 opacity-75" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                             </svg>
-                            <span class="truncate">PID ${status.pid}</span>
+                            <span class="truncate">PID ${serviceData.pid || 'N/A'}</span>
                         </div>
                     </div>
                 `;
-                
                 serviceStatus.appendChild(serviceElement);
-            }
+            });
         })
         .catch(error => console.error('Error fetching service status:', error));
 }

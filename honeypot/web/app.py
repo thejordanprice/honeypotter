@@ -7,7 +7,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from sqlalchemy.orm import Session
 from typing import List
 from pathlib import Path
-from honeypot.core.config import TEMPLATE_DIR, STATIC_DIR, HOST, WEB_PORT, SSH_PORT, TELNET_PORT, FTP_PORT, SMTP_PORT, RDP_PORT
+from honeypot.core.config import TEMPLATE_DIR, STATIC_DIR, HOST, WEB_PORT, SSH_PORT, TELNET_PORT, FTP_PORT, SMTP_PORT, RDP_PORT, SIP_PORT
 from honeypot.database.models import get_db, LoginAttempt
 from honeypot.core.system_monitor import SystemMonitor
 import ipaddress
@@ -20,7 +20,8 @@ system_monitor = SystemMonitor({
     'telnet': TELNET_PORT,
     'ftp': FTP_PORT,
     'smtp': SMTP_PORT,
-    'rdp': RDP_PORT
+    'rdp': RDP_PORT,
+    'sip': SIP_PORT
 })
 
 # Mount static files directory

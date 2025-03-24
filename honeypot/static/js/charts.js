@@ -9,62 +9,50 @@ const attemptsChart = new Chart(
                 {
                     label: 'SSH',
                     data: [],
-                    borderColor: document.documentElement.classList.contains('dark') 
-                        ? 'rgba(167, 139, 250, 0.8)'
-                        : '#6d28d9',
-                    backgroundColor: 'transparent',
-                    borderWidth: 2,
-                    pointRadius: 3,
-                    pointHoverRadius: 5,
-                    tension: 0.3
+                    borderColor: '#ef4444',
+                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                    tension: 0.4,
+                    fill: true
                 },
                 {
                     label: 'Telnet',
                     data: [],
-                    borderColor: document.documentElement.classList.contains('dark')
-                        ? 'rgba(96, 165, 250, 0.8)'
-                        : '#2563eb',
-                    backgroundColor: 'transparent',
-                    borderWidth: 2,
-                    pointRadius: 3,
-                    pointHoverRadius: 5,
-                    tension: 0.3
+                    borderColor: '#3b82f6',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    tension: 0.4,
+                    fill: true
                 },
                 {
                     label: 'FTP',
                     data: [],
-                    borderColor: document.documentElement.classList.contains('dark')
-                        ? 'rgba(52, 211, 153, 0.8)'
-                        : '#059669',
-                    backgroundColor: 'transparent',
-                    borderWidth: 2,
-                    pointRadius: 3,
-                    pointHoverRadius: 5,
-                    tension: 0.3
+                    borderColor: '#10b981',
+                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                    tension: 0.4,
+                    fill: true
                 },
                 {
                     label: 'SMTP',
                     data: [],
-                    borderColor: document.documentElement.classList.contains('dark')
-                        ? 'rgba(251, 191, 36, 0.8)'
-                        : '#d97706',
-                    backgroundColor: 'transparent',
-                    borderWidth: 2,
-                    pointRadius: 3,
-                    pointHoverRadius: 5,
-                    tension: 0.3
+                    borderColor: '#f59e0b',
+                    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                    tension: 0.4,
+                    fill: true
                 },
                 {
                     label: 'RDP',
                     data: [],
-                    borderColor: document.documentElement.classList.contains('dark')
-                        ? 'rgba(244, 114, 182, 0.8)'
-                        : '#db2777',
-                    backgroundColor: 'transparent',
-                    borderWidth: 2,
-                    pointRadius: 3,
-                    pointHoverRadius: 5,
-                    tension: 0.3
+                    borderColor: '#8b5cf6',
+                    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                },
+                {
+                    label: 'SIP',
+                    data: [],
+                    borderColor: '#ec4899',
+                    backgroundColor: 'rgba(236, 72, 153, 0.1)',
+                    tension: 0.4,
+                    fill: true
                 }
             ]
         },
@@ -121,42 +109,32 @@ const usernamesChart = new Chart(
                 {
                     label: 'SSH',
                     data: [],
-                    backgroundColor: document.documentElement.classList.contains('dark')
-                        ? 'rgba(167, 139, 250, 0.8)'
-                        : 'rgba(109, 40, 217, 0.8)',
-                    borderRadius: 4
+                    backgroundColor: '#ef4444'
                 },
                 {
                     label: 'Telnet',
                     data: [],
-                    backgroundColor: document.documentElement.classList.contains('dark')
-                        ? 'rgba(96, 165, 250, 0.8)'
-                        : 'rgba(37, 99, 235, 0.8)',
-                    borderRadius: 4
+                    backgroundColor: '#3b82f6'
                 },
                 {
                     label: 'FTP',
                     data: [],
-                    backgroundColor: document.documentElement.classList.contains('dark')
-                        ? 'rgba(52, 211, 153, 0.8)'
-                        : 'rgba(5, 150, 105, 0.8)',
-                    borderRadius: 4
+                    backgroundColor: '#10b981'
                 },
                 {
                     label: 'SMTP',
                     data: [],
-                    backgroundColor: document.documentElement.classList.contains('dark')
-                        ? 'rgba(251, 191, 36, 0.8)'
-                        : 'rgba(217, 119, 6, 0.8)',
-                    borderRadius: 4
+                    backgroundColor: '#f59e0b'
                 },
                 {
                     label: 'RDP',
                     data: [],
-                    backgroundColor: document.documentElement.classList.contains('dark')
-                        ? 'rgba(244, 114, 182, 0.8)'
-                        : 'rgba(219, 39, 119, 0.8)',
-                    borderRadius: 4
+                    backgroundColor: '#8b5cf6'
+                },
+                {
+                    label: 'SIP',
+                    data: [],
+                    backgroundColor: '#ec4899'
                 }
             ]
         },
@@ -323,17 +301,19 @@ function updateChartColors(chart, isDark, textColor, gridColor) {
     
     // Update dataset colors based on chart type
     if (chart === attemptsChart) {
-        chart.data.datasets[0].borderColor = isDark ? 'rgba(167, 139, 250, 0.8)' : '#6d28d9';  // Brighter purple
-        chart.data.datasets[1].borderColor = isDark ? 'rgba(96, 165, 250, 0.8)' : '#2563eb';    // Brighter blue
-        chart.data.datasets[2].borderColor = isDark ? 'rgba(52, 211, 153, 0.8)' : '#059669';    // Brighter green
-        chart.data.datasets[3].borderColor = isDark ? 'rgba(251, 191, 36, 0.8)' : '#d97706';    // Brighter yellow
-        chart.data.datasets[4].borderColor = isDark ? 'rgba(244, 114, 182, 0.8)' : '#db2777';   // Brighter pink
+        chart.data.datasets[0].borderColor = isDark ? '#ef4444' : '#ef4444';
+        chart.data.datasets[1].borderColor = isDark ? '#3b82f6' : '#3b82f6';
+        chart.data.datasets[2].borderColor = isDark ? '#10b981' : '#10b981';
+        chart.data.datasets[3].borderColor = isDark ? '#f59e0b' : '#f59e0b';
+        chart.data.datasets[4].borderColor = isDark ? '#8b5cf6' : '#8b5cf6';
+        chart.data.datasets[5].borderColor = isDark ? '#ec4899' : '#ec4899';
     } else if (chart === usernamesChart) {
-        chart.data.datasets[0].backgroundColor = isDark ? 'rgba(167, 139, 250, 0.8)' : 'rgba(109, 40, 217, 0.8)';
-        chart.data.datasets[1].backgroundColor = isDark ? 'rgba(96, 165, 250, 0.8)' : 'rgba(37, 99, 235, 0.8)';
-        chart.data.datasets[2].backgroundColor = isDark ? 'rgba(52, 211, 153, 0.8)' : 'rgba(5, 150, 105, 0.8)';
-        chart.data.datasets[3].backgroundColor = isDark ? 'rgba(251, 191, 36, 0.8)' : 'rgba(217, 119, 6, 0.8)';
-        chart.data.datasets[4].backgroundColor = isDark ? 'rgba(244, 114, 182, 0.8)' : 'rgba(219, 39, 119, 0.8)';
+        chart.data.datasets[0].backgroundColor = isDark ? '#ef4444' : '#ef4444';
+        chart.data.datasets[1].backgroundColor = isDark ? '#3b82f6' : '#3b82f6';
+        chart.data.datasets[2].backgroundColor = isDark ? '#10b981' : '#10b981';
+        chart.data.datasets[3].backgroundColor = isDark ? '#f59e0b' : '#f59e0b';
+        chart.data.datasets[4].backgroundColor = isDark ? '#8b5cf6' : '#8b5cf6';
+        chart.data.datasets[5].backgroundColor = isDark ? '#ec4899' : '#ec4899';
     } else if (chart === ipsChart) {
         chart.data.datasets[0].backgroundColor = isDark ? 'rgba(167, 139, 250, 0.8)' : 'rgba(109, 40, 217, 0.8)';
     } else if (chart === countriesChart) {
