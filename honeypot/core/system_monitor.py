@@ -5,6 +5,8 @@ from datetime import datetime
 import os
 import subprocess
 import platform
+import requests
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -21,21 +23,152 @@ class SystemMonitor:
         self.is_macos = platform.system() == 'Darwin'
         # Get the main process PID to find child processes
         self.main_pid = os.getpid()
+        # Cache for external IP
+        self._external_ip = None
+        self._last_ip_check = 0
+        self._ip_cache_duration = 300  # Cache IP for 5 minutes
         logger.debug(f"Main process PID: {self.main_pid}")
     
+    def get_external_ip(self) -> str:
+        """Get the external IP address with caching.
+        
+        Returns:
+            str: The external IP address or "Unknown" if not available
+        """
+        current_time = time.time()
+        
+        # Return cached IP if it's still valid
+        if self._external_ip and (current_time - self._last_ip_check) < self._ip_cache_duration:
+            return self._external_ip
+            
+        try:
+            # Try to get IP from icanhazip.com
+            response = requests.get('https://icanhazip.com', timeout=5)
+            if response.status_code == 200:
+                ip = response.text.strip()
+                self._external_ip = ip
+                self._last_ip_check = current_time
+                return ip
+        except Exception as e:
+            logger.error(f"Error getting external IP: {str(e)}")
+            
+        return "Unknown"
+
     def get_system_metrics(self) -> Dict:
         """Get current system metrics."""
         try:
-            cpu_percent = psutil.cpu_percent(interval=1)
-            memory = psutil.virtual_memory()
-            disk = psutil.disk_usage('/')
-            network = psutil.net_io_counters()
+            # Get CPU metrics
+            try:
+                cpu_percent = psutil.cpu_percent(interval=1)
+                cpu_count = psutil.cpu_count()
+            except Exception as e:
+                logger.error(f"Error getting CPU metrics: {str(e)}")
+                cpu_percent = 0
+                cpu_count = 0
+
+            # Get Memory metrics
+            try:
+                memory = psutil.virtual_memory()
+            except Exception as e:
+                logger.error(f"Error getting memory metrics: {str(e)}")
+                memory = type('Memory', (), {
+                    'total': 0,
+                    'available': 0,
+                    'percent': 0,
+                    'used': 0
+                })
+
+            # Get Disk metrics
+            try:
+                disk = psutil.disk_usage('/')
+            except Exception as e:
+                logger.error(f"Error getting disk metrics: {str(e)}")
+                disk = type('Disk', (), {
+                    'total': 0,
+                    'used': 0,
+                    'free': 0,
+                    'percent': 0
+                })
+
+            # Get Network metrics
+            try:
+                if self.is_macos:
+                    # On macOS, try using netstat for network connections
+                    try:
+                        netstat_cmd = ['netstat', '-an']
+                        result = subprocess.run(netstat_cmd, capture_output=True, text=True)
+                        if result.returncode == 0:
+                            connections = len([line for line in result.stdout.splitlines() if 'ESTABLISHED' in line])
+                        else:
+                            connections = 0
+                    except Exception as e:
+                        logger.error(f"Error getting network connections via netstat: {str(e)}")
+                        connections = 0
+
+                    # Try using netstat for network traffic
+                    try:
+                        netstat_cmd = ['netstat', '-I', 'en0', '-b']  # Use en0 as default interface
+                        result = subprocess.run(netstat_cmd, capture_output=True, text=True)
+                        if result.returncode == 0:
+                            lines = result.stdout.splitlines()
+                            if len(lines) >= 2:  # Header + data line
+                                data = lines[1].split()
+                                if len(data) >= 7:
+                                    bytes_in = int(data[6])  # Bytes in
+                                    bytes_out = int(data[9])  # Bytes out
+                                    network = type('Network', (), {
+                                        'bytes_sent': bytes_out,
+                                        'bytes_recv': bytes_in,
+                                        'packets_sent': int(data[8]),  # Packets out
+                                        'packets_recv': int(data[5])   # Packets in
+                                    })
+                                else:
+                                    raise ValueError("Insufficient data in netstat output")
+                            else:
+                                raise ValueError("No data in netstat output")
+                        else:
+                            raise subprocess.CalledProcessError(result.returncode, netstat_cmd)
+                    except Exception as e:
+                        logger.error(f"Error getting network traffic via netstat: {str(e)}")
+                        network = type('Network', (), {
+                            'bytes_sent': 0,
+                            'bytes_recv': 0,
+                            'packets_sent': 0,
+                            'packets_recv': 0
+                        })
+                else:
+                    # On other platforms, use psutil
+                    network = psutil.net_io_counters()
+                    connections = len(psutil.net_connections())
+            except Exception as e:
+                logger.error(f"Error getting network metrics: {str(e)}")
+                network = type('Network', (), {
+                    'bytes_sent': 0,
+                    'bytes_recv': 0,
+                    'packets_sent': 0,
+                    'packets_recv': 0
+                })
+                connections = 0
+
+            # Get Load Average
+            try:
+                load_avg = psutil.getloadavg()
+            except Exception as e:
+                logger.error(f"Error getting load average: {str(e)}")
+                load_avg = [0, 0, 0]
+
+            # Get Uptime
+            try:
+                uptime = time.time() - psutil.boot_time()
+            except Exception as e:
+                logger.error(f"Error getting uptime: {str(e)}")
+                uptime = 0
             
             return {
                 'timestamp': datetime.utcnow().isoformat(),
                 'cpu': {
                     'percent': cpu_percent,
-                    'count': psutil.cpu_count()
+                    'count': cpu_count
                 },
                 'memory': {
                     'total': memory.total,
@@ -53,7 +186,18 @@ class SystemMonitor:
                     'bytes_sent': network.bytes_sent,
                     'bytes_recv': network.bytes_recv,
                     'packets_sent': network.packets_sent,
-                    'packets_recv': network.packets_recv
+                    'packets_recv': network.packets_recv,
+                    'connections': connections
+                },
+                'load': {
+                    '1min': load_avg[0],
+                    '5min': load_avg[1],
+                    '15min': load_avg[2]
+                },
+                'uptime': {
+                    'seconds': uptime,
+                    'days': uptime / (24 * 3600),
+                    'hours': uptime / 3600
                 }
             }
         except Exception as e:

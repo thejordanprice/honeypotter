@@ -53,6 +53,11 @@ async def get_system_metrics():
     """Get current system metrics."""
     return JSONResponse(system_monitor.get_system_metrics())
 
+@app.get("/api/system/external-ip")
+async def get_external_ip():
+    """Get the external IP address."""
+    return JSONResponse({"ip": system_monitor.get_external_ip()})
+
 @app.get("/api/system/services")
 async def get_service_status():
     """Get status of monitored services."""

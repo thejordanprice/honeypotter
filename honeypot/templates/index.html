@@ -328,6 +328,62 @@
                                     </div>
                                 </div>
                             </div>
+
+                            <!-- External IP -->
+                            <div class="bg-white dark:bg-gray-800 rounded-lg p-5 shadow-sm border border-gray-200 dark:border-gray-700">
+                                <div class="flex items-center justify-between mb-3">
+                                    <h4 class="text-sm font-medium text-gray-600 dark:text-gray-300">External IP</h4>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span id="externalIP" class="text-sm font-medium text-gray-900 dark:text-white">-</span>
+                                    <button id="refreshIP" class="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" title="Refresh IP">
+                                        <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- System Uptime -->
+                            <div class="bg-white dark:bg-gray-800 rounded-lg p-5 shadow-sm border border-gray-200 dark:border-gray-700">
+                                <div class="flex items-center justify-between mb-3">
+                                    <h4 class="text-sm font-medium text-gray-600 dark:text-gray-300">Uptime</h4>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span id="systemUptime" class="text-sm font-medium text-gray-900 dark:text-white">-</span>
+                                </div>
+                            </div>
+
+                            <!-- Network Connections -->
+                            <div class="bg-white dark:bg-gray-800 rounded-lg p-5 shadow-sm border border-gray-200 dark:border-gray-700">
+                                <div class="flex items-center justify-between mb-3">
+                                    <h4 class="text-sm font-medium text-gray-600 dark:text-gray-300">Connections</h4>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span id="networkConnections" class="text-sm font-medium text-gray-900 dark:text-white">-</span>
+                                </div>
+                            </div>
+
+                            <!-- System Load -->
+                            <div class="bg-white dark:bg-gray-800 rounded-lg p-5 shadow-sm border border-gray-200 dark:border-gray-700">
+                                <div class="flex items-center justify-between mb-3">
+                                    <h4 class="text-sm font-medium text-gray-600 dark:text-gray-300">System Load</h4>
+                                </div>
+                                <div class="space-y-2">
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-xs text-gray-500 dark:text-gray-400">1min</span>
+                                        <span id="load1min" class="text-sm font-medium text-gray-900 dark:text-white">-</span>
+                                    </div>
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-xs text-gray-500 dark:text-gray-400">5min</span>
+                                        <span id="load5min" class="text-sm font-medium text-gray-900 dark:text-white">-</span>
+                                    </div>
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-xs text-gray-500 dark:text-gray-400">15min</span>
+                                        <span id="load15min" class="text-sm font-medium text-gray-900 dark:text-white">-</span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
