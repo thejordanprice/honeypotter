@@ -1,4 +1,13 @@
+# Ignore honeypot files
 honeypot.db
-venv/*
-.env
 honeypot.log
+
+# Ignore .env file
+.env
+
+#Ignore Python venv
+venv/*
+
+# Ignore Python bytecode files
+__pycache__/
+*.pyc
