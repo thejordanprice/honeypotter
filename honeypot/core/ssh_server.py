@@ -75,36 +75,46 @@ class SSHHoneypot(BaseHoneypot):
     def __init__(self, host: str = HOST, port: int = SSH_PORT):
         """Initialize the SSH honeypot server."""
         super().__init__(host, port, Protocol.SSH)
-        # Generate ECDSA key
-        self.host_key = paramiko.ECDSAKey.generate(bits=521)
-        logger.info(f"Generated ECDSA host key: {self.host_key.get_fingerprint().hex()}")
+        self.server_key = paramiko.RSAKey.generate(2048)
 
     def _handle_client(self, client_socket: socket.socket, client_ip: str):
         """Handle an individual SSH client connection."""
         transport = None
         try:
+            # Set base timeout for initial connection
+            self._configure_socket_timeout(client_socket)
+            
+            # Create transport
             transport = paramiko.Transport(client_socket)
-            transport.add_server_key(self.host_key)
-            transport.local_version = "SSH-2.0-OpenSSH_8.2p1 Ubuntu-4ubuntu0.5"  # Mimic a real server
+            transport.local_version = "SSH-2.0-OpenSSH_8.9p1 Ubuntu-3ubuntu0.1"
             
-            server = HoneypotServerInterface(self, client_ip)
-            try:
-                transport.start_server(server=server)
-            except paramiko.SSHException as e:
-                if "Error reading SSH protocol banner" in str(e):
-                    # This is a common case for scanners, log at debug level
-                    logger.debug(f"Scanner probe from {client_ip}: {str(e)}")
-                    return
-                elif "Incompatible ssh peer" in str(e):
-                    logger.debug(f"Incompatible SSH client from {client_ip}: {str(e)}")
-                    return
-                else:
-                    logger.warning(f"SSH negotiation failed from {client_ip}: {str(e)}")
-                    return
+            # Set transport timeout
+            transport.set_keepalive(60)  # Send keepalive every 60 seconds
+            transport.use_compression(False)
             
-            channel = transport.accept(20)
-            if channel is not None:
-                channel.close()
+            # Configure extended timeout for authentication
+            self._configure_socket_timeout(client_socket, self.extended_timeout)
+            
+            # Add server key
+            transport.add_server_key(self.server_key)
+            
+            # Start server
+            server = paramiko.ServerInterface()
+            transport.start_server(server=server)
+            
+            # Wait for auth attempt with timeout
+            channel = transport.accept(20)  # 20 second timeout for auth
+            if channel is None:
+                logger.debug(f"No channel established from {client_ip}")
+                return
+            
+            # Get authentication attempts
+            username = server.get_username()
+            password = server.get_password()
+            
+            # Log the attempt
+            if username or password:
+                self._log_attempt(username or "", password or "", client_ip)
                 
         except paramiko.SSHException as e:
             # Handle other SSH-specific exceptions

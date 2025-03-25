@@ -17,6 +17,9 @@ class FTPHoneypot(BaseHoneypot):
     def _handle_client(self, client_socket: socket.socket, client_ip: str):
         """Handle an individual FTP client connection."""
         try:
+            # Set base timeout for initial connection
+            self._configure_socket_timeout(client_socket)
+            
             # Send welcome message
             client_socket.send(b'220 Welcome to FTP server\r\n')
             
@@ -25,48 +28,37 @@ class FTPHoneypot(BaseHoneypot):
             password = None
             
             while True:
-                # Read command
-                command = self._read_line(client_socket).decode('ascii', errors='ignore').strip()
-                if not command:
-                    break
-                    
-                # Parse command and arguments
-                cmd, *args = command.split(' ', 1)
-                cmd = cmd.upper()
-                arg = args[0] if args else None
+                # Set extended timeout for command processing
+                self._configure_socket_timeout(client_socket, self.extended_timeout)
                 
-                # Handle different commands
-                if cmd == 'USER':
-                    username = arg
-                    client_socket.send(b'331 Please specify the password.\r\n')
-                elif cmd == 'PASS':
-                    password = arg
-                    # Log the attempt and broadcast
-                    self._log_attempt(username, password, client_ip)
-                    # Send error message
-                    client_socket.send(b'530 Login incorrect.\r\n')
+                # Receive command
+                data = client_socket.recv(1024).decode('utf-8', errors='ignore').strip()
+                if not data:
                     break
-                elif cmd == 'QUIT':
+                
+                # Process FTP commands
+                if data.upper().startswith('USER'):
+                    username = data[5:].strip()
+                    client_socket.send(b'331 Please specify the password.\r\n')
+                
+                elif data.upper().startswith('PASS'):
+                    if username:
+                        password = data[5:].strip()
+                        self._log_attempt(username, password, client_ip)
+                        client_socket.send(b'530 Login incorrect.\r\n')
+                        break
+                    else:
+                        client_socket.send(b'503 Login with USER first.\r\n')
+                
+                elif data.upper().startswith('QUIT'):
                     client_socket.send(b'221 Goodbye.\r\n')
                     break
-                elif cmd in ['SYST', 'FEAT', 'PWD', 'TYPE', 'PASV', 'PORT']:
-                    # Handle common FTP commands
-                    if cmd == 'SYST':
-                        client_socket.send(b'215 UNIX Type: L8\r\n')
-                    elif cmd == 'FEAT':
-                        client_socket.send(b'211-Features:\r\n PASV\r\n211 End\r\n')
-                    elif cmd == 'PWD':
-                        client_socket.send(b'257 "/" is current directory.\r\n')
-                    elif cmd == 'TYPE':
-                        client_socket.send(b'200 Switching to ASCII mode.\r\n')
-                    elif cmd == 'PASV':
-                        client_socket.send(b'227 Entering Passive Mode (127,0,0,1,0,0).\r\n')
-                    elif cmd == 'PORT':
-                        client_socket.send(b'200 PORT command successful.\r\n')
+                
                 else:
-                    # Unknown command
-                    client_socket.send(b'500 Unknown command.\r\n')
+                    client_socket.send(b'530 Please login with USER and PASS.\r\n')
             
+        except socket.timeout:
+            logger.debug(f"Connection timed out from {client_ip}")
         except Exception as e:
             logger.error(f"Error handling client {client_ip}: {str(e)}")
         finally:

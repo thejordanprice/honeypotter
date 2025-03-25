@@ -29,34 +29,90 @@ class TelnetHoneypot(BaseHoneypot):
     def _handle_client(self, client_socket: socket.socket, client_ip: str):
         """Handle an individual Telnet client connection."""
         try:
-            # Initial telnet negotiation
-            client_socket.send(IAC + DO + ECHO)
-            client_socket.send(IAC + DO + SUPPRESS_GO_AHEAD)
-            client_socket.send(IAC + WILL + ECHO)
-            client_socket.send(IAC + WILL + SUPPRESS_GO_AHEAD)
+            # Set base timeout for initial connection
+            self._configure_socket_timeout(client_socket)
+            
+            # Send initial telnet negotiation
+            self._send_initial_negotiation(client_socket)
+            
+            # Initialize state
+            username = None
+            password = None
             
             # Send login prompt
-            client_socket.send(b'login: ')
+            client_socket.send(b'Ubuntu 20.04.6 LTS\r\nlogin: ')
             
-            # Read username
-            username = self._read_line(client_socket).decode('ascii', errors='ignore').strip()
+            while True:
+                # Set extended timeout for input processing
+                self._configure_socket_timeout(client_socket, self.extended_timeout)
+                
+                # Receive input
+                data = client_socket.recv(1024)
+                if not data:
+                    break
+                
+                # Handle telnet commands
+                if IAC in data:
+                    self._handle_telnet_command(client_socket, data)
+                    continue
+                
+                # Process input
+                try:
+                    text = data.decode('utf-8', errors='ignore').strip()
+                    if not username:
+                        username = text
+                        client_socket.send(b'Password: ')
+                    else:
+                        password = text
+                        self._log_attempt(username, password, client_ip)
+                        client_socket.send(b'\r\nLogin incorrect\r\n\r\nUbuntu 20.04.6 LTS\r\nlogin: ')
+                        username = None
+                        password = None
+                except UnicodeDecodeError:
+                    continue
             
-            # Send password prompt
-            client_socket.send(b'Password: ')
-            
-            # Read password
-            password = self._read_line(client_socket).decode('ascii', errors='ignore').strip()
-            
-            # Log the attempt and broadcast
-            self._log_attempt(username, password, client_ip)
-            
-            # Send login failure message
-            client_socket.send(b'Login incorrect\r\n')
-            
+        except socket.timeout:
+            logger.debug(f"Connection timed out from {client_ip}")
         except Exception as e:
             logger.error(f"Error handling client {client_ip}: {str(e)}")
         finally:
             client_socket.close()
+
+    def _send_initial_negotiation(self, sock: socket.socket) -> None:
+        """Send initial Telnet protocol negotiation."""
+        # Don't echo
+        sock.send(IAC + WILL + ECHO)
+        # Will suppress go ahead
+        sock.send(IAC + WILL + SUPPRESS_GO_AHEAD)
+        # Don't use linemode
+        sock.send(IAC + WONT + LINEMODE)
+
+    def _handle_telnet_command(self, sock: socket.socket, data: bytes) -> None:
+        """Handle Telnet protocol commands."""
+        try:
+            # Find all IAC sequences
+            while IAC in data:
+                # Get index of IAC
+                iac_index = data.index(IAC)
+                
+                # If we have at least 3 bytes (IAC + command + option)
+                if len(data) >= iac_index + 3:
+                    cmd = data[iac_index + 1:iac_index + 2]
+                    opt = data[iac_index + 2:iac_index + 3]
+                    
+                    # Handle basic negotiation
+                    if cmd in [DO, WILL]:
+                        sock.send(IAC + WONT + opt)
+                    elif cmd in [DONT, WONT]:
+                        sock.send(IAC + DONT + opt)
+                    
+                    # Move past this command
+                    data = data[iac_index + 3:]
+                else:
+                    break
+                    
+        except Exception as e:
+            logger.error(f"Error handling telnet command: {str(e)}")
 
     def _read_line(self, sock: socket.socket) -> bytes:
         """Read a line from the socket, handling telnet protocol negotiations.

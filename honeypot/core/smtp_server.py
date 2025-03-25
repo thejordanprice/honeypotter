@@ -18,6 +18,9 @@ class SMTPHoneypot(BaseHoneypot):
     def _handle_client(self, client_socket: socket.socket, client_ip: str):
         """Handle an individual SMTP client connection."""
         try:
+            # Set base timeout for initial connection
+            self._configure_socket_timeout(client_socket)
+            
             # Send welcome message
             client_socket.send(b'220 smtp.gmail.com ESMTP ready\r\n')
             
@@ -27,79 +30,62 @@ class SMTPHoneypot(BaseHoneypot):
             in_auth = False
             
             while True:
-                # Read command
-                command = self._read_line(client_socket).decode('ascii', errors='ignore').strip()
-                if not command:
-                    break
-                    
-                # Parse command and arguments
-                parts = command.split(' ')
-                cmd = parts[0].upper()
-                args = parts[1:] if len(parts) > 1 else []
+                # Set extended timeout for command processing
+                self._configure_socket_timeout(client_socket, self.extended_timeout)
                 
-                # Handle different commands
-                if cmd == 'EHLO' or cmd == 'HELO':
+                # Receive command
+                data = client_socket.recv(1024).decode('utf-8', errors='ignore').strip()
+                if not data:
+                    break
+                
+                # Process SMTP commands
+                if data.startswith('EHLO') or data.startswith('HELO'):
                     client_socket.send(b'250-smtp.gmail.com\r\n')
                     client_socket.send(b'250-PIPELINING\r\n')
                     client_socket.send(b'250-SIZE 35882577\r\n')
-                    client_socket.send(b'250-STARTTLS\r\n')
                     client_socket.send(b'250-AUTH LOGIN PLAIN\r\n')
                     client_socket.send(b'250 8BITMIME\r\n')
-                elif cmd == 'AUTH':
-                    if len(args) >= 2 and args[0].upper() == 'PLAIN':
-                        # Handle inline AUTH PLAIN
+                
+                elif data.startswith('AUTH'):
+                    in_auth = True
+                    if 'PLAIN' in data:
+                        # Handle AUTH PLAIN
                         try:
-                            auth_data = base64.b64decode(args[1]).decode('utf-8')
-                            # AUTH PLAIN format is: \x00username\x00password
-                            _, username, password = auth_data.split('\x00')
-                            # Log the attempt and broadcast
+                            auth_data = data.split()[-1]
+                            decoded = base64.b64decode(auth_data).decode('utf-8')
+                            _, username, password = decoded.split('\0')
                             self._log_attempt(username, password, client_ip)
-                            # Send error message
+                        except:
+                            pass
+                    else:
+                        # For other AUTH methods, prompt for username
+                        client_socket.send(b'334 VXNlcm5hbWU6\r\n')  # Base64 encoded "Username:"
+                
+                elif in_auth:
+                    try:
+                        # Try to decode credentials
+                        decoded = base64.b64decode(data).decode('utf-8')
+                        if username is None:
+                            username = decoded
+                            client_socket.send(b'334 UGFzc3dvcmQ6\r\n')  # Base64 encoded "Password:"
+                        else:
+                            password = decoded
+                            self._log_attempt(username, password, client_ip)
                             client_socket.send(b'535 Authentication failed\r\n')
                             break
-                        except Exception as e:
-                            logger.error(f"Error decoding AUTH PLAIN from {client_ip}: {str(e)}")
-                            client_socket.send(b'501 Authentication failed\r\n')
-                            break
-                    elif len(args) == 1 and args[0].upper() == 'PLAIN':
-                        # Handle multi-step AUTH PLAIN
-                        client_socket.send(b'334 \r\n')
-                        in_auth = True
-                    elif len(args) == 1 and args[0].upper() == 'LOGIN':
-                        # Handle AUTH LOGIN
-                        client_socket.send(b'334 VXNlcm5hbWU6\r\n')  # Base64 encoded "Username:"
-                        username = base64.b64decode(self._read_line(client_socket).strip()).decode('utf-8')
-                        client_socket.send(b'334 UGFzc3dvcmQ6\r\n')  # Base64 encoded "Password:"
-                        password = base64.b64decode(self._read_line(client_socket).strip()).decode('utf-8')
-                        # Log the attempt and broadcast
-                        self._log_attempt(username, password, client_ip)
-                        # Send error message
-                        client_socket.send(b'535 Authentication failed\r\n')
+                    except:
+                        client_socket.send(b'501 Syntax error\r\n')
                         break
-                    else:
-                        client_socket.send(b'504 Authentication mechanism not supported\r\n')
-                elif in_auth:
-                    # Handle AUTH PLAIN continuation
-                    try:
-                        auth_data = base64.b64decode(command).decode('utf-8')
-                        # AUTH PLAIN format is: \x00username\x00password
-                        _, username, password = auth_data.split('\x00')
-                        # Log the attempt and broadcast
-                        self._log_attempt(username, password, client_ip)
-                        # Send error message
-                        client_socket.send(b'535 Authentication failed\r\n')
-                        break
-                    except Exception as e:
-                        logger.error(f"Error decoding AUTH PLAIN continuation from {client_ip}: {str(e)}")
-                        client_socket.send(b'501 Authentication failed\r\n')
-                        break
-                elif cmd == 'QUIT':
-                    client_socket.send(b'221 Goodbye\r\n')
+                
+                elif data.startswith('QUIT'):
+                    client_socket.send(b'221 Bye\r\n')
                     break
+                
                 else:
-                    # Unknown or unhandled command
                     client_socket.send(b'500 Error: command not recognized\r\n')
             
+        except socket.timeout:
+            logger.debug(f"Connection timed out from {client_ip}")
         except Exception as e:
             logger.error(f"Error handling client {client_ip}: {str(e)}")
         finally:

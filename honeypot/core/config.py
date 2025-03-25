@@ -20,6 +20,11 @@ SIP_PORT = int(os.getenv('SIP_PORT', 5060))  # Default SIP port
 MYSQL_PORT = int(os.getenv('MYSQL_PORT', 3306))  # Default MySQL port
 WEB_PORT = int(os.getenv('WEB_PORT', 8080))
 
+# Timeout settings (in seconds)
+BASE_TIMEOUT = int(os.getenv('BASE_TIMEOUT', 10))
+EXTENDED_TIMEOUT = int(os.getenv('EXTENDED_TIMEOUT', 30))
+UDP_TIMEOUT = int(os.getenv('UDP_TIMEOUT', 5))
+
 # Database settings
 DATABASE_URL = os.getenv('DATABASE_URL', f'sqlite:///{BASE_DIR}/honeypot.db')
 
