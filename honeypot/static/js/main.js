@@ -90,6 +90,22 @@ let socket = null;
 
 // UI utilities module
 const uiManager = (function() {
+    function updateLoadingStatus(statusText, detailText) {
+        // Update the loading status elements
+        const loadingText = domUtils.getElement('loadingText');
+        const loadingDetail = domUtils.getElement('loadingDetail');
+        
+        if (loadingText && statusText) {
+            loadingText.textContent = statusText;
+        }
+        
+        if (loadingDetail && detailText) {
+            loadingDetail.textContent = detailText;
+            // Log the status update to console for tracking
+            console.log(`Loading Status: ${statusText || "(unchanged)"} - ${detailText}`);
+        }
+    }
+    
     function updateLoadingPercentage(percentage) {
         const percentageElement = domUtils.getElement('loadingPercentage');
         const loadingBar = domUtils.getElement('loadingBar');
@@ -126,26 +142,38 @@ const uiManager = (function() {
                     percentageElement.textContent = `${newPercentage}%`;
                     loadingBar.style.width = `${newPercentage}%`;
                     
-                    // Update loading detail text based on percentage
-                    if (loadingDetail && loadingText) {
+                    // Update loading detail text based on percentage, but only during initial loading
+                    // Don't change messages during batch loading (when isReceivingBatches is true)
+                    if (loadingDetail && loadingText && !window.isReceivingBatches) {
+                        let statusText = loadingText.textContent;
+                        let detailText = loadingDetail.textContent;
+                        
                         if (newPercentage <= 10) {
-                            loadingText.textContent = 'Initializing...';
-                            loadingDetail.textContent = 'Preparing connection';
+                            statusText = 'Initializing...';
+                            detailText = 'Preparing connection parameters';
+                        } else if (newPercentage <= 20) {
+                            statusText = 'Connecting...';
+                            detailText = 'Establishing WebSocket connection';
                         } else if (newPercentage <= 30) {
-                            loadingText.textContent = 'Connecting...';
-                            loadingDetail.textContent = 'Establishing WebSocket connection';
+                            statusText = 'Connected';
+                            detailText = 'WebSocket connected, requesting data';
                         } else if (newPercentage <= 50) {
-                            loadingText.textContent = 'Loading...';
-                            loadingDetail.textContent = 'Fetching attack data';
+                            statusText = 'Loading Data...';
+                            detailText = 'Receiving data from server';
                         } else if (newPercentage <= 70) {
-                            loadingText.textContent = 'Processing...';
-                            loadingDetail.textContent = 'Analyzing attack patterns';
+                            statusText = 'Processing...';
+                            detailText = 'Processing data and attack patterns';
                         } else if (newPercentage <= 90) {
-                            loadingText.textContent = 'Finalizing...';
-                            loadingDetail.textContent = 'Preparing visualization';
+                            statusText = 'Finalizing...';
+                            detailText = 'Setting up interface components';
                         } else {
-                            loadingText.textContent = 'Complete';
-                            loadingDetail.textContent = 'Starting application';
+                            statusText = 'Complete';
+                            detailText = 'Application ready';
+                        }
+                        
+                        // Only update if they would change
+                        if (statusText !== loadingText.textContent || detailText !== loadingDetail.textContent) {
+                            updateLoadingStatus(statusText, detailText);
                         }
                     }
                     
@@ -310,7 +338,8 @@ const uiManager = (function() {
         updateCounterWithAnimation,
         createAttemptElement,
         updateUI,
-        updateUniqueAttackersCount
+        updateUniqueAttackersCount,
+        updateLoadingStatus
     };
 })();
 
@@ -318,6 +347,19 @@ const uiManager = (function() {
 const websocketManager = (function() {
     let socket = null;
     let attempts = [];
+    let batchesPending = 0;
+    let batchesReceived = 0;
+    let totalBatches = 0;
+    let isReceivingBatches = false;
+    let reconnectAttempts = 0;
+    let maxReconnectAttempts = 10; // Increased from 5 to 10 for more resilience
+    let reconnectDelay = 1000; // Start with 1s delay, will increase exponentially
+    let batchTimeout = null; // Timeout for batch loading
+    let pendingBatchRequest = false;
+    
+    // Expose isReceivingBatches to the window to prevent automatic status updates during batch loading
+    window.isReceivingBatches = false;
+    
     const messageHandlers = {
         login_attempt: function(data) {
             const newAttempt = data;
@@ -349,7 +391,126 @@ const websocketManager = (function() {
             }
         },
         
+        batch_start: function(data) {
+            console.log('Starting batch data transfer', data);
+            isReceivingBatches = true;
+            window.isReceivingBatches = true; // Update window variable
+            totalBatches = data.total_batches;
+            batchesReceived = 0;
+            batchesPending = totalBatches;
+            attempts = [];
+            
+            // Update loading progress to indicate batch transfer is starting
+            uiManager.updateLoadingPercentageWithDelay(35).then(() => {
+                uiManager.updateLoadingStatus('Loading Data...', 
+                    `Starting data transfer: 0/${totalBatches} batches`);
+            });
+            
+            // Set a timeout to detect stalled batch transfers
+            clearTimeout(batchTimeout);
+            batchTimeout = setTimeout(() => {
+                if (isReceivingBatches && batchesPending > 0) {
+                    console.warn(`Batch transfer stalled at ${batchesReceived}/${totalBatches} batches`);
+                    uiManager.updateLoadingStatus('Transfer Stalled', 
+                        `Data transfer stalled at ${batchesReceived}/${totalBatches} batches`);
+                    requestMissingBatches();
+                }
+            }, 10000); // 10 second timeout
+        },
+        
+        batch_data: function(data) {
+            console.log(`Received batch ${data.batch_number}/${totalBatches}`);
+            
+            // Reset timeout on receiving batch data
+            clearTimeout(batchTimeout);
+            batchTimeout = setTimeout(() => {
+                if (isReceivingBatches && batchesPending > 0) {
+                    console.warn(`Batch transfer stalled at ${batchesReceived}/${totalBatches} batches`);
+                    uiManager.updateLoadingStatus('Transfer Stalled', 
+                        `Data transfer stalled at ${batchesReceived}/${totalBatches} batches`);
+                    requestMissingBatches();
+                }
+            }, 10000); // 10 second timeout
+            
+            // Validate batch data
+            if (!Array.isArray(data.attempts)) {
+                console.error('Received invalid batch data structure');
+                uiManager.updateLoadingStatus('Error', 'Error: Received invalid data structure from server');
+                return;
+            }
+            
+            // Add the batch data to our attempts array
+            attempts.push(...data.attempts);
+            
+            batchesReceived++;
+            batchesPending--;
+            
+            // Calculate progress percentage (35-70% range)
+            const progressPercent = (batchesReceived / totalBatches) * 100;
+            const scaledProgress = 35 + (progressPercent * 0.35);
+            
+            // Update UI with progress but only update the loading bar, not status via updateLoadingPercentage
+            const percentageElement = domUtils.getElement('loadingPercentage');
+            const loadingBar = domUtils.getElement('loadingBar');
+            if (percentageElement) percentageElement.textContent = `${Math.round(scaledProgress)}%`;
+            if (loadingBar) loadingBar.style.width = `${Math.round(scaledProgress)}%`;
+            
+            // Directly update loading status text without triggering automatic status changes
+            uiManager.updateLoadingStatus('Loading Data...', 
+                `Receiving data: ${batchesReceived}/${totalBatches} batches (${Math.round(progressPercent)}%)`);
+            
+            // Send acknowledgment to server that we received this batch
+            sendMessage('batch_ack', { batch_number: data.batch_number });
+        },
+        
+        batch_complete: function(data) {
+            console.log('Batch transfer complete');
+            isReceivingBatches = false;
+            window.isReceivingBatches = false; // Update window variable
+            
+            // Clear batch timeout
+            clearTimeout(batchTimeout);
+            
+            // Verify we received all batches
+            if (batchesReceived !== totalBatches) {
+                console.warn(`Batch transfer completed but only received ${batchesReceived}/${totalBatches} batches`);
+                // Request missing batches if any
+                uiManager.updateLoadingStatus('Transfer Stalled', 
+                    `Transfer incomplete, requesting missing data`);
+                requestMissingBatches();
+            } else {
+                console.log(`Successfully received all ${totalBatches} batches with ${attempts.length} total attempts`);
+                // Skip the transfer complete message and go straight to processing
+                uiManager.updateLoadingStatus('Processing...', 
+                    `Processing ${attempts.length} login attempts`);
+                finalizeBatchLoading();
+            }
+        },
+        
+        batch_error: function(data) {
+            console.error('Batch transfer error:', data.error, data.message);
+            
+            // Update UI to show error
+            uiManager.updateLoadingStatus('Error', 
+                `Data transfer error, reconnecting...`);
+            
+            // Clear batch timeout and state
+            clearTimeout(batchTimeout);
+            isReceivingBatches = false;
+            window.isReceivingBatches = false; // Update window variable
+            
+            // Force reconnection after a brief delay
+            setTimeout(() => {
+                if (socket) {
+                    socket.close();
+                } else {
+                    reconnect();
+                }
+            }, 2000);
+        },
+        
         initial_attempts: function(data) {
+            // This is kept for backward compatibility
             attempts = data;
             
             // Update loading progress
@@ -422,21 +583,56 @@ const websocketManager = (function() {
         const wsUrl = `${protocol}//${window.location.host}/ws`;
         
         uiManager.updateConnectionStatus('Connecting to WebSocket...');
-        uiManager.updateLoadingPercentageWithDelay(10); // Start at 10%
+        uiManager.updateLoadingPercentageWithDelay(10).then(() => {
+            uiManager.updateLoadingStatus('Initializing...', 'Preparing connection parameters');
+        });
         
         socket = new WebSocket(wsUrl);
         // Explicitly set socket on window object to make it accessible from other scripts
         window.socket = socket;
 
         socket.onopen = async function() {
+            // Reset reconnect attempts on successful connection
+            reconnectAttempts = 0;
+            reconnectDelay = 1000;
+            
             uiManager.updateConnectionStatus('Connected to WebSocket');
-            await uiManager.updateLoadingPercentageWithDelay(30); // WebSocket connected
+            await uiManager.updateLoadingPercentageWithDelay(25); // WebSocket connected - update to 25%
             
             // Update loading detail to show we're waiting for data
-            const loadingDetail = domUtils.getElement('loadingDetail');
-            if (loadingDetail) {
-                loadingDetail.textContent = 'Requesting attack data...';
-            }
+            uiManager.updateLoadingStatus('Connected', 'WebSocket connected, requesting data');
+            
+            // Request data in batches
+            sendMessage('request_data_batches');
+            pendingBatchRequest = true;
+            
+            // Set a timeout for the initial batch start response
+            clearTimeout(batchTimeout);
+            batchTimeout = setTimeout(() => {
+                if (pendingBatchRequest) {
+                    console.warn('No batch_start response received, retrying request');
+                    uiManager.updateLoadingStatus('Waiting...', 'Server delayed, retrying data request');
+                    sendMessage('request_data_batches');
+                    
+                    // Set another timeout for another retry
+                    batchTimeout = setTimeout(() => {
+                        if (pendingBatchRequest) {
+                            console.warn('Still no batch response, forcing reconnection');
+                            pendingBatchRequest = false;
+                            
+                            uiManager.updateLoadingStatus('Reconnecting...', 
+                                `Connection lost. Reconnecting in ${Math.round(delay/1000)}s (${reconnectAttempts}/${maxReconnectAttempts})`);
+                            
+                            // Force reconnection instead of falling back to HTTP
+                            if (socket) {
+                                socket.close();
+                            } else {
+                                reconnect();
+                            }
+                        }
+                    }, 10000);
+                }
+            }, 5000);
             
             // Explicitly request external IP data to make sure it's available
             if (socket.readyState === WebSocket.OPEN) {
@@ -445,15 +641,18 @@ const websocketManager = (function() {
                     type: 'request_external_ip'
                 }));
             }
-            
-            // No need to manually update to 50% here as we'll get progress updates
-            // Keep the loading percentage at 30% until we start receiving data
         };
 
         socket.onmessage = function(event) {
             try {
                 const message = JSON.parse(event.data);
                 console.log('Received WebSocket message:', message);
+                
+                // If receiving batch_start, clear pending batch request flag
+                if (message.type === 'batch_start') {
+                    pendingBatchRequest = false;
+                    clearTimeout(batchTimeout);
+                }
                 
                 // Use the appropriate handler based on message type
                 if (message.type && messageHandlers[message.type]) {
@@ -470,8 +669,12 @@ const websocketManager = (function() {
             uiManager.updateConnectionStatus('WebSocket error: ' + error.message, true);
             console.error('WebSocket error:', error);
             
-            // Fallback to traditional GET request if WebSocket fails
-            fallbackFetch();
+            // Clear pending batch request timeout
+            clearTimeout(batchTimeout);
+            pendingBatchRequest = false;
+            
+            // Always try to reconnect when there's an error
+            reconnect();
         };
 
         socket.onclose = function() {
@@ -480,147 +683,200 @@ const websocketManager = (function() {
             // Clear the window.socket reference since it's no longer valid
             window.socket = null;
             
-            // If we haven't loaded data yet, use fallback
-            if (attempts.length === 0) {
-                fallbackFetch();
-            } else {
-                setTimeout(connect, 5000);
-            }
+            // Clear pending batch request timeout
+            clearTimeout(batchTimeout);
+            pendingBatchRequest = false;
+            
+            // Always try to reconnect on close
+            reconnect();
         };
+    }
+
+    function reconnect() {
+        reconnectAttempts++;
+        
+        // Make sure we reset the receiving batches state
+        isReceivingBatches = false;
+        window.isReceivingBatches = false;
+        
+        if (reconnectAttempts <= maxReconnectAttempts) {
+            // Exponential backoff for reconnect attempts
+            const delay = Math.min(30000, reconnectDelay * Math.pow(1.5, reconnectAttempts - 1));
+            console.log(`Attempting to reconnect (${reconnectAttempts}/${maxReconnectAttempts}) in ${delay/1000} seconds...`);
+            
+            setTimeout(() => {
+                connect();
+            }, delay);
+            
+            // Update UI to show reconnection attempt
+            uiManager.updateLoadingStatus('Reconnecting...', 
+                `Connection lost. Reconnecting in ${Math.round(delay/1000)}s (${reconnectAttempts}/${maxReconnectAttempts})`);
+            
+            // Show loading overlay if it's not already visible
+            const loadingOverlay = domUtils.getElement('loadingOverlay');
+            if (loadingOverlay && loadingOverlay.classList.contains('hidden')) {
+                uiManager.toggleLoadingOverlay(true, 15);
+            }
+        } else {
+            console.error('Maximum reconnection attempts reached');
+            uiManager.updateConnectionStatus('Connection failed after multiple attempts. Please refresh the page.', true);
+            
+            // Update UI to show failure
+            uiManager.updateLoadingStatus('Connection Failed', 
+                'Connection failed. Please refresh the page');
+            
+            // Update loading percentage to 100% to allow user to dismiss the overlay
+            uiManager.updateLoadingPercentage(100);
+            
+            // Add a refresh button to the loading overlay
+            const loadingActions = domUtils.getElement('loadingActions');
+            if (loadingActions) {
+                loadingActions.innerHTML = '<button id="refreshPageButton" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">Refresh Page</button>';
+                
+                // Add event listener to the refresh button
+                const refreshButton = document.getElementById('refreshPageButton');
+                if (refreshButton) {
+                    refreshButton.addEventListener('click', () => {
+                        window.location.reload();
+                    });
+                }
+            }
+        }
     }
 
     function sendMessage(type, data = {}) {
         if (socket && socket.readyState === WebSocket.OPEN) {
-            socket.send(JSON.stringify({
-                type: type,
-                data: data
-            }));
-            return true;
+            try {
+                socket.send(JSON.stringify({
+                    type: type,
+                    data: data
+                }));
+                return true;
+            } catch (error) {
+                console.error('Error sending WebSocket message:', error);
+                return false;
+            }
         }
+        console.warn('Cannot send message, socket not open');
         return false;
     }
-
-    function fallbackFetch() {
-        console.log('Falling back to traditional fetch method');
-        uiManager.updateLoadingPercentageWithDelay(40).then(() => {
-            const loadingDetail = domUtils.getElement('loadingDetail');
-            if (loadingDetail) {
-                loadingDetail.textContent = 'Downloading attack data...';
+    
+    function requestMissingBatches() {
+        if (batchesPending <= 0) return;
+        
+        console.log(`Requesting ${batchesPending} missing batches`);
+        isReceivingBatches = true;
+        window.isReceivingBatches = true; // Update window variable
+        
+        // Calculate which batches we're missing
+        const receivedBatchNumbers = new Set();
+        for (let i = 0; i < batchesReceived; i++) {
+            receivedBatchNumbers.add(i + 1);
+        }
+        
+        const missingBatches = [];
+        for (let i = 1; i <= totalBatches; i++) {
+            if (!receivedBatchNumbers.has(i)) {
+                missingBatches.push(i);
             }
+        }
+        
+        // Update UI to show we're waiting for missing batches
+        const batchesStr = missingBatches.length <= 5 
+            ? missingBatches.join(', ') 
+            : `${missingBatches.slice(0, 3).join(', ')}... (${missingBatches.length} total)`;
+        
+        uiManager.updateLoadingStatus('Recovery Mode', `Requesting missing batches`);
+        
+        // Request missing batches
+        const success = sendMessage('request_missing_batches', { batch_numbers: missingBatches });
+        
+        // Set a timeout to detect if we don't receive the missing batches
+        if (success) {
+            clearTimeout(batchTimeout);
+            batchTimeout = setTimeout(() => {
+                if (isReceivingBatches && batchesPending > 0) {
+                    console.warn('Did not receive missing batches in time, forcing reconnection');
+                    
+                    uiManager.updateLoadingStatus('Recovery Failed', 
+                        'Missing batches timeout, reconnecting');
+                    
+                    // Reset the receiving batches state
+                    isReceivingBatches = false;
+                    window.isReceivingBatches = false;
+                    
+                    // Force a reconnection instead of falling back to HTTP
+                    if (socket) {
+                        socket.close();
+                    } else {
+                        reconnect();
+                    }
+                }
+            }, 15000); // 15 second timeout for missing batches
+        } else {
+            // If we couldn't even send the request, force reconnection
+            console.warn('Failed to request missing batches, forcing reconnection');
             
-            // Use fetch with a reader to track download progress
-            return fetch('/api/attempts').then(response => {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                
-                // Get content length from headers if available
-                const contentLength = response.headers.get('content-length');
-                
-                // If we have content length, we can track progress
-                if (contentLength) {
-                    const totalSize = parseInt(contentLength, 10);
-                    let receivedSize = 0;
-                    
-                    // Create a reader to stream the response
-                    const reader = response.body.getReader();
-                    const chunks = [];
-                    
-                    // Function to read chunks
-                    const readChunks = () => {
-                        return reader.read().then(({ done, value }) => {
-                            if (done) {
-                                // When done, process all chunks
-                                const allChunks = new Uint8Array(receivedSize);
-                                let position = 0;
-                                
-                                for (const chunk of chunks) {
-                                    allChunks.set(chunk, position);
-                                    position += chunk.length;
-                                }
-                                
-                                // Convert to text and parse as JSON
-                                return JSON.parse(new TextDecoder('utf-8').decode(allChunks));
-                            }
-                            
-                            // Store chunk and update progress
-                            chunks.push(value);
-                            receivedSize += value.length;
-                            
-                            // Calculate and update progress (scale to 40-70% range)
-                            const progressPercent = (receivedSize / totalSize) * 100;
-                            const scaledProgress = 40 + (progressPercent * 0.3);
-                            uiManager.updateLoadingPercentage(scaledProgress);
-                            
-                            if (loadingDetail) {
-                                loadingDetail.textContent = `Downloading data: ${Math.round(progressPercent)}%`;
-                            }
-                            
-                            // Continue reading
-                            return readChunks();
-                        });
-                    };
-                    
-                    return readChunks();
-                } else {
-                    // If we can't track progress, just return the JSON
-                    return response.json();
-                }
-            });
-        }).then(async data => {
-            const loadingDetail = domUtils.getElement('loadingDetail');
-            if (loadingDetail) {
-                loadingDetail.textContent = 'Processing data...';
+            uiManager.updateLoadingStatus('Recovery Failed', 
+                'Unable to request missing data, reconnecting');
+            
+            // Reset the receiving batches state
+            isReceivingBatches = false;
+            window.isReceivingBatches = false;
+            
+            if (socket) {
+                socket.close();
+            } else {
+                reconnect();
             }
-            
-            await uiManager.updateLoadingPercentageWithDelay(70);
-            attempts = data;
-            
-            await uiManager.updateLoadingPercentageWithDelay(80);
-            
+        }
+    }
+    
+    function finalizeBatchLoading() {
+        clearTimeout(batchTimeout);
+        
+        uiManager.updateLoadingPercentageWithDelay(70).then(() => {
             // Initialize the counters with animation
             uiManager.updateCounterWithAnimation('totalAttempts', attempts.length);
             uiManager.updateUniqueAttackersCount();
             
-            await uiManager.updateLoadingPercentageWithDelay(90);
+            // Keep the same message format and similar length for consistency
+            uiManager.updateLoadingStatus('Processing...', 'Preparing data visualization and attack map');
             
+            return uiManager.updateLoadingPercentageWithDelay(85);
+        }).then(() => {
             // Initialize UI with the data
             uiManager.updateUI();
             dataModel.centerMapOnMostActiveRegion(attempts);
             
-            await uiManager.updateLoadingPercentageWithDelay(100);
+            // Keep similar text length for consistent layout
+            uiManager.updateLoadingStatus('Finalizing...', 'Setting up interface components and controls');
             
-            setTimeout(() => uiManager.toggleLoadingOverlay(false), 500);
+            return uiManager.updateLoadingPercentageWithDelay(100);
+        }).then(() => {
+            // Use a short message for completion to avoid layout shifts
+            uiManager.updateLoadingStatus('Complete', 'Application ready');
             
-            // Try to reconnect WebSocket in the background
-            setTimeout(connect, 5000);
-        }).catch(error => {
-            console.error('Error in fallback fetch:', error);
-            uiManager.toggleLoadingOverlay(false);
-            
-            // Only show error message if we don't have any data yet
-            // If we already have data, the WebSocket will try to reconnect
-            if (attempts.length === 0) {
-                const message = `Failed to load data. Please refresh the page to try again. Error: ${error.message}`;
-                console.error(message);
-                alert(message);
-            } else {
-                console.log('Network connection lost, but data already loaded. Will attempt to reconnect WebSocket.');
-                // Try to reconnect WebSocket in the background
-                setTimeout(connect, 5000);
-            }
+            // Hide loading overlay after a short delay to show the "ready" message
+            setTimeout(() => uiManager.toggleLoadingOverlay(false), 800);
         });
     }
 
     function getAttempts() {
         return attempts;
     }
+    
+    function isBatchComplete() {
+        return !isReceivingBatches || batchesPending === 0;
+    }
 
     return {
         connect,
         sendMessage,
-        fallbackFetch,
-        getAttempts
+        getAttempts,
+        isBatchComplete,
+        requestMissingBatches,
+        reconnect
     };
 })();
 
