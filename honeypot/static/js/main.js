@@ -371,6 +371,22 @@ const websocketManager = (function() {
             });
         },
         
+        data_progress: function(data) {
+            // Handle progress updates during data transfer
+            if (data && typeof data.progress === 'number') {
+                // Scale the progress to be between 30% and 70%
+                // 0% from server = 30% on UI, 100% from server = 70% on UI
+                const scaledProgress = 30 + (data.progress * 0.4);
+                uiManager.updateLoadingPercentage(scaledProgress);
+                
+                // Update loading text based on progress
+                const loadingDetail = domUtils.getElement('loadingDetail');
+                if (loadingDetail) {
+                    loadingDetail.textContent = `Downloading data: ${Math.round(data.progress)}%`;
+                }
+            }
+        },
+        
         system_metrics: function(data) {
             console.log('Received system metrics');
             if (typeof processSystemMetrics === 'function') {
@@ -416,6 +432,12 @@ const websocketManager = (function() {
             uiManager.updateConnectionStatus('Connected to WebSocket');
             await uiManager.updateLoadingPercentageWithDelay(30); // WebSocket connected
             
+            // Update loading detail to show we're waiting for data
+            const loadingDetail = domUtils.getElement('loadingDetail');
+            if (loadingDetail) {
+                loadingDetail.textContent = 'Requesting attack data...';
+            }
+            
             // Explicitly request external IP data to make sure it's available
             if (socket.readyState === WebSocket.OPEN) {
                 console.log('Requesting external IP on connection');
@@ -424,8 +446,8 @@ const websocketManager = (function() {
                 }));
             }
             
-            // No need to fetch data separately now, as it will come via WebSocket
-            await uiManager.updateLoadingPercentageWithDelay(50); // Data request sent
+            // No need to manually update to 50% here as we'll get progress updates
+            // Keep the loading percentage at 30% until we start receiving data
         };
 
         socket.onmessage = function(event) {
@@ -481,14 +503,77 @@ const websocketManager = (function() {
     function fallbackFetch() {
         console.log('Falling back to traditional fetch method');
         uiManager.updateLoadingPercentageWithDelay(40).then(() => {
-            return fetch('/api/attempts');
-        }).then(response => {
-            if (!response.ok) {
-                throw new Error('Network response was not ok');
+            const loadingDetail = domUtils.getElement('loadingDetail');
+            if (loadingDetail) {
+                loadingDetail.textContent = 'Downloading attack data...';
             }
-            return response.json();
+            
+            // Use fetch with a reader to track download progress
+            return fetch('/api/attempts').then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                
+                // Get content length from headers if available
+                const contentLength = response.headers.get('content-length');
+                
+                // If we have content length, we can track progress
+                if (contentLength) {
+                    const totalSize = parseInt(contentLength, 10);
+                    let receivedSize = 0;
+                    
+                    // Create a reader to stream the response
+                    const reader = response.body.getReader();
+                    const chunks = [];
+                    
+                    // Function to read chunks
+                    const readChunks = () => {
+                        return reader.read().then(({ done, value }) => {
+                            if (done) {
+                                // When done, process all chunks
+                                const allChunks = new Uint8Array(receivedSize);
+                                let position = 0;
+                                
+                                for (const chunk of chunks) {
+                                    allChunks.set(chunk, position);
+                                    position += chunk.length;
+                                }
+                                
+                                // Convert to text and parse as JSON
+                                return JSON.parse(new TextDecoder('utf-8').decode(allChunks));
+                            }
+                            
+                            // Store chunk and update progress
+                            chunks.push(value);
+                            receivedSize += value.length;
+                            
+                            // Calculate and update progress (scale to 40-70% range)
+                            const progressPercent = (receivedSize / totalSize) * 100;
+                            const scaledProgress = 40 + (progressPercent * 0.3);
+                            uiManager.updateLoadingPercentage(scaledProgress);
+                            
+                            if (loadingDetail) {
+                                loadingDetail.textContent = `Downloading data: ${Math.round(progressPercent)}%`;
+                            }
+                            
+                            // Continue reading
+                            return readChunks();
+                        });
+                    };
+                    
+                    return readChunks();
+                } else {
+                    // If we can't track progress, just return the JSON
+                    return response.json();
+                }
+            });
         }).then(async data => {
-            await uiManager.updateLoadingPercentageWithDelay(60);
+            const loadingDetail = domUtils.getElement('loadingDetail');
+            if (loadingDetail) {
+                loadingDetail.textContent = 'Processing data...';
+            }
+            
+            await uiManager.updateLoadingPercentageWithDelay(70);
             attempts = data;
             
             await uiManager.updateLoadingPercentageWithDelay(80);
