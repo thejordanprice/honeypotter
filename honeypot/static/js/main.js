@@ -44,77 +44,122 @@ const menuUtils = {
 };
 
 // DOM utilities
-const domUtils = {
-    // Get element by ID with optional fallback value
-    getElement: function(id, fallback = null) {
-        const element = document.getElementById(id);
-        return element || fallback;
-    },
+const domUtils = (function() {
+    // Cache for DOM elements
+    const elementCache = {};
+    
+    // Get element by ID with caching
+    function getElement(id, fallback = null) {
+        if (!elementCache[id]) {
+            elementCache[id] = document.getElementById(id);
+        }
+        return elementCache[id] || fallback;
+    }
     
     // Get elements by query selector
-    getElements: function(selector) {
+    function getElements(selector) {
         return document.querySelectorAll(selector);
-    },
+    }
     
     // Update text content if element exists
-    setText: function(id, text) {
-        const element = this.getElement(id);
+    function setText(id, text) {
+        const element = getElement(id);
         if (element) {
             element.textContent = text;
             return true;
         }
         return false;
-    },
+    }
     
     // Add/remove/toggle classes safely
-    addClass: function(element, className) {
+    function addClass(element, className) {
         if (element && element.classList) {
             element.classList.add(className);
         }
-    },
+    }
     
-    removeClass: function(element, className) {
+    function removeClass(element, className) {
         if (element && element.classList) {
             element.classList.remove(className);
         }
-    },
+    }
     
-    toggleClass: function(element, className) {
+    function toggleClass(element, className) {
         if (element && element.classList) {
             return element.classList.toggle(className);
         }
         return false;
-    },
+    }
     
     // Animation helper
-    animateElement: function(element, className, duration = 200) {
+    function animateElement(element, className, duration = 200) {
         if (!element) return;
-        this.addClass(element, className);
+        addClass(element, className);
         setTimeout(() => {
-            this.removeClass(element, className);
+            removeClass(element, className);
         }, duration);
-    },
+    }
     
     // Show/hide elements
-    show: function(element) {
+    function show(element) {
         if (element) {
-            this.removeClass(element, 'hidden');
+            removeClass(element, 'hidden');
         }
-    },
+    }
     
-    hide: function(element) {
+    function hide(element) {
         if (element) {
-            this.addClass(element, 'hidden');
+            addClass(element, 'hidden');
         }
-    },
+    }
     
     // Force reflow (used for animations)
-    forceReflow: function(element) {
+    function forceReflow(element) {
         if (element) {
             void element.offsetHeight;
         }
     }
-};
+    
+    // Initialize commonly used elements
+    function initializeElementCache() {
+        const elementsToCache = [
+            'attempts', 'searchInput', 'filterSelect', 'protocolSelect',
+            'connectionStatus', 'connectionStatusIndicator', 'loadingOverlay',
+            'loadingPercentage', 'loadingBar', 'loadingDetail', 'loadingText',
+            'uniqueAttackers', 'totalAttempts', 'prevPage', 'nextPage',
+            'startRange', 'endRange', 'totalItems', 'hamburgerBtn',
+            'mobileMenu', 'exportIPsMenu', 'exportJSONMenu', 'exportCSVMenu',
+            'darkModeToggleMenu', 'lightIconMenu', 'darkIconMenu', 'themeText',
+            'faqButton', 'faqModal', 'closeFaqModal'
+        ];
+        
+        elementsToCache.forEach(id => {
+            elementCache[id] = document.getElementById(id);
+        });
+    }
+    
+    // Clear cache (useful for testing or when DOM changes)
+    function clearCache() {
+        for (const key in elementCache) {
+            delete elementCache[key];
+        }
+    }
+    
+    return {
+        getElement,
+        getElements,
+        setText,
+        addClass,
+        removeClass,
+        toggleClass,
+        animateElement,
+        show,
+        hide,
+        forceReflow,
+        initializeElementCache,
+        clearCache
+    };
+})();
 
 // Initialize map with light/dark theme support
 const map = L.map('map').setView([20, 0], 2);
@@ -135,36 +180,102 @@ const darkTileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y
     className: 'dark-tiles'
 });
 
-// Function to set the appropriate tile layer
-function setMapTheme(isDark) {
-    if (currentTileLayer) {
-        map.removeLayer(currentTileLayer);
+// Theme management module
+const themeManager = (function() {
+    function setMapTheme(isDark) {
+        if (currentTileLayer) {
+            map.removeLayer(currentTileLayer);
+        }
+        currentTileLayer = isDark ? darkTileLayer : lightTileLayer;
+        currentTileLayer.addTo(map);
     }
-    currentTileLayer = isDark ? darkTileLayer : lightTileLayer;
-    currentTileLayer.addTo(map);
-}
-
-// Function to update chart colors with dark mode
-function updateAllChartThemes(isDark) {
-    if (typeof updateChartColors !== 'function') return;
     
-    const chartTextColor = isDark ? '#f3f4f6' : '#1f2937';
-    const gridColor = isDark ? '#374151' : '#e5e7eb';
+    function updateAllChartThemes(isDark) {
+        if (typeof updateChartColors !== 'function') return;
+        
+        const chartTextColor = isDark ? '#f3f4f6' : '#1f2937';
+        const gridColor = isDark ? '#374151' : '#e5e7eb';
+        
+        if (typeof attemptsChart !== 'undefined') {
+            updateChartColors(attemptsChart, isDark, chartTextColor, gridColor);
+        }
+        if (typeof usernamesChart !== 'undefined') {
+            updateChartColors(usernamesChart, isDark, chartTextColor, gridColor);
+        }
+        if (typeof ipsChart !== 'undefined') {
+            updateChartColors(ipsChart, isDark, chartTextColor, gridColor);
+        }
+        if (typeof countriesChart !== 'undefined') {
+            updateChartColors(countriesChart, isDark, chartTextColor, gridColor);
+        }
+    }
     
-    if (typeof attemptsChart !== 'undefined') {
-        updateChartColors(attemptsChart, isDark, chartTextColor, gridColor);
+    function toggleTheme() {
+        const isDark = document.documentElement.classList.toggle('dark');
+        const lightIconMenu = domUtils.getElement('lightIconMenu');
+        const darkIconMenu = domUtils.getElement('darkIconMenu');
+        const themeText = domUtils.getElement('themeText');
+        
+        if (lightIconMenu && darkIconMenu) {
+            lightIconMenu.classList.toggle('hidden');
+            darkIconMenu.classList.toggle('hidden');
+        }
+        
+        if (themeText) {
+            themeText.textContent = isDark ? 'Light Mode' : 'Dark Mode';
+        }
+        
+        localStorage.theme = isDark ? 'dark' : 'light';
+        setMapTheme(isDark);
+        updateAllChartThemes(isDark);
+        
+        return isDark;
     }
-    if (typeof usernamesChart !== 'undefined') {
-        updateChartColors(usernamesChart, isDark, chartTextColor, gridColor);
+    
+    function setupTheme() {
+        // Initialize theme based on user preference, system preference, or default to light mode
+        const isDark = localStorage.theme === 'dark' || 
+            (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        
+        if (isDark) {
+            document.documentElement.classList.add('dark');
+            localStorage.theme = 'dark';
+            const lightIconMenu = domUtils.getElement('lightIconMenu');
+            const darkIconMenu = domUtils.getElement('darkIconMenu');
+            const themeText = domUtils.getElement('themeText');
+            if (lightIconMenu && darkIconMenu) {
+                lightIconMenu.classList.remove('hidden');
+                darkIconMenu.classList.add('hidden');
+            }
+            if (themeText) {
+                themeText.textContent = 'Light Mode';
+            }
+        } else {
+            // Default to light mode if no preference is set or system is light mode
+            document.documentElement.classList.remove('dark');
+            localStorage.theme = 'light';
+            const themeText = domUtils.getElement('themeText');
+            if (themeText) {
+                themeText.textContent = 'Dark Mode';
+            }
+        }
+        
+        // Ensure map theme is set correctly
+        setMapTheme(isDark);
+        
+        // Ensure chart colors are updated correctly
+        updateAllChartThemes(isDark);
     }
-    if (typeof ipsChart !== 'undefined') {
-        updateChartColors(ipsChart, isDark, chartTextColor, gridColor);
-    }
-    if (typeof countriesChart !== 'undefined') {
-        updateChartColors(countriesChart, isDark, chartTextColor, gridColor);
-    }
-}
+    
+    return {
+        setMapTheme: setMapTheme,
+        updateAllChartThemes: updateAllChartThemes,
+        toggleTheme: toggleTheme,
+        setupTheme: setupTheme
+    };
+})();
 
+// Function to update map with heat data
 function updateMap(attempt) {
     if (!attempt.latitude || !attempt.longitude) return;
 
@@ -174,7 +285,7 @@ function updateMap(attempt) {
     }
 
     // Get all attempts with valid coordinates
-    const validAttempts = attempts.filter(a => a.latitude && a.longitude);
+    const validAttempts = websocketManager.getAttempts().filter(a => a.latitude && a.longitude);
     
     // Create heatmap data points with intensity based on frequency
     const locationFrequency = {};
@@ -356,7 +467,7 @@ const uiManager = (function() {
     function updateUI() {
         const attemptsDiv = document.getElementById("attempts");
         const attempts = websocketManager.getAttempts();
-        const filteredAttempts = filterAttempts(attempts);
+        const filteredAttempts = dataModel.filterAttempts(attempts);
         const totalItems = filteredAttempts.length;
         
         paginationUtils.updateControls(totalItems);
@@ -369,6 +480,16 @@ const uiManager = (function() {
         updateVisualizations(filteredAttempts);
     }
     
+    function updateUniqueAttackersCount() {
+        const attempts = websocketManager.getAttempts();
+        const uniqueCount = dataModel.getUniqueAttackers(attempts);
+        const currentCount = parseInt(domUtils.getElement('uniqueAttackers')?.textContent) || 0;
+        
+        if (currentCount !== uniqueCount) {
+            updateCounterWithAnimation('uniqueAttackers', uniqueCount);
+        }
+    }
+    
     return {
         updateLoadingPercentage: updateLoadingPercentage,
         toggleLoadingOverlay: toggleLoadingOverlay,
@@ -376,49 +497,10 @@ const uiManager = (function() {
         updateConnectionStatus: updateConnectionStatus,
         updateCounterWithAnimation: updateCounterWithAnimation,
         createAttemptElement: createAttemptElement,
-        updateUI: updateUI
+        updateUI: updateUI,
+        updateUniqueAttackersCount: updateUniqueAttackersCount
     };
 })();
-
-// Replace original functions with module functions to maintain compatibility
-function updateLoadingPercentage(percentage) {
-    return uiManager.updateLoadingPercentage(percentage);
-}
-
-function toggleLoadingOverlay(show, percentage = null) {
-    return uiManager.toggleLoadingOverlay(show, percentage);
-}
-
-function updateLoadingPercentageWithDelay(percentage) {
-    return uiManager.updateLoadingPercentageWithDelay(percentage);
-}
-
-function updateConnectionStatus(status, isError = false) {
-    return uiManager.updateConnectionStatus(status, isError);
-}
-
-function updateCounterWithAnimation(elementId, newValue) {
-    return uiManager.updateCounterWithAnimation(elementId, newValue);
-}
-
-function createAttemptElement(attempt) {
-    return uiManager.createAttemptElement(attempt);
-}
-
-function updateUI() {
-    return uiManager.updateUI();
-}
-
-// Add function to count unique attackers
-function updateUniqueAttackersCount() {
-    const attempts = websocketManager.getAttempts();
-    const uniqueCount = dataModel.getUniqueAttackers(attempts);
-    const currentCount = parseInt(domUtils.getElement('uniqueAttackers')?.textContent) || 0;
-    
-    if (currentCount !== uniqueCount) {
-        updateCounterWithAnimation('uniqueAttackers', uniqueCount);
-    }
-}
 
 // WebSocket module
 const websocketManager = (function() {
@@ -433,18 +515,18 @@ const websocketManager = (function() {
             const isNewAttacker = !attempts.some(attempt => attempt.client_ip === newAttempt.client_ip);
             
             attempts.unshift(newAttempt);
-            updateCounterWithAnimation('totalAttempts', attempts.length);
+            uiManager.updateCounterWithAnimation('totalAttempts', attempts.length);
             
             // Only update unique attackers if this is a new IP
             if (isNewAttacker) {
-                updateUniqueAttackersCount();
+                uiManager.updateUniqueAttackersCount();
             }
             
             updateMap(newAttempt);
             
             // Reset to page 1 when new attempt comes in
             paginationUtils.currentPage = 1;
-            updateUI();
+            uiManager.updateUI();
             
             const indicator = domUtils.getElement('connectionStatusIndicator');
             if (indicator) {
@@ -459,21 +541,21 @@ const websocketManager = (function() {
             attempts = data;
             
             // Update loading progress
-            updateLoadingPercentageWithDelay(70).then(() => {
+            uiManager.updateLoadingPercentageWithDelay(70).then(() => {
                 // Initialize the counters with animation
-                updateCounterWithAnimation('totalAttempts', attempts.length);
-                updateUniqueAttackersCount();
+                uiManager.updateCounterWithAnimation('totalAttempts', attempts.length);
+                uiManager.updateUniqueAttackersCount();
                 
-                return updateLoadingPercentageWithDelay(90);
+                return uiManager.updateLoadingPercentageWithDelay(90);
             }).then(() => {
                 // Initialize UI with the data
-                updateUI();
-                centerMapOnMostActiveRegion(attempts);
+                uiManager.updateUI();
+                dataModel.centerMapOnMostActiveRegion(attempts);
                 
-                return updateLoadingPercentageWithDelay(100);
+                return uiManager.updateLoadingPercentageWithDelay(100);
             }).then(() => {
                 // Hide loading overlay
-                setTimeout(() => toggleLoadingOverlay(false), 500);
+                setTimeout(() => uiManager.toggleLoadingOverlay(false), 500);
             });
         },
         
@@ -511,16 +593,16 @@ const websocketManager = (function() {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = `${protocol}//${window.location.host}/ws`;
         
-        updateConnectionStatus('Connecting to WebSocket...');
-        updateLoadingPercentageWithDelay(10); // Start at 10%
+        uiManager.updateConnectionStatus('Connecting to WebSocket...');
+        uiManager.updateLoadingPercentageWithDelay(10); // Start at 10%
         
         socket = new WebSocket(wsUrl);
         // Explicitly set socket on window object to make it accessible from other scripts
         window.socket = socket;
 
         socket.onopen = async function() {
-            updateConnectionStatus('Connected to WebSocket');
-            await updateLoadingPercentageWithDelay(30); // WebSocket connected
+            uiManager.updateConnectionStatus('Connected to WebSocket');
+            await uiManager.updateLoadingPercentageWithDelay(30); // WebSocket connected
             
             // Explicitly request external IP data to make sure it's available
             if (socket.readyState === WebSocket.OPEN) {
@@ -531,7 +613,7 @@ const websocketManager = (function() {
             }
             
             // No need to fetch data separately now, as it will come via WebSocket
-            await updateLoadingPercentageWithDelay(50); // Data request sent
+            await uiManager.updateLoadingPercentageWithDelay(50); // Data request sent
         };
 
         socket.onmessage = function(event) {
@@ -551,22 +633,22 @@ const websocketManager = (function() {
         };
 
         socket.onerror = function(error) {
-            updateConnectionStatus('WebSocket error: ' + error.message, true);
+            uiManager.updateConnectionStatus('WebSocket error: ' + error.message, true);
             console.error('WebSocket error:', error);
             
             // Fallback to traditional GET request if WebSocket fails
-            fallbackToTraditionalFetch();
+            fallbackFetch();
         };
 
         socket.onclose = function() {
-            updateConnectionStatus('WebSocket connection closed. Reconnecting...', true);
+            uiManager.updateConnectionStatus('WebSocket connection closed. Reconnecting...', true);
             
             // Clear the window.socket reference since it's no longer valid
             window.socket = null;
             
             // If we haven't loaded data yet, use fallback
             if (attempts.length === 0) {
-                fallbackToTraditionalFetch();
+                fallbackFetch();
             } else {
                 setTimeout(connect, 5000);
             }
@@ -586,7 +668,7 @@ const websocketManager = (function() {
 
     function fallbackFetch() {
         console.log('Falling back to traditional fetch method');
-        updateLoadingPercentageWithDelay(40).then(() => {
+        uiManager.updateLoadingPercentageWithDelay(40).then(() => {
             return fetch('/api/attempts');
         }).then(response => {
             if (!response.ok) {
@@ -594,30 +676,30 @@ const websocketManager = (function() {
             }
             return response.json();
         }).then(async data => {
-            await updateLoadingPercentageWithDelay(60);
+            await uiManager.updateLoadingPercentageWithDelay(60);
             attempts = data;
             
-            await updateLoadingPercentageWithDelay(80);
+            await uiManager.updateLoadingPercentageWithDelay(80);
             
             // Initialize the counters with animation
-            updateCounterWithAnimation('totalAttempts', attempts.length);
-            updateUniqueAttackersCount();
+            uiManager.updateCounterWithAnimation('totalAttempts', attempts.length);
+            uiManager.updateUniqueAttackersCount();
             
-            await updateLoadingPercentageWithDelay(90);
+            await uiManager.updateLoadingPercentageWithDelay(90);
             
             // Initialize UI with the data
-            updateUI();
-            centerMapOnMostActiveRegion(attempts);
+            uiManager.updateUI();
+            dataModel.centerMapOnMostActiveRegion(attempts);
             
-            await updateLoadingPercentageWithDelay(100);
+            await uiManager.updateLoadingPercentageWithDelay(100);
             
-            setTimeout(() => toggleLoadingOverlay(false), 500);
+            setTimeout(() => uiManager.toggleLoadingOverlay(false), 500);
             
             // Try to reconnect WebSocket in the background
             setTimeout(connect, 5000);
         }).catch(error => {
             console.error('Error in fallback fetch:', error);
-            toggleLoadingOverlay(false);
+            uiManager.toggleLoadingOverlay(false);
             // Show error message to user
             const message = `Failed to load data. Please refresh the page to try again. Error: ${error.message}`;
             console.error(message);
@@ -636,15 +718,6 @@ const websocketManager = (function() {
         getAttempts: getAttempts
     };
 })();
-
-// Replace old functions with the new module
-function connectWebSocket() {
-    websocketManager.connect();
-}
-
-function fallbackToTraditionalFetch() {
-    websocketManager.fallbackFetch();
-}
 
 // Data model module
 const dataModel = (function() {
@@ -755,19 +828,6 @@ const dataModel = (function() {
     };
 })();
 
-// Replace old functions with the new module
-function filterAttempts(attempts) {
-    return dataModel.filterAttempts(attempts);
-}
-
-function centerMapOnMostActiveRegion(attempts) {
-    return dataModel.centerMapOnMostActiveRegion(attempts);
-}
-
-function formatDateToLocalTime(isoString) {
-    return dataModel.formatDateToLocalTime(isoString);
-}
-
 // Pagination utilities
 const paginationUtils = {
     currentPage: 1,
@@ -829,49 +889,59 @@ let currentPage = 1;
 // Initialization module
 const init = (function() {
     function setupEventListeners() {
-        // Pagination event listeners
-        document.getElementById('prevPage')?.addEventListener('click', () => {
-            paginationUtils.prevPage(filterAttempts(websocketManager.getAttempts()), () => updateUI());
-        });
+        // Initialize the element cache first
+        domUtils.initializeElementCache();
         
-        document.getElementById('nextPage')?.addEventListener('click', () => {
-            paginationUtils.nextPage(filterAttempts(websocketManager.getAttempts()), () => updateUI());
-        });
+        // Pagination event listeners
+        const prevPageBtn = domUtils.getElement('prevPage');
+        const nextPageBtn = domUtils.getElement('nextPage');
+        
+        if (prevPageBtn) {
+            prevPageBtn.addEventListener('click', () => {
+                paginationUtils.prevPage(dataModel.filterAttempts(websocketManager.getAttempts()), () => uiManager.updateUI());
+            });
+        }
+        
+        if (nextPageBtn) {
+            nextPageBtn.addEventListener('click', () => {
+                paginationUtils.nextPage(dataModel.filterAttempts(websocketManager.getAttempts()), () => uiManager.updateUI());
+            });
+        }
         
         // Search and filter event listeners
-        const searchInput = document.getElementById("searchInput");
-        const filterSelect = document.getElementById("filterSelect");
-        const protocolSelect = document.getElementById("protocolSelect");
+        const searchInput = domUtils.getElement('searchInput');
+        const filterSelect = domUtils.getElement('filterSelect');
+        const protocolSelect = domUtils.getElement('protocolSelect');
         
         if (searchInput) {
             searchInput.addEventListener('input', () => {
                 paginationUtils.currentPage = 1;
-                updateUI();
+                uiManager.updateUI();
             });
         }
         
         if (filterSelect) {
             filterSelect.addEventListener('change', () => {
                 paginationUtils.currentPage = 1;
-                updateUI();
+                uiManager.updateUI();
             });
         }
         
         if (protocolSelect) {
             protocolSelect.addEventListener('change', () => {
                 paginationUtils.currentPage = 1;
-                updateUI();
+                uiManager.updateUI();
             });
         }
         
         // Hamburger Menu
-        const hamburgerBtn = document.getElementById('hamburgerBtn');
-        const mobileMenu = document.getElementById('mobileMenu');
-        const exportIPsMenu = document.getElementById('exportIPsMenu');
-        const darkModeToggleMenu = document.getElementById('darkModeToggleMenu');
-        const faqButton = document.getElementById('faqButton');
-        const faqModal = document.getElementById('faqModal');
-        const closeFaqModal = document.getElementById('closeFaqModal');
+        const hamburgerBtn = domUtils.getElement('hamburgerBtn');
+        const mobileMenu = domUtils.getElement('mobileMenu');
+        const exportIPsMenu = domUtils.getElement('exportIPsMenu');
+        const darkModeToggleMenu = domUtils.getElement('darkModeToggleMenu');
+        const faqButton = domUtils.getElement('faqButton');
+        const faqModal = domUtils.getElement('faqModal');
+        const closeFaqModal = domUtils.getElement('closeFaqModal');
 
         if (hamburgerBtn && mobileMenu) {
             hamburgerBtn.addEventListener('click', (e) => {
@@ -902,7 +972,7 @@ const init = (function() {
             });
         }
 
-        const exportJSONMenu = document.getElementById('exportJSONMenu');
+        const exportJSONMenu = domUtils.getElement('exportJSONMenu');
         if (exportJSONMenu) {
             exportJSONMenu.addEventListener('click', () => {
                 menuUtils.closeMenu(mobileMenu);
@@ -910,7 +980,7 @@ const init = (function() {
             });
         }
 
-        const exportCSVMenu = document.getElementById('exportCSVMenu');
+        const exportCSVMenu = domUtils.getElement('exportCSVMenu');
         if (exportCSVMenu) {
             exportCSVMenu.addEventListener('click', () => {
                 menuUtils.closeMenu(mobileMenu);
@@ -920,26 +990,8 @@ const init = (function() {
 
         if (darkModeToggleMenu) {
             darkModeToggleMenu.addEventListener('click', () => {
-                const isDark = document.documentElement.classList.toggle('dark');
-                const lightIconMenu = document.getElementById('lightIconMenu');
-                const darkIconMenu = document.getElementById('darkIconMenu');
-                const themeText = document.getElementById('themeText');
-                
-                if (lightIconMenu && darkIconMenu) {
-                    lightIconMenu.classList.toggle('hidden');
-                    darkIconMenu.classList.toggle('hidden');
-                }
-                
-                if (themeText) {
-                    themeText.textContent = isDark ? 'Light Mode' : 'Dark Mode';
-                }
-                
-                localStorage.theme = isDark ? 'dark' : 'light';
+                themeManager.toggleTheme();
                 menuUtils.closeMenu(mobileMenu);
-                setMapTheme(isDark);
-
-                // Update chart colors using the new helper function
-                updateAllChartThemes(isDark);
             });
         }
 
@@ -979,54 +1031,15 @@ const init = (function() {
         });
     }
     
-    function setupTheme() {
-        // Initialize theme based on user preference, system preference, or default to light mode
-        const isDark = localStorage.theme === 'dark' || 
-            (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
-        
-        if (isDark) {
-            document.documentElement.classList.add('dark');
-            localStorage.theme = 'dark';
-            const lightIconMenu = document.getElementById('lightIconMenu');
-            const darkIconMenu = document.getElementById('darkIconMenu');
-            const themeText = document.getElementById('themeText');
-            if (lightIconMenu && darkIconMenu) {
-                lightIconMenu.classList.remove('hidden');
-                darkIconMenu.classList.add('hidden');
-            }
-            if (themeText) {
-                themeText.textContent = 'Light Mode';
-            }
-        } else {
-            // Default to light mode if no preference is set or system is light mode
-            document.documentElement.classList.remove('dark');
-            localStorage.theme = 'light';
-            const themeText = document.getElementById('themeText');
-            if (themeText) {
-                themeText.textContent = 'Dark Mode';
-            }
-        }
-        
-        // Ensure map theme is set correctly
-        setMapTheme(isDark);
-        
-        // Ensure chart colors are updated correctly
-        updateAllChartThemes(isDark);
-    }
-    
-    function setupMap() {
-        // This is now handled in setupTheme to ensure it happens in the right sequence
-    }
-    
     function startApplication() {
-        setupTheme();
+        themeManager.setupTheme();
         setupEventListeners();
         
         // Show loading overlay
-        toggleLoadingOverlay(true);
+        uiManager.toggleLoadingOverlay(true);
         
         // Connect to WebSocket
-        connectWebSocket();
+        websocketManager.connect();
     }
     
     return {
