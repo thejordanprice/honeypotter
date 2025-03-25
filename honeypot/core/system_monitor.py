@@ -39,20 +39,62 @@ class SystemMonitor:
         
         # Return cached IP if it's still valid
         if self._external_ip and (current_time - self._last_ip_check) < self._ip_cache_duration:
+            logger.debug(f"Returning cached external IP: {self._external_ip}")
             return self._external_ip
             
-        try:
-            # Try to get IP from icanhazip.com
-            response = requests.get('https://icanhazip.com', timeout=5)
-            if response.status_code == 200:
-                ip = response.text.strip()
-                self._external_ip = ip
-                self._last_ip_check = current_time
-                return ip
-        except Exception as e:
-            logger.error(f"Error getting external IP: {str(e)}")
+        # List of services to try for getting the external IP
+        ip_services = [
+            'https://icanhazip.com',
+            'https://api.ipify.org',
+            'https://ipinfo.io/ip',
+            'https://ifconfig.me'
+        ]
+        
+        logger.debug(f"Attempting to retrieve external IP from {len(ip_services)} services")
+        for service in ip_services:
+            try:
+                logger.debug(f"Trying to get external IP from {service}")
+                response = requests.get(service, timeout=5)
+                logger.debug(f"Response from {service}: status={response.status_code}, content={response.text[:50]}")
+                
+                if response.status_code == 200:
+                    ip = response.text.strip()
+                    if ip and self._is_valid_ip(ip):
+                        logger.info(f"Successfully retrieved external IP {ip} from {service}")
+                        self._external_ip = ip
+                        self._last_ip_check = current_time
+                        return ip
+                    else:
+                        logger.warning(f"Retrieved invalid IP format from {service}: {ip}")
+                else:
+                    logger.warning(f"Service {service} returned status code {response.status_code}")
+                
+            except Exception as e:
+                logger.error(f"Error getting external IP from {service}: {str(e)}")
+        
+        # If we got here, none of the services worked
+        logger.warning("Failed to get external IP from any service")
+        return "Could not determine IP"
+
+    def _is_valid_ip(self, ip: str) -> bool:
+        """Check if a string is a valid IPv4 address.
+        
+        Args:
+            ip: String to check
             
-        return "Unknown"
+        Returns:
+            bool: True if valid IP, False otherwise
+        """
+        try:
+            # Simple check using socket
+            parts = ip.split('.')
+            if len(parts) != 4:
+                return False
+            
+            # Make sure each part is a number between 0-255
+            return all(0 <= int(part) < 256 for part in parts)
+        except (ValueError, AttributeError):
+            return False
 
     def get_system_metrics(self) -> Dict:
         """Get current system metrics."""

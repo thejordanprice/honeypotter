@@ -11,19 +11,25 @@ from honeypot.core.config import TEMPLATE_DIR, STATIC_DIR, HOST, WEB_PORT, SSH_P
 from honeypot.database.models import get_db, LoginAttempt
 from honeypot.core.system_monitor import SystemMonitor
 import ipaddress
+import logging
+import asyncio
+import os
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Honeypot Monitor")
 
 # Initialize system monitor
-system_monitor = SystemMonitor({
-    'ssh': SSH_PORT,
-    'telnet': TELNET_PORT,
-    'ftp': FTP_PORT,
-    'smtp': SMTP_PORT,
-    'rdp': RDP_PORT,
-    'sip': SIP_PORT,
-    'mysql': MYSQL_PORT
-})
+services = {
+    "ssh": SSH_PORT,
+    "telnet": TELNET_PORT,
+    "ftp": FTP_PORT,
+    "smtp": SMTP_PORT,
+    "rdp": RDP_PORT,
+    "sip": SIP_PORT,
+    "mysql": MYSQL_PORT
+}
+system_monitor = SystemMonitor(services)
 
 # Mount static files directory
 static_path = Path(STATIC_DIR)
@@ -38,7 +44,7 @@ active_connections: List[WebSocket] = []
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
-    """Serve the main page."""
+    """Serve the main HTML page."""
     return templates.TemplateResponse(
         "index.html",
         {
@@ -48,20 +54,11 @@ async def home(request: Request):
         }
     )
 
-@app.get("/api/system/metrics")
-async def get_system_metrics():
-    """Get current system metrics."""
-    return JSONResponse(system_monitor.get_system_metrics())
-
 @app.get("/api/system/external-ip")
 async def get_external_ip():
-    """Get the external IP address."""
-    return JSONResponse({"ip": system_monitor.get_external_ip()})
-
-@app.get("/api/system/services")
-async def get_service_status():
-    """Get status of monitored services."""
-    return JSONResponse(system_monitor.get_service_status())
+    """Get the external IP address (fallback API for when WebSockets aren't available)."""
+    ip = system_monitor.get_external_ip()
+    return JSONResponse({"ip": ip})
 
 @app.get("/api/system/logs")
 async def get_system_logs(lines: int = 100):
@@ -81,10 +78,117 @@ async def websocket_endpoint(websocket: WebSocket):
     """Handle WebSocket connections."""
     await websocket.accept()
     active_connections.append(websocket)
+    
+    # Create a task for periodic system metrics updates
+    periodic_task = asyncio.create_task(send_periodic_updates(websocket))
+    
     try:
         while True:
-            await websocket.receive_text()
+            # Wait for messages from the client
+            message_text = await websocket.receive_text()
+            try:
+                message = json.loads(message_text)
+                message_type = message.get('type')
+                
+                # Handle different message types
+                if message_type == 'request_system_metrics':
+                    # Send both system metrics and service status on request
+                    await send_system_metrics(websocket)
+                    await send_service_status(websocket)
+                elif message_type == 'request_external_ip':
+                    # Send external IP on request
+                    await send_external_ip(websocket)
+            except json.JSONDecodeError:
+                logger.warning(f"Received invalid JSON: {message_text}")
+            except Exception as e:
+                logger.error(f"Error processing WebSocket message: {str(e)}")
     except:
+        # Clean up
+        periodic_task.cancel()
+        if websocket in active_connections:
+            active_connections.remove(websocket)
+
+async def send_system_metrics(websocket: WebSocket):
+    """Send system metrics to a specific client."""
+    metrics = system_monitor.get_system_metrics()
+    message = {
+        'type': 'system_metrics',
+        'data': metrics
+    }
+    try:
+        await websocket.send_text(json.dumps(message))
+    except:
+        if websocket in active_connections:
+            active_connections.remove(websocket)
+
+async def send_service_status(websocket: WebSocket):
+    """Send service status to a specific client."""
+    status = system_monitor.get_service_status()
+    message = {
+        'type': 'service_status',
+        'data': status
+    }
+    try:
+        await websocket.send_text(json.dumps(message))
+    except:
+        if websocket in active_connections:
+            active_connections.remove(websocket)
+
+async def send_external_ip(websocket: WebSocket):
+    """Send external IP to a specific client."""
+    try:
+        ip = system_monitor.get_external_ip()
+        logger.info(f"Retrieved external IP: {ip}")
+        message = {
+            'type': 'external_ip',
+            'data': {'ip': ip}  # Always use a consistent structure
+        }
+        logger.debug(f"Sending external IP message: {message}")
+        await websocket.send_text(json.dumps(message))
+        logger.info("External IP message sent successfully")
+        
+        # Check what we're sending (for debugging)
+        debug_info = {
+            'ip_value': ip,
+            'ip_type': type(ip).__name__,
+            'message_type': type(message).__name__,
+            'message_json': json.dumps(message)
+        }
+        logger.debug(f"External IP debug info: {debug_info}")
+        
+    except Exception as e:
+        logger.error(f"Error sending external IP: {str(e)}")
+        # Try to send a fallback message
+        try:
+            message = {
+                'type': 'external_ip',
+                'data': {'ip': 'Connection error'}
+            }
+            await websocket.send_text(json.dumps(message))
+        except:
+            pass
+            
+        if websocket in active_connections:
+            active_connections.remove(websocket)
+
+async def send_periodic_updates(websocket: WebSocket):
+    """Send periodic system metrics updates to a client."""
+    try:
+        while True:
+            # Send metrics every 5 seconds if the modal is open
+            await asyncio.sleep(5)
+            # Only send if connection is still active
+            if websocket in active_connections:
+                await send_system_metrics(websocket)
+                
+            # Send service status every 10 seconds
+            if websocket in active_connections and (asyncio.get_event_loop().time() % 10) < 5:
+                await send_service_status(websocket)
+    except asyncio.CancelledError:
+        # Task was cancelled, do cleanup
+        pass
+    except Exception as e:
+        logger.error(f"Error in periodic updates: {str(e)}")
         if websocket in active_connections:
             active_connections.remove(websocket)
 
@@ -186,10 +290,14 @@ def export_csv(db: Session = Depends(get_db), download: bool = False):
 
 async def broadcast_attempt(attempt: dict):
     """Broadcast a login attempt to all connected clients."""
-    message = json.dumps(attempt)
+    message = {
+        'type': 'login_attempt',
+        'data': attempt
+    }
+    message_json = json.dumps(message)
     for connection in active_connections[:]:  # Create a copy of the list to avoid modification during iteration
         try:
-            await connection.send_text(message)
+            await connection.send_text(message_json)
         except:
             if connection in active_connections:
                 active_connections.remove(connection) 

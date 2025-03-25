@@ -270,10 +270,20 @@ function connectWebSocket() {
     updateLoadingPercentageWithDelay(10); // Start at 10%
     
     socket = new WebSocket(wsUrl);
+    // Explicitly set socket on window object to make it accessible from other scripts
+    window.socket = socket;
 
     socket.onopen = async function() {
         updateConnectionStatus('Connected to WebSocket');
         await updateLoadingPercentageWithDelay(30); // WebSocket connected
+        
+        // Explicitly request external IP data to make sure it's available
+        if (socket.readyState === WebSocket.OPEN) {
+            console.log('Requesting external IP on connection');
+            socket.send(JSON.stringify({
+                type: 'request_external_ip'
+            }));
+        }
         
         fetch('/api/attempts')
             .then(response => response.json())
@@ -313,30 +323,66 @@ function connectWebSocket() {
 
     socket.onmessage = function(event) {
         try {
-            const newAttempt = JSON.parse(event.data);
-            console.log('Received new attempt:', newAttempt);
+            const data = JSON.parse(event.data);
+            console.log('Received WebSocket message:', data);
             
-            // Check if this IP is new before adding the attempt
-            const isNewAttacker = !attempts.some(attempt => attempt.client_ip === newAttempt.client_ip);
-            
-            attempts.unshift(newAttempt);
-            updateCounterWithAnimation('totalAttempts', attempts.length);
-            
-            // Only update unique attackers if this is a new IP
-            if (isNewAttacker) {
-                updateUniqueAttackersCount();
+            // Check what type of message this is
+            if (data.type === 'login_attempt') {
+                // This is a login attempt (existing functionality)
+                const newAttempt = data.data;
+                console.log('Received new attempt:', newAttempt);
+                
+                // Check if this IP is new before adding the attempt
+                const isNewAttacker = !attempts.some(attempt => attempt.client_ip === newAttempt.client_ip);
+                
+                attempts.unshift(newAttempt);
+                updateCounterWithAnimation('totalAttempts', attempts.length);
+                
+                // Only update unique attackers if this is a new IP
+                if (isNewAttacker) {
+                    updateUniqueAttackersCount();
+                }
+                
+                updateMap(newAttempt);
+                
+                currentPage = 1;
+                updateUI();
+                
+                const indicator = document.getElementById('connectionStatusIndicator');
+                indicator.style.transform = 'scale(1.2)';
+                setTimeout(() => {
+                    indicator.style.transform = 'scale(1)';
+                }, 200);
+            } 
+            else if (data.type === 'system_metrics') {
+                // Process system metrics
+                console.log('Received system metrics');
+                if (typeof processSystemMetrics === 'function') {
+                    processSystemMetrics(data.data);
+                }
             }
-            
-            updateMap(newAttempt);
-            
-            currentPage = 1;
-            updateUI();
-            
-            const indicator = document.getElementById('connectionStatusIndicator');
-            indicator.style.transform = 'scale(1.2)';
-            setTimeout(() => {
-                indicator.style.transform = 'scale(1)';
-            }, 200);
+            else if (data.type === 'service_status') {
+                // Process service status
+                console.log('Received service status');
+                if (typeof processServiceStatus === 'function') {
+                    processServiceStatus(data.data);
+                }
+            }
+            else if (data.type === 'external_ip') {
+                // Process external IP
+                console.log('Received external IP data', data);
+                if (typeof processExternalIP === 'function') {
+                    // Pass the entire data object to allow proper handling
+                    processExternalIP(data.data);
+                    
+                    // Also log what we're receiving to help debug
+                    console.log('External IP data details:', {
+                        dataType: typeof data.data,
+                        hasIpProperty: data.data && typeof data.data === 'object' ? 'ip' in data.data : 'N/A',
+                        raw: JSON.stringify(data.data)
+                    });
+                }
+            }
         } catch (error) {
             console.error('Error processing WebSocket message:', error);
         }
@@ -351,6 +397,10 @@ function connectWebSocket() {
     socket.onclose = function() {
         updateConnectionStatus('WebSocket connection closed. Reconnecting...', true);
         toggleLoadingOverlay(false);
+        
+        // Clear the window.socket reference since it's no longer valid
+        window.socket = null;
+        
         setTimeout(connectWebSocket, 5000);
     };
 }
