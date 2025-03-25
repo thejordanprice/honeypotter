@@ -322,13 +322,42 @@ async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)
                         elif message_type == 'request_attempts':
                             # Send attempts data on request (legacy method)
                             logger.info(f"Client {client_info} requested data via legacy method")
-                            attempts = db.query(LoginAttempt).order_by(LoginAttempt.timestamp.desc()).all()
-                            attempts_data = [attempt.to_dict() for attempt in attempts]
-                            message = {
-                                'type': 'initial_attempts',
-                                'data': attempts_data
-                            }
-                            await connection_manager.send_text(websocket, json.dumps(message))
+                            
+                            # Use a dedicated transaction with limit for better performance
+                            try:
+                                db.begin()
+                                
+                                # Set a reasonable fetch limit to prevent memory issues
+                                # and add timeout to prevent long-running queries
+                                try:
+                                    db.execute("SET statement_timeout = '10s'")
+                                except:
+                                    pass
+                                
+                                # Limit result set for the legacy method
+                                attempts = db.query(LoginAttempt).order_by(
+                                    LoginAttempt.timestamp.desc()
+                                ).limit(5000).all()
+                                
+                                attempts_data = [attempt.to_dict() for attempt in attempts]
+                                message = {
+                                    'type': 'initial_attempts',
+                                    'data': attempts_data
+                                }
+                                await connection_manager.send_text(websocket, json.dumps(message))
+                                
+                                # Explicitly commit and clear session
+                                db.commit()
+                                db.expire_all()
+                                
+                            except Exception as db_err:
+                                logger.error(f"Database error handling legacy request from {client_info}: {str(db_err)}")
+                                db.rollback()
+                                error_message = {
+                                    'type': 'error',
+                                    'message': 'Failed to retrieve login attempts'
+                                }
+                                await connection_manager.send_text(websocket, json.dumps(error_message))
                         elif message_type == 'request_data_batches':
                             # Send data in batches
                             logger.info(f"Client {client_info} requested data in batches")
@@ -498,103 +527,233 @@ def get_attempts(db: Session = Depends(get_db)):
     WebSocket connection is the required method for retrieving attempts.
     This endpoint is only kept for backward compatibility and may be removed in the future.
     """
-    attempts = db.query(LoginAttempt).order_by(LoginAttempt.timestamp.desc()).all()
-    
-    # Add a warning header to indicate that this endpoint is deprecated
-    response = JSONResponse([attempt.to_dict() for attempt in attempts])
-    response.headers["X-API-Warning"] = "This endpoint is deprecated. Please use WebSocket connection for data retrieval."
-    
-    return response
+    try:
+        # Use an explicit transaction
+        db.begin()
+        
+        # Set statement timeout (PostgreSQL only)
+        try:
+            db.execute("SET statement_timeout = '10s'")
+        except:
+            pass
+            
+        # Use more efficient query with limit
+        attempts = db.query(LoginAttempt).order_by(LoginAttempt.timestamp.desc()).limit(5000).all()
+        
+        # Create response data
+        response_data = [attempt.to_dict() for attempt in attempts]
+        
+        # Explicitly commit to ensure transaction is closed
+        db.commit()
+        
+        # Add a warning header to indicate that this endpoint is deprecated
+        response = JSONResponse(response_data)
+        response.headers["X-API-Warning"] = "This endpoint is deprecated. Please use WebSocket connection for data retrieval."
+        
+        return response
+    except Exception as e:
+        # Ensure transaction is rolled back on error
+        db.rollback()
+        logger.error(f"Error retrieving attempts: {str(e)}")
+        return JSONResponse({"error": "Failed to retrieve login attempts"}, status_code=500)
 
 @app.get("/api/export/plaintext")
 def export_plaintext(db: Session = Depends(get_db), download: bool = False):
     """Export all login attempts in plaintext format."""
-    ips = db.query(LoginAttempt.client_ip).distinct().all()
-    # Convert IPs to a list and sort them numerically using ipaddress module
-    ip_list = sorted([ip[0] for ip in ips], key=lambda x: int(ipaddress.ip_address(x)))
-    ip_text = "\n".join(ip_list)
-    
-    if download:
-        return PlainTextResponse(ip_text, headers={
-            "Content-Disposition": "attachment; filename=attempted_ips.txt"
-        })
-    return PlainTextResponse(ip_text)
+    try:
+        # Use an explicit transaction
+        db.begin()
+        
+        # Only select distinct IPs directly in the query for efficiency
+        ips = db.query(LoginAttempt.client_ip).distinct().all()
+        
+        # Convert IPs to a list and sort them numerically using ipaddress module
+        ip_list = sorted([ip[0] for ip in ips], key=lambda x: int(ipaddress.ip_address(x)))
+        ip_text = "\n".join(ip_list)
+        
+        # Explicitly commit to ensure transaction is closed
+        db.commit()
+        
+        if download:
+            return PlainTextResponse(ip_text, headers={
+                "Content-Disposition": "attachment; filename=attempted_ips.txt"
+            })
+        return PlainTextResponse(ip_text)
+    except Exception as e:
+        # Ensure transaction is rolled back on error
+        db.rollback()
+        logger.error(f"Error exporting plaintext: {str(e)}")
+        return PlainTextResponse(f"Error exporting data: {str(e)}", status_code=500)
 
 @app.get("/api/export/json")
 def export_json(db: Session = Depends(get_db), download: bool = False):
     """Export all login attempts in JSON format."""
-    attempts = db.query(LoginAttempt).all()
-    attempts_data = []
-    
-    for attempt in attempts:
-        attempt_dict = {
-            "client_ip": attempt.client_ip,
-            "username": attempt.username,
-            "password": attempt.password,
-            "protocol": attempt.protocol.value if attempt.protocol else None,
-            "country": attempt.country,
-            "city": attempt.city,
-            "region": attempt.region,
-            "latitude": attempt.latitude,
-            "longitude": attempt.longitude
-        }
+    try:
+        # Use an explicit transaction with chunked processing
+        db.begin()
         
-        # Handle timestamp conversion safely
-        if attempt.timestamp:
-            attempt_dict["timestamp"] = attempt.timestamp.isoformat()
-        else:
-            attempt_dict["timestamp"] = None
+        # Get total count for chunking
+        total_count = db.query(LoginAttempt).count()
+        attempts_data = []
+        
+        # Process large results in chunks to avoid memory issues
+        CHUNK_SIZE = 5000
+        
+        if total_count > CHUNK_SIZE:
+            logger.info(f"Processing large JSON export ({total_count} records) in chunks")
             
-        attempts_data.append(attempt_dict)
-    
-    json_data = json.dumps(attempts_data, indent=2)
-    
-    if download:
-        return Response(
-            json_data,
-            media_type="application/json",
-            headers={"Content-Disposition": "attachment; filename=login_attempts.json"}
-        )
-    return Response(json_data, media_type="application/json")
+            for offset in range(0, total_count, CHUNK_SIZE):
+                chunk = db.query(LoginAttempt).limit(CHUNK_SIZE).offset(offset).all()
+                
+                for attempt in chunk:
+                    attempt_dict = {
+                        "client_ip": attempt.client_ip,
+                        "username": attempt.username,
+                        "password": attempt.password,
+                        "protocol": attempt.protocol.value if attempt.protocol else None,
+                        "country": attempt.country,
+                        "city": attempt.city,
+                        "region": attempt.region,
+                        "latitude": attempt.latitude,
+                        "longitude": attempt.longitude
+                    }
+                    
+                    # Handle timestamp conversion safely
+                    if attempt.timestamp:
+                        attempt_dict["timestamp"] = attempt.timestamp.isoformat()
+                    else:
+                        attempt_dict["timestamp"] = None
+                        
+                    attempts_data.append(attempt_dict)
+                
+                # Clear SQLAlchemy's identity map between chunks
+                db.expire_all()
+        else:
+            # Small enough to process at once
+            attempts = db.query(LoginAttempt).all()
+            
+            for attempt in attempts:
+                attempt_dict = {
+                    "client_ip": attempt.client_ip,
+                    "username": attempt.username,
+                    "password": attempt.password,
+                    "protocol": attempt.protocol.value if attempt.protocol else None,
+                    "country": attempt.country,
+                    "city": attempt.city,
+                    "region": attempt.region,
+                    "latitude": attempt.latitude,
+                    "longitude": attempt.longitude
+                }
+                
+                # Handle timestamp conversion safely
+                if attempt.timestamp:
+                    attempt_dict["timestamp"] = attempt.timestamp.isoformat()
+                else:
+                    attempt_dict["timestamp"] = None
+                    
+                attempts_data.append(attempt_dict)
+        
+        # Explicitly commit to ensure transaction is closed
+        db.commit()
+        
+        # Generate JSON response with streaming for large datasets
+        json_data = json.dumps(attempts_data, indent=2)
+        
+        if download:
+            return Response(
+                json_data,
+                media_type="application/json",
+                headers={"Content-Disposition": "attachment; filename=login_attempts.json"}
+            )
+        return Response(json_data, media_type="application/json")
+    except Exception as e:
+        # Ensure transaction is rolled back on error
+        db.rollback()
+        logger.error(f"Error exporting JSON: {str(e)}")
+        return JSONResponse({"error": f"Failed to export data: {str(e)}"}, status_code=500)
 
 @app.get("/api/export/csv")
 def export_csv(db: Session = Depends(get_db), download: bool = False):
     """Export all login attempts in CSV format."""
-    attempts = db.query(LoginAttempt).all()
-    
-    # Create CSV header
-    csv_data = "timestamp,protocol,client_ip,username,password,country,city,region,latitude,longitude\n"
-    
-    def escape_field(value):
-        """Helper to properly escape and quote CSV fields."""
-        if value is None or value == "":
-            return ""
-        # Replace double quotes with two double quotes and wrap in quotes
-        return '"{}"'.format(str(value).replace('"', '""'))
-    
-    # Add data rows
-    for attempt in attempts:
-        row = [
-            attempt.timestamp.isoformat() if attempt.timestamp else "",
-            attempt.protocol.value if attempt.protocol else "",
-            attempt.client_ip or "",
-            escape_field(attempt.username),
-            escape_field(attempt.password),
-            escape_field(attempt.country),
-            escape_field(attempt.city),
-            escape_field(attempt.region),
-            str(attempt.latitude) if attempt.latitude is not None else "",
-            str(attempt.longitude) if attempt.longitude is not None else ""
-        ]
-        csv_data += ",".join(row) + "\n"
-    
-    if download:
-        return Response(
-            csv_data,
-            media_type="text/csv",
-            headers={"Content-Disposition": "attachment; filename=login_attempts.csv"}
-        )
-    return Response(csv_data, media_type="text/csv")
+    try:
+        # Use an explicit transaction with chunked processing
+        db.begin()
+        
+        # Get total count for chunking
+        total_count = db.query(LoginAttempt).count()
+        
+        # Create CSV header
+        csv_data = "timestamp,protocol,client_ip,username,password,country,city,region,latitude,longitude\n"
+        
+        def escape_field(value):
+            """Helper to properly escape and quote CSV fields."""
+            if value is None or value == "":
+                return ""
+            # Replace double quotes with two double quotes and wrap in quotes
+            return '"{}"'.format(str(value).replace('"', '""'))
+        
+        # Process large results in chunks to avoid memory issues
+        CHUNK_SIZE = 5000
+        
+        if total_count > CHUNK_SIZE:
+            logger.info(f"Processing large CSV export ({total_count} records) in chunks")
+            
+            for offset in range(0, total_count, CHUNK_SIZE):
+                chunk = db.query(LoginAttempt).limit(CHUNK_SIZE).offset(offset).all()
+                
+                # Add data rows for current chunk
+                for attempt in chunk:
+                    row = [
+                        attempt.timestamp.isoformat() if attempt.timestamp else "",
+                        attempt.protocol.value if attempt.protocol else "",
+                        attempt.client_ip or "",
+                        escape_field(attempt.username),
+                        escape_field(attempt.password),
+                        escape_field(attempt.country),
+                        escape_field(attempt.city),
+                        escape_field(attempt.region),
+                        str(attempt.latitude) if attempt.latitude is not None else "",
+                        str(attempt.longitude) if attempt.longitude is not None else ""
+                    ]
+                    csv_data += ",".join(row) + "\n"
+                
+                # Clear SQLAlchemy's identity map between chunks
+                db.expire_all()
+        else:
+            # Small enough to process at once
+            attempts = db.query(LoginAttempt).all()
+            
+            # Add data rows
+            for attempt in attempts:
+                row = [
+                    attempt.timestamp.isoformat() if attempt.timestamp else "",
+                    attempt.protocol.value if attempt.protocol else "",
+                    attempt.client_ip or "",
+                    escape_field(attempt.username),
+                    escape_field(attempt.password),
+                    escape_field(attempt.country),
+                    escape_field(attempt.city),
+                    escape_field(attempt.region),
+                    str(attempt.latitude) if attempt.latitude is not None else "",
+                    str(attempt.longitude) if attempt.longitude is not None else ""
+                ]
+                csv_data += ",".join(row) + "\n"
+        
+        # Explicitly commit to ensure transaction is closed
+        db.commit()
+        
+        if download:
+            return Response(
+                csv_data,
+                media_type="text/csv",
+                headers={"Content-Disposition": "attachment; filename=login_attempts.csv"}
+            )
+        return Response(csv_data, media_type="text/csv")
+    except Exception as e:
+        # Ensure transaction is rolled back on error
+        db.rollback()
+        logger.error(f"Error exporting CSV: {str(e)}")
+        return PlainTextResponse(f"Error exporting data: {str(e)}", status_code=500)
 
 async def broadcast_attempt(attempt: dict):
     """Broadcast a login attempt to all connected clients."""
@@ -614,13 +773,62 @@ async def send_data_in_batches(websocket: WebSocket, db: Session):
     """Send login attempts data in batches to a client."""
     client_info = f"{websocket.client.host}:{websocket.client.port}"
     batch_tracking = {}
+    attempts_data = []
     
     try:
-        # Get all attempts
+        # Use a dedicated transaction for the database query
+        # and close it as soon as possible
         logger.info(f"Retrieving data for batch transmission to {client_info}")
-        attempts = db.query(LoginAttempt).order_by(LoginAttempt.timestamp.desc()).all()
-        attempts_data = [attempt.to_dict() for attempt in attempts]
         
+        # Execute the query with a reasonable fetch size
+        # to avoid potential memory issues with large datasets
+        attempts = []
+        
+        # Use a transaction with explicit commit to ensure clean closure
+        db.begin()
+        query = db.query(LoginAttempt).order_by(LoginAttempt.timestamp.desc())
+        
+        # Set a statement timeout to prevent long-running queries
+        # This requires a raw SQL execution first
+        try:
+            db.execute("SET statement_timeout = '30s'")
+        except Exception as e:
+            logger.debug(f"Failed to set query timeout (expected for non-PostgreSQL DBs): {str(e)}")
+        
+        # Execute query with chunking for very large datasets
+        try:
+            # First get total count
+            total_count = query.count()
+            
+            # Use batched fetching for large datasets to reduce memory pressure
+            CHUNK_SIZE = 5000  # Process 5000 records at a time
+            
+            if total_count > CHUNK_SIZE:
+                logger.info(f"Large dataset detected ({total_count} records), using chunked fetching")
+                
+                # Process in chunks to avoid loading everything into memory at once
+                for offset in range(0, total_count, CHUNK_SIZE):
+                    chunk = query.limit(CHUNK_SIZE).offset(offset).all()
+                    attempts.extend(chunk)
+                    
+                    # Convert chunk to dictionaries
+                    for attempt in chunk:
+                        attempts_data.append(attempt.to_dict())
+                    
+                    # Clear SQLAlchemy's identity map to free memory
+                    db.expire_all()
+            else:
+                # Small enough dataset to load all at once
+                attempts = query.all()
+                attempts_data = [attempt.to_dict() for attempt in attempts]
+                
+        except Exception as query_err:
+            logger.error(f"Error executing login attempts query: {str(query_err)}")
+            raise
+        finally:
+            # End transaction explicitly
+            db.commit()
+            
         # Determine batch size based on total data
         # Smaller batches for larger datasets
         total_attempts = len(attempts_data)
@@ -733,15 +941,36 @@ async def send_data_in_batches(websocket: WebSocket, db: Session):
             await connection_manager.send_text(websocket, json.dumps(error_message))
         except:
             pass
+    finally:
+        # Ensure memory is freed
+        attempts_data.clear()
+        batch_tracking.clear()
+        # No need to close db session as it's passed in by FastAPI dependency injection
+        # and will be closed automatically when the websocket handler completes
 
 async def send_specific_batches(websocket: WebSocket, db: Session, batch_numbers: List[int]):
     """Send specific batches to a client that requested missing batches."""
     client_info = f"{websocket.client.host}:{websocket.client.port}"
+    attempts_data = []
     
     try:
-        # Get all attempts
-        attempts = db.query(LoginAttempt).order_by(LoginAttempt.timestamp.desc()).all()
-        attempts_data = [attempt.to_dict() for attempt in attempts]
+        # Use a dedicated transaction for the database query
+        logger.info(f"Retrieving data for specific batches to {client_info}")
+        
+        # Begin a transaction
+        db.begin()
+        query = db.query(LoginAttempt).order_by(LoginAttempt.timestamp.desc())
+        
+        try:
+            # Execute query with efficient fetching
+            attempts = query.all()
+            attempts_data = [attempt.to_dict() for attempt in attempts]
+        except Exception as query_err:
+            logger.error(f"Error executing query for specific batches: {str(query_err)}")
+            raise
+        finally:
+            # End transaction explicitly
+            db.commit()
         
         # Determine batch size based on total data
         total_attempts = len(attempts_data)
@@ -796,4 +1025,7 @@ async def send_specific_batches(websocket: WebSocket, db: Session, batch_numbers
         
     except Exception as e:
         logger.error(f"Error sending specific batches to {client_info}: {str(e)}")
-        # Connection manager will handle disconnection if needed 
+        # Connection manager will handle disconnection if needed
+    finally:
+        # Clear memory resources
+        attempts_data.clear() 

@@ -77,8 +77,12 @@ class BaseHoneypot(ABC):
         # Get geolocation data
         location = geolocation_service.get_location(client_ip)
         
+        db = None
         try:
-            db = next(get_db())
+            # Get a database session
+            db_generator = get_db()
+            db = next(db_generator)
+            
             attempt = LoginAttempt(
                 protocol=self.protocol,
                 username=username,
@@ -99,6 +103,20 @@ class BaseHoneypot(ABC):
             
         except Exception as e:
             logger.error(f"Failed to log login attempt: {str(e)}")
+            # Rollback transaction in case of error
+            if db:
+                try:
+                    db.rollback()
+                except Exception as rollback_err:
+                    logger.error(f"Failed to rollback transaction: {str(rollback_err)}")
+        finally:
+            # Always ensure the session is closed and removed from registry
+            if db:
+                try:
+                    db.close()
+                    # Note: SessionLocal.remove() is called in get_db()'s finally clause
+                except Exception as close_err:
+                    logger.error(f"Failed to close database session: {str(close_err)}")
 
     def _read_line(self, sock: socket.socket) -> bytes:
         """Read a line from the socket.

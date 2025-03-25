@@ -12,7 +12,7 @@ from honeypot.core.smtp_server import SMTPHoneypot
 from honeypot.core.rdp_server import RDPHoneypot
 from honeypot.core.sip_server import SIPHoneypot
 from honeypot.core.mysql_server import MySQLHoneypot
-from honeypot.database.models import init_db
+from honeypot.database.models import init_db, start_connection_monitor, get_db, get_connection_stats, SessionLocal
 from honeypot.web.app import app
 from honeypot.core.config import (
     HOST, SSH_PORT, TELNET_PORT, FTP_PORT, SMTP_PORT, RDP_PORT, SIP_PORT, MYSQL_PORT, WEB_PORT, 
@@ -151,6 +151,59 @@ def start_mysql_server():
     except Exception as e:
         logger.error(f"MySQL server failed: {str(e)}")
 
+def periodic_db_health_check():
+    """Run a periodic database health check to ensure connections are working properly."""
+    logger = logging.getLogger(__name__)
+    
+    while True:
+        try:
+            # Sleep first to allow the system to start up
+            time.sleep(60)  # Check every minute
+            
+            # Get connection stats
+            stats = get_connection_stats()
+            logger.info(f"DB health check: {stats['active_connections']} active, "
+                       f"{stats['pool_checked_out']} checked out, {stats['pool_checkedin']} checked in")
+            
+            # Check for potential connection leaks
+            if stats['potential_leaks']:
+                logger.warning(f"Potential DB connection leaks detected: {len(stats['potential_leaks'])} connections")
+                
+                if len(stats['potential_leaks']) > 10:
+                    logger.error("Critical: Large number of potential DB connection leaks")
+                    
+                    # Force a session cleanup in extreme cases
+                    try:
+                        logger.warning("Attempting to force session registry cleanup")
+                        SessionLocal.remove()
+                        logger.info("Forced session registry cleanup completed")
+                    except Exception as e:
+                        logger.error(f"Failed to force session cleanup: {str(e)}")
+            
+            # Verify database is actually responsive
+            try:
+                db = next(get_db())
+                # Execute a simple query to verify the connection works
+                db.execute("SELECT 1").scalar()
+                db.close()
+                logger.debug("Database connection verified healthy")
+            except Exception as e:
+                logger.error(f"Database health check failed: {str(e)}")
+                
+                # Attempt recovery for serious database problems
+                try:
+                    logger.warning("Attempting connection pool reset")
+                    # Force a session registry cleanup
+                    SessionLocal.remove()
+                    # Let the connection pool recycle its connections
+                    time.sleep(1)
+                    logger.info("Connection pool reset completed")
+                except Exception as recovery_err:
+                    logger.error(f"Failed to reset connection pool: {str(recovery_err)}")
+                
+        except Exception as e:
+            logger.error(f"Error in DB health check thread: {str(e)}")
+
 def main():
     """Main entry point for the application."""
     try:
@@ -161,6 +214,16 @@ def main():
         # Initialize the database
         init_db()
         logger.info("Database initialized successfully")
+        
+        # Start the database connection monitor
+        start_connection_monitor()
+        logger.info("Database connection monitoring started")
+        
+        # Start the database health check
+        health_check_thread = threading.Thread(target=periodic_db_health_check, daemon=True)
+        health_check_thread.name = "DB-Health-Check"
+        health_check_thread.start()
+        logger.info("Database health check thread started")
 
         # Start SSH server in a separate thread
         ssh_thread = threading.Thread(target=start_ssh_server)
