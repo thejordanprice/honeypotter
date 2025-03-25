@@ -287,4 +287,14 @@ document.addEventListener('DOMContentLoaded', function() {
             closeSystemStatusModal();
         });
     }
+    
+    // Add listener for closing the system status modal when clicking outside
+    const systemStatusModal = document.getElementById('systemStatusModal');
+    if (systemStatusModal) {
+        systemStatusModal.addEventListener('click', function(e) {
+            if (e.target === systemStatusModal) {
+                closeSystemStatusModal();
+            }
+        });
+    }
 }); 

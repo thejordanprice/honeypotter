@@ -742,6 +742,14 @@ const init = (function() {
                 if (faqModal && !faqModal.classList.contains('hidden')) {
                     menuUtils.hideMenu(faqModal);
                 }
+                
+                const systemStatusModal = domUtils.getElement('systemStatusModal');
+                if (systemStatusModal && !systemStatusModal.classList.contains('hidden')) {
+                    // Use the closeSystemStatusModal function from system-monitor.js
+                    if (typeof closeSystemStatusModal === 'function') {
+                        closeSystemStatusModal();
+                    }
+                }
             }
         });
         
