@@ -74,10 +74,19 @@ async def get_config():
     })
 
 @app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
+async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)):
     """Handle WebSocket connections."""
     await websocket.accept()
     active_connections.append(websocket)
+    
+    # Immediately send initial attempts data
+    attempts = db.query(LoginAttempt).order_by(LoginAttempt.timestamp.desc()).all()
+    attempts_data = [attempt.to_dict() for attempt in attempts]
+    message = {
+        'type': 'initial_attempts',
+        'data': attempts_data
+    }
+    await websocket.send_text(json.dumps(message))
     
     # Create a task for periodic system metrics updates
     periodic_task = asyncio.create_task(send_periodic_updates(websocket))
@@ -98,6 +107,15 @@ async def websocket_endpoint(websocket: WebSocket):
                 elif message_type == 'request_external_ip':
                     # Send external IP on request
                     await send_external_ip(websocket)
+                elif message_type == 'request_attempts':
+                    # Send attempts data on request
+                    attempts = db.query(LoginAttempt).order_by(LoginAttempt.timestamp.desc()).all()
+                    attempts_data = [attempt.to_dict() for attempt in attempts]
+                    message = {
+                        'type': 'initial_attempts',
+                        'data': attempts_data
+                    }
+                    await websocket.send_text(json.dumps(message))
             except json.JSONDecodeError:
                 logger.warning(f"Received invalid JSON: {message_text}")
             except Exception as e:
@@ -194,7 +212,11 @@ async def send_periodic_updates(websocket: WebSocket):
 
 @app.get("/api/attempts")
 def get_attempts(db: Session = Depends(get_db)):
-    """Get all login attempts."""
+    """Get all login attempts.
+    
+    Note: This endpoint is kept for backward compatibility.
+    The preferred method for retrieving attempts is now via WebSocket connection.
+    """
     attempts = db.query(LoginAttempt).order_by(LoginAttempt.timestamp.desc()).all()
     return [attempt.to_dict() for attempt in attempts]
 

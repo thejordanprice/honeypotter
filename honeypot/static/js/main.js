@@ -285,40 +285,8 @@ function connectWebSocket() {
             }));
         }
         
-        fetch('/api/attempts')
-            .then(response => response.json())
-            .then(async data => {
-                await updateLoadingPercentageWithDelay(50); // Data received
-                attempts = data;
-                
-                await updateLoadingPercentageWithDelay(70); // Processing data
-                
-                const currentFilters = {
-                    search: searchInput.value.toLowerCase().trim(),
-                    filter: filterSelect.value,
-                    protocol: protocolSelect.value
-                };
-                
-                const filteredAttempts = filterAttempts(attempts);
-                
-                await updateLoadingPercentageWithDelay(80); // Filtering complete
-                
-                // Initialize the counters with animation
-                updateCounterWithAnimation('totalAttempts', attempts.length);
-                updateUniqueAttackersCount();
-                
-                await updateLoadingPercentageWithDelay(90); // Counters updated
-                
-                updateUI();
-                
-                await updateLoadingPercentageWithDelay(100); // UI updated
-                
-                setTimeout(() => toggleLoadingOverlay(false), 500);
-            })
-            .catch(error => {
-                console.error('Error fetching data:', error);
-                toggleLoadingOverlay(false);
-            });
+        // No need to fetch data separately now, as it will come via WebSocket
+        await updateLoadingPercentageWithDelay(50); // Data request sent
     };
 
     socket.onmessage = function(event) {
@@ -354,6 +322,28 @@ function connectWebSocket() {
                     indicator.style.transform = 'scale(1)';
                 }, 200);
             } 
+            else if (data.type === 'initial_attempts') {
+                // This is the initial data load
+                attempts = data.data;
+                
+                // Update loading progress
+                updateLoadingPercentageWithDelay(70).then(() => {
+                    // Initialize the counters with animation
+                    updateCounterWithAnimation('totalAttempts', attempts.length);
+                    updateUniqueAttackersCount();
+                    
+                    return updateLoadingPercentageWithDelay(90);
+                }).then(() => {
+                    // Initialize UI with the data
+                    updateUI();
+                    centerMapOnMostActiveRegion(attempts);
+                    
+                    return updateLoadingPercentageWithDelay(100);
+                }).then(() => {
+                    // Hide loading overlay
+                    setTimeout(() => toggleLoadingOverlay(false), 500);
+                });
+            }
             else if (data.type === 'system_metrics') {
                 // Process system metrics
                 console.log('Received system metrics');
@@ -391,18 +381,66 @@ function connectWebSocket() {
     socket.onerror = function(error) {
         updateConnectionStatus('WebSocket error: ' + error.message, true);
         console.error('WebSocket error:', error);
-        toggleLoadingOverlay(false);
+        
+        // Fallback to traditional GET request if WebSocket fails
+        fallbackToTraditionalFetch();
     };
 
     socket.onclose = function() {
         updateConnectionStatus('WebSocket connection closed. Reconnecting...', true);
-        toggleLoadingOverlay(false);
         
         // Clear the window.socket reference since it's no longer valid
         window.socket = null;
         
-        setTimeout(connectWebSocket, 5000);
+        // If we haven't loaded data yet, use fallback
+        if (attempts.length === 0) {
+            fallbackToTraditionalFetch();
+        } else {
+            setTimeout(connectWebSocket, 5000);
+        }
     };
+}
+
+// Fallback function to use traditional GET request when WebSocket fails
+function fallbackToTraditionalFetch() {
+    console.log('Falling back to traditional fetch method');
+    updateLoadingPercentageWithDelay(40).then(() => {
+        return fetch('/api/attempts');
+    }).then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    }).then(async data => {
+        await updateLoadingPercentageWithDelay(60);
+        attempts = data;
+        
+        await updateLoadingPercentageWithDelay(80);
+        
+        // Initialize the counters with animation
+        updateCounterWithAnimation('totalAttempts', attempts.length);
+        updateUniqueAttackersCount();
+        
+        await updateLoadingPercentageWithDelay(90);
+        
+        // Initialize UI with the data
+        updateUI();
+        centerMapOnMostActiveRegion(attempts);
+        
+        await updateLoadingPercentageWithDelay(100);
+        
+        setTimeout(() => toggleLoadingOverlay(false), 500);
+        
+        // Try to reconnect WebSocket in the background
+        setTimeout(connectWebSocket, 5000);
+    }).catch(error => {
+        console.error('Error in fallback fetch:', error);
+        toggleLoadingOverlay(false);
+        // Show error message to user
+        const message = `Failed to load data. Please refresh the page to try again. Error: ${error.message}`;
+        console.error(message);
+        alert(message);
+    });
 }
 
 function createAttemptElement(attempt) {
