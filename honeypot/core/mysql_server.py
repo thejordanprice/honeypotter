@@ -26,16 +26,15 @@ class MySQLHoneypot(BaseHoneypot):
     def _handle_client(self, client_socket: socket.socket, client_ip: str):
         """Handle an individual MySQL client connection."""
         try:
-            # Set socket timeout using base class method
-            self._configure_socket_timeout(client_socket)
+            # Set socket timeout
+            client_socket.settimeout(10)
             
             # Send initial handshake packet
             logger.info(f"Sending handshake to {client_ip}")
             self._send_handshake(client_socket)
             
-            # Read initial authentication packet with extended timeout
+            # Read initial authentication packet
             logger.info(f"Reading auth packet from {client_ip}")
-            self._configure_socket_timeout(client_socket, self.extended_timeout)
             auth_packet = self._read_packet(client_socket)
             if not auth_packet:
                 logger.warning(f"No auth packet received from {client_ip}")

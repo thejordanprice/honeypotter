@@ -46,8 +46,6 @@ class SIPHoneypot(BaseHoneypot):
             # Start UDP server
             self.udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             self.udp_socket.bind((self.host, self.port))
-            # Set UDP timeout
-            self.udp_socket.settimeout(self.udp_timeout)
             
             logger.info(f"SIP Honeypot listening on {self.host}:{self.port} (TCP and UDP)")
             
@@ -84,13 +82,7 @@ class SIPHoneypot(BaseHoneypot):
         while True:
             try:
                 data, client_address = self.udp_socket.recvfrom(65535)
-                # Process UDP message in a separate thread with timeout
-                threading.Thread(
-                    target=self._handle_udp_message_with_timeout,
-                    args=(data, client_address[0])
-                ).start()
-            except socket.timeout:
-                continue  # Just continue on UDP timeout
+                self._handle_udp_message(data, client_address[0])
             except Exception as e:
                 logger.error(f"Error handling UDP message: {str(e)}")
 
@@ -98,8 +90,8 @@ class SIPHoneypot(BaseHoneypot):
         """Handle an individual TCP client connection."""
         try:
             logger.debug(f"New TCP connection from {client_ip}")
-            # Set socket timeout using base class method
-            self._configure_socket_timeout(client_socket)
+            # Set socket timeout
+            client_socket.settimeout(30)
             
             # Read the entire SIP message
             message = self._read_sip_message(client_socket)
@@ -108,8 +100,7 @@ class SIPHoneypot(BaseHoneypot):
                 return
                 
             logger.debug(f"Received SIP message from {client_ip}:\n{message.decode('utf-8', errors='ignore')}")
-            # Process the message with extended timeout for complex operations
-            self._configure_socket_timeout(client_socket, self.extended_timeout)
+            # Process the message
             self._process_sip_message(message, client_ip, client_socket)
             
         except socket.timeout:
@@ -169,13 +160,13 @@ class SIPHoneypot(BaseHoneypot):
                 
         return bytes(buffer) if buffer else None
 
-    def _handle_udp_message_with_timeout(self, data: bytes, client_ip: str):
-        """Handle a UDP message with timeout."""
+    def _handle_udp_message(self, data: bytes, client_ip: str):
+        """Handle a UDP message."""
         try:
             # Process the message
-            self._process_sip_message(data, client_ip, None)
+            self._process_sip_message(data, client_ip, self.udp_socket)
         except Exception as e:
-            logger.error(f"Error processing UDP message from {client_ip}: {str(e)}")
+            logger.error(f"Error handling SIP UDP message from {client_ip}: {str(e)}")
 
     def _process_sip_message(self, data: bytes, client_ip: str, response_socket: socket.socket):
         """Process a SIP message and send response."""

@@ -8,7 +8,6 @@ from typing import Optional
 from honeypot.database.models import LoginAttempt, get_db, Protocol
 from honeypot.web.app import broadcast_attempt
 from honeypot.core.geolocation import geolocation_service
-from honeypot.core.config import BASE_TIMEOUT, EXTENDED_TIMEOUT, UDP_TIMEOUT
 
 logger = logging.getLogger(__name__)
 
@@ -27,21 +26,6 @@ class BaseHoneypot(ABC):
         self.port = port
         self.protocol = protocol
         self.server_socket = None
-        self.base_timeout = BASE_TIMEOUT
-        self.extended_timeout = EXTENDED_TIMEOUT
-        self.udp_timeout = UDP_TIMEOUT
-
-    def _configure_socket_timeout(self, client_socket: socket.socket, timeout: Optional[float] = None) -> None:
-        """Configure socket timeout with fallback to base timeout.
-        
-        Args:
-            client_socket: The socket to configure
-            timeout: Optional specific timeout value
-        """
-        try:
-            client_socket.settimeout(timeout or self.base_timeout)
-        except Exception as e:
-            logger.error(f"Error setting socket timeout: {str(e)}")
 
     def start(self):
         """Start the honeypot server."""
@@ -55,8 +39,6 @@ class BaseHoneypot(ABC):
             
             while True:
                 client_socket, client_address = self.server_socket.accept()
-                # Configure base timeout for new connections
-                self._configure_socket_timeout(client_socket)
                 threading.Thread(
                     target=self._handle_client,
                     args=(client_socket, client_address[0])
