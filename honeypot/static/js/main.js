@@ -597,10 +597,18 @@ const websocketManager = (function() {
         }).catch(error => {
             console.error('Error in fallback fetch:', error);
             uiManager.toggleLoadingOverlay(false);
-            // Show error message to user
-            const message = `Failed to load data. Please refresh the page to try again. Error: ${error.message}`;
-            console.error(message);
-            alert(message);
+            
+            // Only show error message if we don't have any data yet
+            // If we already have data, the WebSocket will try to reconnect
+            if (attempts.length === 0) {
+                const message = `Failed to load data. Please refresh the page to try again. Error: ${error.message}`;
+                console.error(message);
+                alert(message);
+            } else {
+                console.log('Network connection lost, but data already loaded. Will attempt to reconnect WebSocket.');
+                // Try to reconnect WebSocket in the background
+                setTimeout(connect, 5000);
+            }
         });
     }
 
