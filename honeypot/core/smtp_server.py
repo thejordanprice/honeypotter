@@ -2,12 +2,15 @@
 import socket
 import logging
 import base64
+import re
 from honeypot.core.base_server import BaseHoneypot
 from honeypot.database.models import Protocol
 from honeypot.core.config import HOST, SMTP_PORT
+from honeypot.core.server_registry import register_server
 
 logger = logging.getLogger(__name__)
 
+@register_server
 class SMTPHoneypot(BaseHoneypot):
     """SMTP Honeypot server implementation."""
     

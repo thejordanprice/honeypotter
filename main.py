@@ -7,6 +7,8 @@ import signal
 import sys
 from logging.handlers import RotatingFileHandler
 from datetime import datetime
+from honeypot.core.server_registry import registry
+# Import all server types to ensure they get registered
 from honeypot.core.ssh_server import SSHHoneypot
 from honeypot.core.telnet_server import TelnetHoneypot
 from honeypot.core.ftp_server import FTPHoneypot
@@ -96,63 +98,6 @@ def setup_logging():
     # Reduce verbosity for some common noisy loggers
     logging.getLogger("paramiko").setLevel(logging.WARNING)
     logging.getLogger("uvicorn").setLevel(logging.WARNING)
-
-def start_ssh_server():
-    """Start the SSH honeypot server."""
-    try:
-        honeypot = SSHHoneypot()
-        honeypot.start()
-    except Exception as e:
-        logger.error(f"SSH server failed: {str(e)}")
-
-def start_telnet_server():
-    """Start the Telnet honeypot server."""
-    try:
-        honeypot = TelnetHoneypot()
-        honeypot.start()
-    except Exception as e:
-        logger.error(f"Telnet server failed: {str(e)}")
-
-def start_ftp_server():
-    """Start the FTP honeypot server."""
-    try:
-        honeypot = FTPHoneypot()
-        honeypot.start()
-    except Exception as e:
-        logger.error(f"FTP server failed: {str(e)}")
-
-def start_smtp_server():
-    """Start the SMTP honeypot server."""
-    try:
-        honeypot = SMTPHoneypot()
-        honeypot.start()
-    except Exception as e:
-        logger.error(f"SMTP server failed: {str(e)}")
-
-def start_rdp_server():
-    """Start the RDP honeypot server."""
-    logger = logging.getLogger(__name__)
-    try:
-        honeypot = RDPHoneypot()
-        honeypot.start()
-    except Exception as e:
-        logger.error(f"RDP server failed: {str(e)}")
-
-def start_sip_server():
-    """Start the SIP honeypot server."""
-    try:
-        honeypot = SIPHoneypot()
-        honeypot.start()
-    except Exception as e:
-        logger.error(f"SIP server failed: {str(e)}")
-
-def start_mysql_server():
-    """Start the MySQL honeypot server."""
-    try:
-        honeypot = MySQLHoneypot()
-        honeypot.start()
-    except Exception as e:
-        logger.error(f"MySQL server failed: {str(e)}")
 
 def periodic_db_health_check():
     """Run a periodic database health check to ensure connections are working properly."""
@@ -301,47 +246,12 @@ def main():
                    f"max_connections_per_ip={MAX_CONNECTIONS_PER_IP}, "
                    f"connection_timeout={CONNECTION_TIMEOUT}s")
 
-        # Start SSH server in a separate thread
-        ssh_thread = threading.Thread(target=start_ssh_server, name="SSH-Server")
-        ssh_thread.daemon = True
-        ssh_thread.start()
-        logger.info(f"SSH Honeypot thread started on port {SSH_PORT}")
-
-        # Start Telnet server in a separate thread
-        telnet_thread = threading.Thread(target=start_telnet_server, name="Telnet-Server")
-        telnet_thread.daemon = True
-        telnet_thread.start()
-        logger.info(f"Telnet Honeypot thread started on port {TELNET_PORT}")
-
-        # Start FTP server in a separate thread
-        ftp_thread = threading.Thread(target=start_ftp_server, name="FTP-Server")
-        ftp_thread.daemon = True
-        ftp_thread.start()
-        logger.info(f"FTP Honeypot thread started on port {FTP_PORT}")
-
-        # Start SMTP server in a separate thread
-        smtp_thread = threading.Thread(target=start_smtp_server, name="SMTP-Server")
-        smtp_thread.daemon = True
-        smtp_thread.start()
-        logger.info(f"SMTP Honeypot thread started on port {SMTP_PORT}")
-
-        # Start RDP server in a separate thread
-        rdp_thread = threading.Thread(target=start_rdp_server, name="RDP-Server")
-        rdp_thread.daemon = True
-        rdp_thread.start()
-        logger.info(f"RDP Honeypot thread started on port {RDP_PORT}")
-
-        # Start SIP server in a separate thread
-        sip_thread = threading.Thread(target=start_sip_server, name="SIP-Server")
-        sip_thread.daemon = True
-        sip_thread.start()
-        logger.info(f"SIP Honeypot thread started on port {SIP_PORT}")
-
-        # Start MySQL server in a separate thread
-        mysql_thread = threading.Thread(target=start_mysql_server, name="MySQL-Server")
-        mysql_thread.daemon = True
-        mysql_thread.start()
-        logger.info(f"MySQL Honeypot thread started on port {MYSQL_PORT}")
+        # Start all registered honeypot servers
+        registry.start_servers()
+        
+        # Display all active ports for debugging
+        server_types = registry.get_server_types()
+        logger.info(f"Started {len(server_types)} honeypot servers")
 
         # Start the web application
         logger.info(f"Starting web interface on port {WEB_PORT}")

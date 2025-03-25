@@ -38,6 +38,7 @@ class BaseHoneypot(ABC):
         self.port = port
         self.protocol = protocol
         self.server_socket = None
+        logger.debug(f"Initialized {self.__class__.__name__} on {host}:{port}")
 
     def start(self):
         """Start the honeypot server."""

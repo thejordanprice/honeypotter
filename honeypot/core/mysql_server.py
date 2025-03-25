@@ -2,9 +2,12 @@
 import socket
 import struct
 import logging
+import hashlib
+import os
 from honeypot.core.base_server import BaseHoneypot
 from honeypot.database.models import Protocol
 from honeypot.core.config import HOST, MYSQL_PORT
+from honeypot.core.server_registry import register_server
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +19,7 @@ SERVER_CHARSET = 0x21  # utf8_general_ci
 SERVER_STATUS = 0x0002  # SERVER_STATUS_AUTOCOMMIT
 AUTH_PLUGIN_NAME = b"caching_sha2_password"  # Changed to match client's auth method
 
+@register_server
 class MySQLHoneypot(BaseHoneypot):
     """MySQL Honeypot server implementation."""
     

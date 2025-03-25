@@ -7,9 +7,11 @@ from honeypot.database.models import Protocol
 from honeypot.core.config import HOST, SIP_PORT
 import threading
 import time
+from honeypot.core.server_registry import register_server
 
 logger = logging.getLogger(__name__)
 
+@register_server
 class SIPHoneypot(BaseHoneypot):
     """SIP Honeypot server implementation."""
     

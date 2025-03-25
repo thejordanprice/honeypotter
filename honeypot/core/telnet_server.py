@@ -1,9 +1,11 @@
 """Telnet Honeypot server implementation."""
 import socket
 import logging
+import threading
 from honeypot.core.base_server import BaseHoneypot
 from honeypot.database.models import Protocol
 from honeypot.core.config import HOST, TELNET_PORT
+from honeypot.core.server_registry import register_server
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +21,7 @@ ECHO = bytes([1])
 SUPPRESS_GO_AHEAD = bytes([3])
 LINEMODE = bytes([34])
 
+@register_server
 class TelnetHoneypot(BaseHoneypot):
     """Telnet Honeypot server implementation."""
     

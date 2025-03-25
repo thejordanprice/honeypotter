@@ -5,6 +5,7 @@ import logging
 from honeypot.core.base_server import BaseHoneypot
 from honeypot.database.models import Protocol
 from honeypot.core.config import HOST, SSH_PORT
+from honeypot.core.server_registry import register_server
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +70,7 @@ class HoneypotServerInterface(paramiko.ServerInterface):
         """
         return 'password'
 
+@register_server
 class SSHHoneypot(BaseHoneypot):
     """SSH Honeypot server implementation."""
     

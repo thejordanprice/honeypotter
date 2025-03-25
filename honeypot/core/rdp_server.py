@@ -8,9 +8,11 @@ from typing import Dict, Tuple, Optional
 from .base_server import BaseHoneypot
 from honeypot.database.models import Protocol
 from honeypot.core.config import HOST, RDP_PORT
+from honeypot.core.server_registry import register_server
 
 logger = logging.getLogger(__name__)
 
+@register_server
 class RDPHoneypot(BaseHoneypot):
     """RDP Honeypot server implementation."""
     
