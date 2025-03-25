@@ -144,7 +144,7 @@ function processServiceStatus(data) {
                 // Create new service element if it doesn't exist
                 serviceElement = document.createElement('div');
                 serviceElement.id = `service-${protocol}`;
-                serviceElement.className = 'bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm border border-gray-200 dark:border-gray-700';
+                serviceElement.className = 'bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 shadow-sm';
                 serviceStatus.appendChild(serviceElement);
             }
 
@@ -169,12 +169,9 @@ function processServiceStatus(data) {
                         <span id="${protocol}Status" class="text-lg leading-none font-bold ${statusColor} metric-update">${statusIcon}</span>
                     </div>
                 </div>
-                <div class="space-y-2 text-[11px] font-medium">
-                    <div class="flex items-center text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-700 rounded px-2 py-1">
-                        <svg class="w-3 h-3 mr-1.5 flex-shrink-0 opacity-75" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                        <span class="truncate">Port ${serviceData.port || 'N/A'}</span>
+                <div class="text-center text-[11px] font-medium">
+                    <div class="bg-white dark:bg-gray-700 rounded p-2 text-gray-600 dark:text-gray-300">
+                        Port ${serviceData.port || 'N/A'}
                     </div>
                 </div>
             `;
