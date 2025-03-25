@@ -29,7 +29,7 @@ def setup_logging():
     # Configure logging
     logging.basicConfig(
         level=getattr(logging, LOG_LEVEL),
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        format='%(levelname)s: %(message)s',
         handlers=[
             logging.FileHandler(LOG_FILE),
             logging.StreamHandler()  # Also log to console
@@ -153,12 +153,13 @@ def main():
             host=HOST,
             port=WEB_PORT,
             log_level=LOG_LEVEL.lower(),
+            access_log=False,  # Disable access logs to prevent duplication
             log_config={
                 "version": 1,
-                "disable_existing_loggers": False,
+                "disable_existing_loggers": True,  # Disable existing loggers to prevent duplication
                 "formatters": {
                     "default": {
-                        "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+                        "format": "%(levelname)s: %(message)s",
                         "datefmt": "%Y-%m-%d %H:%M:%S"
                     }
                 },
@@ -170,9 +171,9 @@ def main():
                     }
                 },
                 "loggers": {
-                    "uvicorn": {"handlers": ["default"], "level": LOG_LEVEL},
-                    "uvicorn.access": {"handlers": ["default"], "level": LOG_LEVEL},
-                    "uvicorn.asgi": {"handlers": ["default"], "level": LOG_LEVEL}
+                    "uvicorn": {"handlers": ["default"], "level": LOG_LEVEL, "propagate": False},
+                    "uvicorn.access": {"handlers": ["default"], "level": LOG_LEVEL, "propagate": False},
+                    "uvicorn.asgi": {"handlers": ["default"], "level": LOG_LEVEL, "propagate": False}
                 }
             }
         )
