@@ -7,6 +7,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from sqlalchemy.orm import Session
 from typing import List
 from pathlib import Path
+from datetime import datetime
 from honeypot.core.config import TEMPLATE_DIR, STATIC_DIR, HOST, WEB_PORT, SSH_PORT, TELNET_PORT, FTP_PORT, SMTP_PORT, RDP_PORT, SIP_PORT, MYSQL_PORT
 from honeypot.database.models import get_db, LoginAttempt
 from honeypot.core.system_monitor import SystemMonitor
@@ -89,45 +90,40 @@ async def websocket_endpoint(websocket: WebSocket):
             active_connections.remove(websocket)
 
 @app.get("/api/attempts")
-def get_attempts(
-    db: Session = Depends(get_db),
+async def get_attempts(
     offset: int = 0,
-    limit: int = None,
-    count_only: bool = False
+    limit: int = 1000,
+    count_only: bool = False,
+    since: str = None,
+    db: Session = Depends(get_db)
 ):
-    """Get login attempts with pagination support.
+    """Get login attempts with pagination."""
+    query = db.query(LoginAttempt)
     
-    Args:
-        offset: Number of records to skip
-        limit: Maximum number of records to return
-        count_only: If True, only return the total count
-    """
-    # Get total count using optimized count query
-    total_count = db.query(LoginAttempt.id).count()
+    # If since parameter is provided, filter attempts after that timestamp
+    if since:
+        try:
+            since_dt = datetime.fromisoformat(since.replace('Z', '+00:00'))
+            query = query.filter(LoginAttempt.timestamp > since_dt)
+        except ValueError:
+            return JSONResponse(
+                status_code=400,
+                content={"error": "Invalid timestamp format. Expected ISO format."}
+            )
+    
+    total = query.count()
     
     if count_only:
-        return {"total": total_count}
+        return {"total": total}
     
-    # Get paginated results with optimized query
-    query = db.query(LoginAttempt).order_by(LoginAttempt.timestamp.desc())
-    
-    if offset:
-        query = query.offset(offset)
-    if limit:
-        query = query.limit(limit)
-    
-    # Use yield_per for memory efficiency
-    # If total count is less than chunk size, don't use yield_per to avoid unnecessary overhead
-    attempts = []
-    if total_count < 1000:
-        attempts = [attempt.to_dict() for attempt in query.all()]
-    else:
-        for attempt in query.yield_per(1000):
-            attempts.append(attempt.to_dict())
+    attempts = query.order_by(LoginAttempt.timestamp.desc())\
+                   .offset(offset)\
+                   .limit(limit)\
+                   .all()
     
     return {
-        "attempts": attempts,
-        "total": total_count
+        "attempts": [attempt.to_dict() for attempt in attempts],
+        "total": total
     }
 
 @app.get("/api/export/plaintext")

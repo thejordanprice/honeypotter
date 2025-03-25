@@ -151,6 +151,39 @@ let animatedCount = 0;
 let animatedPercentage = 0;
 let countAnimationFrame = null;
 const CHUNK_SIZE = 1000; // Number of records per chunk
+let lastDataTimestamp = null; // Track the timestamp of the most recent data
+
+// Function to save data to local storage
+function saveToLocalStorage() {
+    try {
+        const dataToSave = {
+            attempts: attempts,
+            timestamp: lastDataTimestamp,
+            totalCount: totalAttemptsCount
+        };
+        localStorage.setItem('honeypotterData', JSON.stringify(dataToSave));
+    } catch (error) {
+        console.error('Error saving to local storage:', error);
+    }
+}
+
+// Function to load data from local storage
+function loadFromLocalStorage() {
+    try {
+        const savedData = localStorage.getItem('honeypotterData');
+        if (savedData) {
+            const parsed = JSON.parse(savedData);
+            attempts = parsed.attempts || [];
+            lastDataTimestamp = parsed.timestamp;
+            totalAttemptsCount = parsed.totalCount || 0;
+            loadedAttemptsCount = attempts.length;
+            return true;
+        }
+    } catch (error) {
+        console.error('Error loading from local storage:', error);
+    }
+    return false;
+}
 
 // Function to animate number with easing
 function animateNumber(start, end, duration, onUpdate, onComplete) {
@@ -308,14 +341,19 @@ function resetLoadingAnimation() {
 }
 
 // Function to load data in chunks with delay between chunks to prevent overwhelming
-async function loadDataChunk(offset) {
+async function loadDataChunk(offset, since = null) {
     try {
         // Add a small delay between chunks to prevent overwhelming
         if (offset > 0) {
             await new Promise(resolve => setTimeout(resolve, 100));
         }
         
-        const response = await fetch(`/api/attempts?offset=${offset}&limit=${CHUNK_SIZE}`);
+        let url = `/api/attempts?offset=${offset}&limit=${CHUNK_SIZE}`;
+        if (since) {
+            url += `&since=${since}`;
+        }
+        
+        const response = await fetch(url);
         const data = await response.json();
         return data;
     } catch (error) {
@@ -325,15 +363,36 @@ async function loadDataChunk(offset) {
 }
 
 // Function to load all data in chunks
-async function loadAllData() {
+async function loadAllData(forceReload = false) {
     if (isLoadingData) return;
     isLoadingData = true;
-    attempts = [];
-    loadedAttemptsCount = 0;
-    
-    // Reset animation state before starting
+
+    // Try to load from local storage if not forcing reload
+    if (!forceReload && loadFromLocalStorage()) {
+        console.log('Using cached data from local storage');
+        updateUI();
+        updateCounterWithAnimation('totalAttempts', attempts.length);
+        updateUniqueAttackersCount();
+        isLoadingData = false;
+        toggleLoadingOverlay(false); // Hide loading overlay for cached data
+        
+        // Fetch only new data since last timestamp in the background
+        if (lastDataTimestamp) {
+            try {
+                await loadIncrementalData(lastDataTimestamp);
+            } catch (error) {
+                console.error('Error loading incremental data:', error);
+            }
+        }
+        return;
+    }
+
+    // Reset animation state before starting fresh load
     resetLoadingAnimation();
     toggleLoadingOverlay(true);
+    
+    attempts = [];
+    loadedAttemptsCount = 0;
     
     try {
         // First, get the total count
@@ -368,6 +427,12 @@ async function loadAllData() {
             attempts = [...attempts, ...chunkData];
             loadedAttemptsCount += chunkData.length;
             
+            // Update last timestamp if needed
+            if (chunkData.length > 0) {
+                const lastAttempt = chunkData[chunkData.length - 1];
+                lastDataTimestamp = lastAttempt.timestamp;
+            }
+            
             // Update loading progress after each chunk
             updateLoadingProgress();
             
@@ -378,15 +443,52 @@ async function loadAllData() {
             // Update UI with partial data
             updateUI();
             
+            // Save to local storage periodically
+            if (offset % (CHUNK_SIZE * 5) === 0) {
+                saveToLocalStorage();
+            }
+            
             // Allow other tasks to process between chunks
             await new Promise(resolve => setTimeout(resolve, 50));
         }
+        
+        // Final save to local storage
+        saveToLocalStorage();
         
     } catch (error) {
         console.error('Error loading data:', error);
     } finally {
         isLoadingData = false;
         setTimeout(() => toggleLoadingOverlay(false), 500);
+    }
+}
+
+// Function to load only new data since last timestamp
+async function loadIncrementalData(since) {
+    try {
+        console.log('Loading incremental data since:', since);
+        const response = await loadDataChunk(0, since);
+        const { attempts: newData, total } = response;
+        
+        if (newData && newData.length > 0) {
+            console.log('Received', newData.length, 'new records');
+            attempts = [...newData, ...attempts];
+            totalAttemptsCount = total;
+            loadedAttemptsCount = attempts.length;
+            
+            // Update last timestamp
+            lastDataTimestamp = newData[0].timestamp;
+            
+            // Update UI and save
+            updateUI();
+            updateCounterWithAnimation('totalAttempts', attempts.length);
+            updateUniqueAttackersCount();
+            saveToLocalStorage();
+        } else {
+            console.log('No new data to load');
+        }
+    } catch (error) {
+        console.error('Error loading incremental data:', error);
     }
 }
 
@@ -400,7 +502,7 @@ function connectWebSocket() {
 
     socket.onopen = function() {
         updateConnectionStatus('Connected to WebSocket');
-        loadAllData(); // Use the new chunked loading function
+        loadAllData(); // Will now use cached data if available
     };
 
     socket.onmessage = function(event) {
@@ -412,6 +514,7 @@ function connectWebSocket() {
             const isNewAttacker = !attempts.some(attempt => attempt.client_ip === newAttempt.client_ip);
             
             attempts.unshift(newAttempt);
+            lastDataTimestamp = newAttempt.timestamp;
             updateCounterWithAnimation('totalAttempts', attempts.length);
             
             // Only update unique attackers if this is a new IP
@@ -420,6 +523,7 @@ function connectWebSocket() {
             }
             
             updateMap(newAttempt);
+            saveToLocalStorage(); // Save after each new attempt
             
             currentPage = 1;
             updateUI();
