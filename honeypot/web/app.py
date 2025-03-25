@@ -483,20 +483,56 @@ async def send_external_ip(websocket: WebSocket):
 async def send_periodic_updates(websocket: WebSocket):
     """Send periodic system metrics updates to a client."""
     try:
+        # Initial metrics check to determine system load
+        metrics = system_monitor.get_system_metrics()
+        high_load = metrics.get('cpu', {}).get('percent', 0) > 70
+        
+        # Track consecutive high load periods for adaptive scheduling
+        consecutive_high_load = 0
+        update_interval = 5  # Default update interval in seconds
+        
         while True:
-            # Send metrics every 5 seconds
-            await asyncio.sleep(5)
+            # Adjust update frequency based on system load
+            if high_load:
+                consecutive_high_load += 1
+                # Scale back frequency during high load periods
+                if consecutive_high_load >= 3:
+                    # After 3 consecutive high load periods, use longer interval
+                    update_interval = 15
+                    logger.debug("System under sustained high load, reducing update frequency")
+                else:
+                    update_interval = 10
+                    logger.debug("System under high load, slightly reducing update frequency")
+            else:
+                consecutive_high_load = 0
+                update_interval = 5  # Normal update interval during normal load
+            
+            # Wait based on the adaptive interval
+            await asyncio.sleep(update_interval)
             
             # Only send if connection is still active
             if websocket in connection_manager.active_connections:
-                await send_system_metrics(websocket)
+                # Get metrics (this will use the cached version if appropriate)
+                metrics = system_monitor.get_system_metrics()
                 
-                # Send service status every 10 seconds
-                if websocket in connection_manager.active_connections and (asyncio.get_event_loop().time() % 10) < 5:
+                # Update high load flag for next iteration
+                high_load = metrics.get('cpu', {}).get('percent', 0) > 70
+                
+                # Send metrics to client
+                message = {
+                    'type': 'system_metrics',
+                    'data': metrics
+                }
+                await connection_manager.send_text(websocket, json.dumps(message))
+                
+                # Send service status less frequently, especially during high load
+                service_status_interval = 30 if high_load else 10
+                if websocket in connection_manager.active_connections and (asyncio.get_event_loop().time() % service_status_interval) < update_interval:
                     await send_service_status(websocket)
                     
-                # Send a heartbeat to keep track of activity
-                if websocket in connection_manager.active_connections and (asyncio.get_event_loop().time() % 30) < 5:
+                # Send a heartbeat to keep track of activity (scaled back during high load)
+                heartbeat_interval = 60 if high_load else 30
+                if websocket in connection_manager.active_connections and (asyncio.get_event_loop().time() % heartbeat_interval) < update_interval:
                     client_info = connection_manager.get_connection_info(websocket).get('client_info', 'unknown')
                     logger.debug(f"Sending server heartbeat to {client_info}")
                     try:
@@ -504,7 +540,8 @@ async def send_periodic_updates(websocket: WebSocket):
                             'type': 'server_heartbeat',
                             'data': {
                                 'timestamp': datetime.now().isoformat(),
-                                'uptime': time.time() - connection_manager.get_connection_info(websocket).get('connected_at', datetime.now()).timestamp()
+                                'uptime': time.time() - connection_manager.get_connection_info(websocket).get('connected_at', datetime.now()).timestamp(),
+                                'update_interval': update_interval  # Let client know about current update interval
                             }
                         }
                         await connection_manager.send_text(websocket, json.dumps(message))

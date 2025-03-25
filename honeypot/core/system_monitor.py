@@ -27,6 +27,15 @@ class SystemMonitor:
         self._external_ip = None
         self._last_ip_check = 0
         self._ip_cache_duration = 300  # Cache IP for 5 minutes
+        # Metrics caching
+        self._metrics_cache = {}
+        self._last_metrics_check = 0
+        self._metrics_cache_duration = 3  # Default cache duration in seconds
+        self._high_load_threshold = 70.0  # CPU percentage threshold for high load
+        self._is_high_load = False
+        self._service_status_cache = {}
+        self._last_service_status_check = 0
+        self._service_cache_duration = 15  # Default cache for service status in seconds
         logger.debug(f"Main process PID: {self.main_pid}")
     
     def get_external_ip(self) -> str:
@@ -42,6 +51,14 @@ class SystemMonitor:
             logger.debug(f"Returning cached external IP: {self._external_ip}")
             return self._external_ip
             
+        # During high load, extend the cache duration
+        if self._is_high_load:
+            # Double the cache duration during high load (10 minutes instead of 5)
+            extended_duration = self._ip_cache_duration * 2
+            if self._external_ip and (current_time - self._last_ip_check) < extended_duration:
+                logger.debug(f"High load detected: Using extended IP cache duration ({extended_duration}s)")
+                return self._external_ip
+        
         # List of services to try for getting the external IP
         ip_services = [
             'https://icanhazip.com',
@@ -50,11 +67,14 @@ class SystemMonitor:
             'https://ifconfig.me'
         ]
         
-        logger.debug(f"Attempting to retrieve external IP from {len(ip_services)} services")
+        # Use a single timeout for all requests to avoid long wait times
+        timeout = 3 if self._is_high_load else 5
+        
+        logger.debug(f"Attempting to retrieve external IP from {len(ip_services)} services (timeout: {timeout}s)")
         for service in ip_services:
             try:
                 logger.debug(f"Trying to get external IP from {service}")
-                response = requests.get(service, timeout=5)
+                response = requests.get(service, timeout=timeout)
                 logger.debug(f"Response from {service}: status={response.status_code}, content={response.text[:50]}")
                 
                 if response.status_code == 200:
@@ -71,6 +91,15 @@ class SystemMonitor:
                 
             except Exception as e:
                 logger.error(f"Error getting external IP from {service}: {str(e)}")
+                
+            # If we're under high load, exit after first attempt to avoid further resource usage
+            if self._is_high_load:
+                logger.debug("High load detected: Stopping external IP lookup after first attempt")
+                # Return the cached IP even if it's expired, rather than "Could not determine IP"
+                if self._external_ip:
+                    logger.info(f"Returning expired cached IP during high load: {self._external_ip}")
+                    return self._external_ip
+                break
         
         # If we got here, none of the services worked
         logger.warning("Failed to get external IP from any service")
@@ -97,12 +126,33 @@ class SystemMonitor:
             return False
 
     def get_system_metrics(self) -> Dict:
-        """Get current system metrics."""
+        """Get current system metrics with caching based on system load."""
+        current_time = time.time()
+        
+        # Check if we can use the cached metrics
+        if self._metrics_cache and (current_time - self._last_metrics_check) < self._metrics_cache_duration:
+            logger.debug(f"Returning cached system metrics (age: {current_time - self._last_metrics_check:.1f}s)")
+            return self._metrics_cache
+        
+        # Adjust cache duration based on current load
+        if self._is_high_load:
+            # During high load, use longer cache duration (10 seconds)
+            self._metrics_cache_duration = 10
+            logger.debug("System under high load, using extended metrics cache duration")
+        else:
+            # During normal load, use shorter cache duration (3 seconds)
+            self._metrics_cache_duration = 3
+        
         try:
             # Get CPU metrics
             try:
-                cpu_percent = psutil.cpu_percent(interval=1)
+                # Use shorter interval (0.1s instead of 1s) to reduce blocking
+                cpu_percent = psutil.cpu_percent(interval=0.1)
                 cpu_count = psutil.cpu_count()
+                
+                # Update high load flag based on CPU usage
+                self._is_high_load = cpu_percent > self._high_load_threshold
+                
             except Exception as e:
                 logger.error(f"Error getting CPU metrics: {str(e)}")
                 cpu_percent = 0
@@ -132,65 +182,8 @@ class SystemMonitor:
                     'percent': 0
                 })
 
-            # Get Network metrics
-            try:
-                if self.is_macos:
-                    # On macOS, try using netstat for network connections
-                    try:
-                        netstat_cmd = ['netstat', '-an']
-                        result = subprocess.run(netstat_cmd, capture_output=True, text=True)
-                        if result.returncode == 0:
-                            connections = len([line for line in result.stdout.splitlines() if 'ESTABLISHED' in line])
-                        else:
-                            connections = 0
-                    except Exception as e:
-                        logger.error(f"Error getting network connections via netstat: {str(e)}")
-                        connections = 0
-
-                    # Try using netstat for network traffic
-                    try:
-                        netstat_cmd = ['netstat', '-I', 'en0', '-b']  # Use en0 as default interface
-                        result = subprocess.run(netstat_cmd, capture_output=True, text=True)
-                        if result.returncode == 0:
-                            lines = result.stdout.splitlines()
-                            if len(lines) >= 2:  # Header + data line
-                                data = lines[1].split()
-                                if len(data) >= 7:
-                                    bytes_in = int(data[6])  # Bytes in
-                                    bytes_out = int(data[9])  # Bytes out
-                                    network = type('Network', (), {
-                                        'bytes_sent': bytes_out,
-                                        'bytes_recv': bytes_in,
-                                        'packets_sent': int(data[8]),  # Packets out
-                                        'packets_recv': int(data[5])   # Packets in
-                                    })
-                                else:
-                                    raise ValueError("Insufficient data in netstat output")
-                            else:
-                                raise ValueError("No data in netstat output")
-                        else:
-                            raise subprocess.CalledProcessError(result.returncode, netstat_cmd)
-                    except Exception as e:
-                        logger.error(f"Error getting network traffic via netstat: {str(e)}")
-                        network = type('Network', (), {
-                            'bytes_sent': 0,
-                            'bytes_recv': 0,
-                            'packets_sent': 0,
-                            'packets_recv': 0
-                        })
-                else:
-                    # On other platforms, use psutil
-                    network = psutil.net_io_counters()
-                    connections = len(psutil.net_connections())
-            except Exception as e:
-                logger.error(f"Error getting network metrics: {str(e)}")
-                network = type('Network', (), {
-                    'bytes_sent': 0,
-                    'bytes_recv': 0,
-                    'packets_sent': 0,
-                    'packets_recv': 0
-                })
-                connections = 0
+            # Get Network metrics (using optimized method)
+            network, connections = self._get_optimized_network_metrics()
 
             # Get Load Average
             try:
@@ -206,7 +199,8 @@ class SystemMonitor:
                 logger.error(f"Error getting uptime: {str(e)}")
                 uptime = 0
             
-            return {
+            # Build and cache the metrics
+            metrics = {
                 'timestamp': datetime.utcnow().isoformat(),
                 'cpu': {
                     'percent': cpu_percent,
@@ -242,10 +236,98 @@ class SystemMonitor:
                     'hours': uptime / 3600
                 }
             }
+            
+            # Update cache
+            self._metrics_cache = metrics
+            self._last_metrics_check = current_time
+            
+            return metrics
         except Exception as e:
             logger.error(f"Error collecting system metrics: {str(e)}")
             return {}
+    
+    def _get_optimized_network_metrics(self):
+        """Get network metrics using optimized methods based on platform."""
+        try:
+            if self.is_macos:
+                # On macOS, use a more efficient method that combines operations
+                try:
+                    # Use cached connections count if available and not too old
+                    current_time = time.time()
+                    if (hasattr(self, '_connections_cache') and 
+                        hasattr(self, '_last_connections_check') and
+                        (current_time - self._last_connections_check) < 5):
+                        connections = self._connections_cache
+                        logger.debug(f"Using cached connections count: {connections}")
+                    else:
+                        # Use a less expensive command for just counting connections
+                        netstat_cmd = ['netstat', '-an']
+                        result = subprocess.run(netstat_cmd, capture_output=True, text=True)
+                        if result.returncode == 0:
+                            connections = len([line for line in result.stdout.splitlines() if 'ESTABLISHED' in line])
+                            # Cache the count
+                            self._connections_cache = connections
+                            self._last_connections_check = current_time
+                        else:
+                            connections = 0
+                except Exception as e:
+                    logger.error(f"Error getting network connections via netstat: {str(e)}")
+                    connections = 0
 
+                # For network traffic data, use the most basic command possible
+                try:
+                    network = type('Network', (), {
+                        'bytes_sent': 0,
+                        'bytes_recv': 0,
+                        'packets_sent': 0,
+                        'packets_recv': 0
+                    })
+                    
+                    # Only collect detailed traffic data during low load periods
+                    if not self._is_high_load:
+                        netstat_cmd = ['netstat', '-I', 'en0', '-b']
+                        result = subprocess.run(netstat_cmd, capture_output=True, text=True)
+                        if result.returncode == 0:
+                            lines = result.stdout.splitlines()
+                            if len(lines) >= 2:
+                                data = lines[1].split()
+                                if len(data) >= 7:
+                                    network.bytes_recv = int(data[6])
+                                    network.bytes_sent = int(data[9])
+                                    network.packets_recv = int(data[5])
+                                    network.packets_sent = int(data[8])
+                except Exception as e:
+                    logger.error(f"Error getting network traffic via netstat: {str(e)}")
+            else:
+                # On other platforms, use psutil but with caching during high load
+                if self._is_high_load and hasattr(self, '_network_cache') and hasattr(self, '_last_network_check'):
+                    current_time = time.time()
+                    if (current_time - self._last_network_check) < 5:
+                        network = self._network_cache
+                        connections = self._connections_cache
+                        logger.debug("Using cached network metrics during high load")
+                        return network, connections
+                
+                # If not cached or cache expired, get new data
+                network = psutil.net_io_counters()
+                connections = len(psutil.net_connections())
+                
+                # Cache for future use
+                self._network_cache = network
+                self._connections_cache = connections
+                self._last_network_check = time.time()
+                
+            return network, connections
+        except Exception as e:
+            logger.error(f"Error in optimized network metrics: {str(e)}")
+            network = type('Network', (), {
+                'bytes_sent': 0,
+                'bytes_recv': 0,
+                'packets_sent': 0,
+                'packets_recv': 0
+            })
+            return network, 0
+    
     def _get_listening_ports_lsof(self) -> Dict[int, int]:
         """Get listening ports using lsof command."""
         try:
@@ -282,7 +364,20 @@ class SystemMonitor:
             return {}
     
     def get_service_status(self) -> Dict:
-        """Check status of monitored services."""
+        """Check status of monitored services with caching."""
+        current_time = time.time()
+        
+        # Return cached service status if not expired
+        if self._service_status_cache and (current_time - self._last_service_status_check) < self._service_cache_duration:
+            logger.debug(f"Returning cached service status (age: {current_time - self._last_service_status_check:.1f}s)")
+            return self._service_status_cache
+        
+        # Adjust cache duration based on system load
+        if self._is_high_load:
+            self._service_cache_duration = 30  # Longer cache during high load
+        else:
+            self._service_cache_duration = 15  # Normal cache duration
+        
         status = {}
         
         try:
@@ -330,6 +425,10 @@ class SystemMonitor:
                 }
                 
                 logger.debug(f"Final status for {service}: {status[service]}")
+                
+            # Update cache
+            self._service_status_cache = status
+            self._last_service_status_check = current_time
                 
         except Exception as e:
             logger.error(f"Error checking service status: {str(e)}")
