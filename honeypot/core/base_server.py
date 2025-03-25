@@ -4,7 +4,7 @@ import threading
 import logging
 import asyncio
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import Optional, Dict
 from honeypot.database.models import LoginAttempt, get_db, Protocol
 from honeypot.web.app import broadcast_attempt
 from honeypot.core.geolocation import geolocation_service
@@ -39,6 +39,11 @@ class BaseHoneypot(ABC):
             
             while True:
                 client_socket, client_address = self.server_socket.accept()
+                
+                # Prefetch geolocation data for the client as soon as they connect
+                # This triggers an async lookup that will be ready when we need it
+                geolocation_service.prefetch_location(client_address[0])
+                
                 threading.Thread(
                     target=self._handle_client,
                     args=(client_socket, client_address[0])
@@ -74,7 +79,7 @@ class BaseHoneypot(ABC):
         logger.info(f"{self.protocol.value.upper()} login attempt from {client_ip}: "
                    f"Username: {username}, Password: {password}")
         
-        # Get geolocation data
+        # Get geolocation data - should be cached by now due to prefetching
         location = geolocation_service.get_location(client_ip)
         
         db = None
