@@ -100,7 +100,22 @@
     min-height: 24px;
     display: flex;
     align-items: center;
+    justify-content: center;
+    text-align: center;
     animation: loadingPulse 2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    max-width: 100%;
+    width: 100%;
+    padding: 0 10px;
+    word-wrap: break-word;
+}
+
+/* Style for error messages to make them more visible */
+#loadingOverlay.connection-failed #loadingDetail {
+    animation: none;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #dc2626;
+    margin-top: 0.5rem;
 }
 
 /* Dark mode adjustments for loading overlay */

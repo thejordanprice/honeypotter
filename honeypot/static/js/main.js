@@ -12,6 +12,7 @@ let heatLayer;
 window.map = map;
 window.currentTileLayer = currentTileLayer;
 window.heatLayer = heatLayer;
+window.connectionFailed = false; // Add a flag to track connection failure state
 
 // Add this to ensure map is ready before adding layers
 window.map.whenReady(function() {
@@ -138,6 +139,12 @@ const uiManager = (function() {
         const loadingText = domUtils.getElement('loadingText');
         const loadingDetail = domUtils.getElement('loadingDetail');
         
+        // Skip automatic status updates if connection has failed
+        if (window.connectionFailed && !statusText.includes('Connection Failed')) {
+            console.log(`Skipping automatic status update during connection failure: ${statusText} - ${detailText}`);
+            return;
+        }
+        
         if (loadingText && statusText) {
             loadingText.textContent = statusText;
         }
@@ -186,8 +193,8 @@ const uiManager = (function() {
                     loadingBar.style.width = `${newPercentage}%`;
                     
                     // Update loading detail text based on percentage, but only during initial loading
-                    // Don't change messages during batch loading (when isReceivingBatches is true)
-                    if (loadingDetail && loadingText && !window.isReceivingBatches) {
+                    // Don't change messages during batch loading or connection failure
+                    if (loadingDetail && loadingText && !window.isReceivingBatches && !window.connectionFailed) {
                         let statusText = loadingText.textContent;
                         let detailText = loadingDetail.textContent;
                         
@@ -690,6 +697,9 @@ const websocketManager = (function() {
             reconnectAttempts = 0;
             reconnectDelay = 1000;
             
+            // Reset connection failed flag on successful connection
+            window.connectionFailed = false;
+            
             uiManager.updateConnectionStatus('Connected to WebSocket');
             await uiManager.updateLoadingPercentageWithDelay(25); // WebSocket connected - update to 25%
             
@@ -770,6 +780,12 @@ const websocketManager = (function() {
             clearTimeout(batchTimeout);
             pendingBatchRequest = false;
             
+            // Clear any loading animation in progress
+            if (window.loadingAnimationId) {
+                clearTimeout(window.loadingAnimationId);
+                window.loadingAnimationId = null;
+            }
+            
             // Stop heartbeat
             stopHeartbeat();
             
@@ -786,6 +802,18 @@ const websocketManager = (function() {
             // Clear pending batch request timeout
             clearTimeout(batchTimeout);
             pendingBatchRequest = false;
+            
+            // Clear any loading animation in progress
+            if (window.loadingAnimationId) {
+                clearTimeout(window.loadingAnimationId);
+                window.loadingAnimationId = null;
+            }
+            
+            // If we've already reached max reconnects, don't try again
+            if (reconnectAttempts >= maxReconnectAttempts) {
+                console.warn("Already reached maximum reconnection attempts, not attempting again");
+                return;
+            }
             
             // Stop heartbeat
             stopHeartbeat();
@@ -867,11 +895,7 @@ const websocketManager = (function() {
             const delay = Math.min(30000, reconnectDelay * Math.pow(1.5, reconnectAttempts - 1));
             console.log(`Attempting to reconnect (${reconnectAttempts}/${maxReconnectAttempts}) in ${delay/1000} seconds...`);
             
-            setTimeout(() => {
-                connect();
-            }, delay);
-            
-            // Update UI to show reconnection attempt
+            // Update UI to show reconnection attempt before starting the timer
             uiManager.updateLoadingStatus('Reconnecting...', 
                 `Connection lost. Reconnecting in ${Math.round(delay/1000)}s (${reconnectAttempts}/${maxReconnectAttempts})`);
             
@@ -880,13 +904,26 @@ const websocketManager = (function() {
             if (loadingOverlay && loadingOverlay.classList.contains('hidden')) {
                 uiManager.toggleLoadingOverlay(true, 15);
             }
+            
+            setTimeout(() => {
+                connect();
+            }, delay);
         } else {
             console.error('Maximum reconnection attempts reached');
+            // Set the connection failed flag to prevent automatic status updates
+            window.connectionFailed = true;
+            
             uiManager.updateConnectionStatus('Connection failed after multiple attempts. Please refresh the page.', true);
             
-            // Update UI to show failure
+            // Get the loading overlay and add a connection-failed class for styling
+            const loadingOverlay = domUtils.getElement('loadingOverlay');
+            if (loadingOverlay) {
+                domUtils.addClass(loadingOverlay, 'connection-failed');
+            }
+            
+            // Update UI to show failure with a more descriptive message
             uiManager.updateLoadingStatus('Connection Failed', 
-                'Connection failed. Please refresh the page');
+                'Unable to connect to server after multiple attempts. The server may be down for maintenance. Please try again later.');
             
             // Update loading percentage to 100% to allow user to dismiss the overlay
             uiManager.updateLoadingPercentage(100);
@@ -900,6 +937,8 @@ const websocketManager = (function() {
                 const refreshButton = document.getElementById('refreshPageButton');
                 if (refreshButton) {
                     refreshButton.addEventListener('click', () => {
+                        // Reset the connection failed flag when refreshing
+                        window.connectionFailed = false;
                         window.location.reload();
                     });
                 }
@@ -1175,6 +1214,9 @@ const init = (function() {
     function setupEventListeners() {
         // Initialize the element cache first
         domUtils.initializeElementCache();
+        
+        // Reset connection failed state on page load
+        window.connectionFailed = false;
         
         // Pagination event listeners
         const prevPageBtn = domUtils.getElement('prevPage');
