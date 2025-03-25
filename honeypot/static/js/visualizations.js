@@ -44,8 +44,8 @@ function updateVisualizations(filteredAttempts) {
 
         // Create and add the heat layer
         heatLayer = L.heatLayer(heatData, {
-            radius: 15,
-            blur: 10,
+            radius: 25,
+            blur: 15,
             maxZoom: 10,
             max: 1.0,
             gradient: {

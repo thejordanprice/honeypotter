@@ -124,8 +124,8 @@ function updateMap(attempt) {
 
     // Create and add the heat layer
     heatLayer = L.heatLayer(heatData, {
-        radius: 15,
-        blur: 10,
+        radius: 25,
+        blur: 15,
         maxZoom: 10,
         max: 1.0,
         gradient: {
@@ -144,77 +144,6 @@ const protocolSelect = document.getElementById("protocolSelect");
 const connectionStatus = document.getElementById("connectionStatus");
 let attempts = [];
 let socket = null;
-let isLoadingData = false;
-let totalAttemptsCount = 0;
-let loadedAttemptsCount = 0;
-let animatedCount = 0;
-let animatedPercentage = 0;
-let countAnimationFrame = null;
-const CHUNK_SIZE = 1000; // Number of records per chunk
-let lastDataTimestamp = null; // Track the timestamp of the most recent data
-
-// Function to save data to local storage
-function saveToLocalStorage() {
-    try {
-        const dataToSave = {
-            attempts: attempts,
-            timestamp: lastDataTimestamp,
-            totalCount: totalAttemptsCount
-        };
-        localStorage.setItem('honeypotterData', JSON.stringify(dataToSave));
-    } catch (error) {
-        console.error('Error saving to local storage:', error);
-    }
-}
-
-// Function to load data from local storage
-function loadFromLocalStorage() {
-    try {
-        const savedData = localStorage.getItem('honeypotterData');
-        if (savedData) {
-            const parsed = JSON.parse(savedData);
-            attempts = parsed.attempts || [];
-            lastDataTimestamp = parsed.timestamp;
-            totalAttemptsCount = parsed.totalCount || 0;
-            loadedAttemptsCount = attempts.length;
-            return true;
-        }
-    } catch (error) {
-        console.error('Error loading from local storage:', error);
-    }
-    return false;
-}
-
-// Function to animate number with easing
-function animateNumber(start, end, duration, onUpdate, onComplete) {
-    const startTime = performance.now();
-    const change = end - start;
-    
-    function easeOutQuad(t) {
-        return t * (2 - t);
-    }
-    
-    function update(currentTime) {
-        const elapsed = currentTime - startTime;
-        const progress = Math.min(elapsed / duration, 1);
-        
-        const currentValue = start + (change * easeOutQuad(progress));
-        onUpdate(Math.round(currentValue));
-        
-        if (progress < 1) {
-            requestAnimationFrame(update);
-        } else {
-            onComplete && onComplete();
-        }
-    }
-    
-    requestAnimationFrame(update);
-}
-
-// Function to format numbers with commas
-function formatNumber(num) {
-    return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-}
 
 // Function to update counter with simple animation
 function updateCounterWithAnimation(elementId, newValue) {
@@ -281,297 +210,6 @@ function toggleLoadingOverlay(show) {
 // Show loading overlay initially
 toggleLoadingOverlay(true);
 
-// Function to update loading progress with smooth animations
-function updateLoadingProgress() {
-    const loadingPercentage = document.querySelector('.loading-percentage');
-    const loadingCount = document.querySelector('.loading-count');
-    const progressCircle = document.querySelector('.progress-circle');
-    
-    if (loadingPercentage && loadingCount && progressCircle && totalAttemptsCount > 0) {
-        const targetPercentage = Math.round((loadedAttemptsCount / totalAttemptsCount) * 100);
-        const targetCount = loadedAttemptsCount;
-        
-        // Cancel any existing animation
-        if (countAnimationFrame) {
-            cancelAnimationFrame(countAnimationFrame);
-        }
-        
-        // Animate percentage and update circle
-        animateNumber(animatedPercentage, targetPercentage, 500, (value) => {
-            animatedPercentage = value;
-            loadingPercentage.textContent = `${value}%`;
-            
-            // Update progress circle
-            const circumference = 2 * Math.PI * 16; // r = 16 from SVG
-            const offset = circumference - (value / 100) * circumference;
-            progressCircle.style.strokeDasharray = `${circumference} ${circumference}`;
-            progressCircle.style.strokeDashoffset = offset;
-        });
-        
-        // Animate count
-        animateNumber(animatedCount, targetCount, 500, (value) => {
-            animatedCount = value;
-            loadingCount.textContent = `${formatNumber(value)} of ${formatNumber(totalAttemptsCount)} records`;
-        });
-        
-        // If we have fewer records than chunk size, update UI immediately
-        if (totalAttemptsCount < CHUNK_SIZE) {
-            updateUI();
-        }
-    }
-}
-
-// Function to reset loading animation state
-function resetLoadingAnimation() {
-    const loadingPercentage = document.querySelector('.loading-percentage');
-    const loadingCount = document.querySelector('.loading-count');
-    const progressCircle = document.querySelector('.progress-circle');
-    
-    if (loadingPercentage && loadingCount && progressCircle) {
-        loadingPercentage.textContent = '0%';
-        loadingCount.textContent = '0 of 0 records';
-        
-        const circumference = 2 * Math.PI * 16;
-        progressCircle.style.strokeDasharray = `${circumference} ${circumference}`;
-        progressCircle.style.strokeDashoffset = circumference;
-    }
-    
-    animatedCount = 0;
-    animatedPercentage = 0;
-}
-
-// Function to load data in chunks with delay between chunks to prevent overwhelming
-async function loadDataChunk(offset, since = null) {
-    try {
-        // Add a small delay between chunks to prevent overwhelming
-        if (offset > 0) {
-            await new Promise(resolve => setTimeout(resolve, 100));
-        }
-        
-        let url = `/api/attempts?offset=${offset}&limit=${CHUNK_SIZE}`;
-        if (since) {
-            url += `&since=${since}`;
-        }
-        
-        const response = await fetch(url);
-        const data = await response.json();
-        return data;
-    } catch (error) {
-        console.error('Error fetching data chunk:', error);
-        return { attempts: [], total: 0 };
-    }
-}
-
-// Function to validate entry count
-async function validateEntryCount() {
-    try {
-        const response = await fetch('/api/attempts?count_only=true');
-        const { total } = await response.json();
-        
-        // Check if the local count matches the server count
-        if (attempts.length !== total) {
-            console.warn(`Entry count mismatch: local ${attempts.length} vs server ${total}`);
-            
-            // Additional check for duplicates
-            const uniqueAttempts = new Map();
-            let duplicatesFound = false;
-            
-            attempts.forEach(attempt => {
-                const key = `${attempt.timestamp}_${attempt.client_ip}_${attempt.protocol}`;
-                if (uniqueAttempts.has(key)) {
-                    duplicatesFound = true;
-                    console.warn('Duplicate entry found:', key);
-                }
-                uniqueAttempts.set(key, attempt);
-            });
-            
-            if (duplicatesFound) {
-                console.warn('Removing duplicates and updating storage...');
-                attempts = Array.from(uniqueAttempts.values());
-                
-                // If after removing duplicates we still have a mismatch, clear everything
-                if (attempts.length !== total) {
-                    localStorage.removeItem('honeypotterData');
-                    window.location.reload();
-                    return false;
-                } else {
-                    // Save the deduplicated data
-                    saveToLocalStorage();
-                    return true;
-                }
-            } else {
-                // If no duplicates found but counts still don't match, clear everything
-                localStorage.removeItem('honeypotterData');
-                window.location.reload();
-                return false;
-            }
-        }
-        return true;
-    } catch (error) {
-        console.error('Error validating entry count:', error);
-        return false;
-    }
-}
-
-// Function to load all data in chunks
-async function loadAllData(forceReload = false) {
-    if (isLoadingData) return;
-    isLoadingData = true;
-
-    // Try to load from local storage if not forcing reload
-    if (!forceReload && loadFromLocalStorage()) {
-        console.log('Using cached data from local storage');
-        
-        // Validate the entry count
-        const isValid = await validateEntryCount();
-        if (!isValid) {
-            isLoadingData = false;
-            return;
-        }
-        
-        updateUI();
-        updateCounterWithAnimation('totalAttempts', attempts.length);
-        updateUniqueAttackersCount();
-        isLoadingData = false;
-        toggleLoadingOverlay(false); // Hide loading overlay for cached data
-        
-        // Fetch only new data since last timestamp in the background
-        if (lastDataTimestamp) {
-            try {
-                await loadIncrementalData(lastDataTimestamp);
-            } catch (error) {
-                console.error('Error loading incremental data:', error);
-            }
-        }
-        return;
-    }
-
-    // Reset animation state before starting fresh load
-    resetLoadingAnimation();
-    toggleLoadingOverlay(true);
-    
-    attempts = [];
-    loadedAttemptsCount = 0;
-    
-    try {
-        // First, get the total count
-        const initialResponse = await fetch('/api/attempts?count_only=true');
-        const { total } = await initialResponse.json();
-        totalAttemptsCount = total;
-        
-        // Update loading count text with total
-        const loadingCount = document.querySelector('.loading-count');
-        if (loadingCount) {
-            loadingCount.textContent = `0 of ${formatNumber(total)} records`;
-        }
-        
-        // If we have no data, update UI and return early
-        if (total === 0) {
-            updateUI();
-            isLoadingData = false;
-            setTimeout(() => toggleLoadingOverlay(false), 500);
-            return;
-        }
-        
-        // Load data in chunks
-        for (let offset = 0; offset < total; offset += CHUNK_SIZE) {
-            const response = await loadDataChunk(offset);
-            const { attempts: chunkData } = response;
-            
-            if (!chunkData || chunkData.length === 0) {
-                console.warn(`No data received for chunk at offset ${offset}`);
-                continue;
-            }
-            
-            attempts = [...attempts, ...chunkData];
-            loadedAttemptsCount += chunkData.length;
-            
-            // Update last timestamp if needed
-            if (chunkData.length > 0) {
-                const lastAttempt = chunkData[chunkData.length - 1];
-                lastDataTimestamp = lastAttempt.timestamp;
-            }
-            
-            // Update loading progress after each chunk
-            updateLoadingProgress();
-            
-            // Update counters and UI immediately with each chunk
-            updateCounterWithAnimation('totalAttempts', attempts.length);
-            updateUniqueAttackersCount();
-            
-            // Update UI with partial data
-            updateUI();
-            
-            // Save to local storage periodically
-            if (offset % (CHUNK_SIZE * 5) === 0) {
-                saveToLocalStorage();
-            }
-            
-            // Allow other tasks to process between chunks
-            await new Promise(resolve => setTimeout(resolve, 50));
-        }
-        
-        // Final save to local storage
-        saveToLocalStorage();
-        
-    } catch (error) {
-        console.error('Error loading data:', error);
-    } finally {
-        isLoadingData = false;
-        setTimeout(() => toggleLoadingOverlay(false), 500);
-    }
-}
-
-// Function to load only new data since last timestamp
-async function loadIncrementalData(since) {
-    try {
-        console.log('Loading incremental data since:', since);
-        const response = await loadDataChunk(0, since);
-        const { attempts: newData, total } = response;
-        
-        if (newData && newData.length > 0) {
-            console.log('Received', newData.length, 'new records');
-            
-            // Create a Set of existing entry keys to prevent duplicates
-            const existingEntries = new Set(
-                attempts.map(a => `${a.timestamp}_${a.client_ip}_${a.protocol}`)
-            );
-            
-            // Filter out any duplicates from new data
-            const uniqueNewData = newData.filter(attempt => {
-                const key = `${attempt.timestamp}_${attempt.client_ip}_${attempt.protocol}`;
-                return !existingEntries.has(key);
-            });
-            
-            if (uniqueNewData.length !== newData.length) {
-                console.warn(`Filtered out ${newData.length - uniqueNewData.length} duplicate entries`);
-            }
-            
-            attempts = [...uniqueNewData, ...attempts];
-            totalAttemptsCount = total;
-            loadedAttemptsCount = attempts.length;
-            
-            // Update last timestamp if we have new data
-            if (uniqueNewData.length > 0) {
-                lastDataTimestamp = uniqueNewData[0].timestamp;
-            }
-            
-            // Update UI and save
-            updateUI();
-            updateCounterWithAnimation('totalAttempts', attempts.length);
-            updateUniqueAttackersCount();
-            saveToLocalStorage();
-            
-            // Validate the count after adding new data
-            await validateEntryCount();
-        } else {
-            console.log('No new data to load');
-        }
-    } catch (error) {
-        console.error('Error loading incremental data:', error);
-    }
-}
-
 function connectWebSocket() {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${protocol}//${window.location.host}/ws`;
@@ -582,7 +220,31 @@ function connectWebSocket() {
 
     socket.onopen = function() {
         updateConnectionStatus('Connected to WebSocket');
-        loadAllData(); // Will now use cached data if available
+        fetch('/api/attempts')
+            .then(response => response.json())
+            .then(data => {
+                attempts = data;
+                
+                const currentFilters = {
+                    search: searchInput.value.toLowerCase().trim(),
+                    filter: filterSelect.value,
+                    protocol: protocolSelect.value
+                };
+                
+                const filteredAttempts = filterAttempts(attempts);
+                
+                // Initialize the counters with animation
+                updateCounterWithAnimation('totalAttempts', attempts.length);
+                updateUniqueAttackersCount();
+                
+                updateUI();
+                
+                setTimeout(() => toggleLoadingOverlay(false), 500);
+            })
+            .catch(error => {
+                console.error('Error fetching data:', error);
+                toggleLoadingOverlay(false);
+            });
     };
 
     socket.onmessage = function(event) {
@@ -594,7 +256,6 @@ function connectWebSocket() {
             const isNewAttacker = !attempts.some(attempt => attempt.client_ip === newAttempt.client_ip);
             
             attempts.unshift(newAttempt);
-            lastDataTimestamp = newAttempt.timestamp;
             updateCounterWithAnimation('totalAttempts', attempts.length);
             
             // Only update unique attackers if this is a new IP
@@ -603,7 +264,6 @@ function connectWebSocket() {
             }
             
             updateMap(newAttempt);
-            saveToLocalStorage(); // Save after each new attempt
             
             currentPage = 1;
             updateUI();
