@@ -97,31 +97,76 @@ const uiManager = (function() {
         const loadingText = domUtils.getElement('loadingText');
         
         if (percentageElement && loadingBar) {
-            const roundedPercentage = Math.round(percentage);
-            percentageElement.textContent = `${roundedPercentage}%`;
-            loadingBar.style.width = `${roundedPercentage}%`;
+            const currentPercentage = parseInt(percentageElement.textContent) || 0;
+            const targetPercentage = Math.round(percentage);
             
-            // Update loading detail text based on percentage
-            if (loadingDetail && loadingText) {
-                if (percentage <= 10) {
-                    loadingText.textContent = 'Initializing...';
-                    loadingDetail.textContent = 'Preparing connection';
-                } else if (percentage <= 30) {
-                    loadingText.textContent = 'Connecting...';
-                    loadingDetail.textContent = 'Establishing WebSocket connection';
-                } else if (percentage <= 50) {
-                    loadingText.textContent = 'Loading...';
-                    loadingDetail.textContent = 'Fetching attack data';
-                } else if (percentage <= 70) {
-                    loadingText.textContent = 'Processing...';
-                    loadingDetail.textContent = 'Analyzing attack patterns';
-                } else if (percentage <= 90) {
-                    loadingText.textContent = 'Finalizing...';
-                    loadingDetail.textContent = 'Preparing visualization';
-                } else {
-                    loadingText.textContent = 'Complete';
-                    loadingDetail.textContent = 'Starting application';
+            // If the target is less than current, just update directly
+            if (targetPercentage <= currentPercentage) {
+                percentageElement.textContent = `${targetPercentage}%`;
+                loadingBar.style.width = `${targetPercentage}%`;
+            } else {
+                // Animate from current to target percentage
+                const minDuration = 10; // Minimum milliseconds between increments
+                const maxDuration = 25; // Maximum milliseconds between increments
+                const steps = targetPercentage - currentPercentage;
+                
+                // Cancel any existing animation
+                if (window.loadingAnimationId) {
+                    clearTimeout(window.loadingAnimationId);
+                    window.loadingAnimationId = null;
                 }
+                
+                let currentStep = 0;
+                const animate = () => {
+                    if (currentStep >= steps) return;
+                    
+                    currentStep++;
+                    const newPercentage = currentPercentage + currentStep;
+                    
+                    percentageElement.textContent = `${newPercentage}%`;
+                    loadingBar.style.width = `${newPercentage}%`;
+                    
+                    // Update loading detail text based on percentage
+                    if (loadingDetail && loadingText) {
+                        if (newPercentage <= 10) {
+                            loadingText.textContent = 'Initializing...';
+                            loadingDetail.textContent = 'Preparing connection';
+                        } else if (newPercentage <= 30) {
+                            loadingText.textContent = 'Connecting...';
+                            loadingDetail.textContent = 'Establishing WebSocket connection';
+                        } else if (newPercentage <= 50) {
+                            loadingText.textContent = 'Loading...';
+                            loadingDetail.textContent = 'Fetching attack data';
+                        } else if (newPercentage <= 70) {
+                            loadingText.textContent = 'Processing...';
+                            loadingDetail.textContent = 'Analyzing attack patterns';
+                        } else if (newPercentage <= 90) {
+                            loadingText.textContent = 'Finalizing...';
+                            loadingDetail.textContent = 'Preparing visualization';
+                        } else {
+                            loadingText.textContent = 'Complete';
+                            loadingDetail.textContent = 'Starting application';
+                        }
+                    }
+                    
+                    if (currentStep < steps) {
+                        // Calculate dynamic duration - faster as we get closer to target
+                        // or when there are large jumps to make
+                        let dynamicDuration;
+                        if (steps > 20) {
+                            // For large jumps, use very short duration
+                            dynamicDuration = minDuration;
+                        } else {
+                            // Linear interpolation between min and max duration
+                            const progress = currentStep / steps;
+                            dynamicDuration = maxDuration - (progress * (maxDuration - minDuration));
+                        }
+                        
+                        window.loadingAnimationId = setTimeout(animate, dynamicDuration);
+                    }
+                };
+                
+                animate();
             }
         }
     }
@@ -143,6 +188,18 @@ const uiManager = (function() {
                 overlay.style.visibility = 'visible';
             });
         } else {
+            // Cancel any running loading animation
+            if (window.loadingAnimationId) {
+                clearTimeout(window.loadingAnimationId);
+                window.loadingAnimationId = null;
+                
+                // Force the loading bar to 100% before hiding
+                const percentageElement = domUtils.getElement('loadingPercentage');
+                const loadingBar = domUtils.getElement('loadingBar');
+                if (percentageElement) percentageElement.textContent = '100%';
+                if (loadingBar) loadingBar.style.width = '100%';
+            }
+            
             overlay.style.opacity = '0';
             overlay.style.visibility = 'hidden';
             document.body.style.overflow = '';
