@@ -144,7 +144,26 @@ function setMapTheme(isDark) {
     currentTileLayer.addTo(map);
 }
 
-// Initial theme setup is now handled in init.setupTheme()
+// Function to update chart colors with dark mode
+function updateAllChartThemes(isDark) {
+    if (typeof updateChartColors !== 'function') return;
+    
+    const chartTextColor = isDark ? '#f3f4f6' : '#1f2937';
+    const gridColor = isDark ? '#374151' : '#e5e7eb';
+    
+    if (typeof attemptsChart !== 'undefined') {
+        updateChartColors(attemptsChart, isDark, chartTextColor, gridColor);
+    }
+    if (typeof usernamesChart !== 'undefined') {
+        updateChartColors(usernamesChart, isDark, chartTextColor, gridColor);
+    }
+    if (typeof ipsChart !== 'undefined') {
+        updateChartColors(ipsChart, isDark, chartTextColor, gridColor);
+    }
+    if (typeof countriesChart !== 'undefined') {
+        updateChartColors(countriesChart, isDark, chartTextColor, gridColor);
+    }
+}
 
 function updateMap(attempt) {
     if (!attempt.latitude || !attempt.longitude) return;
@@ -919,22 +938,8 @@ const init = (function() {
                 menuUtils.closeMenu(mobileMenu);
                 setMapTheme(isDark);
 
-                // Update chart colors
-                const chartTextColor = isDark ? '#f3f4f6' : '#1f2937';
-                const gridColor = isDark ? '#374151' : '#e5e7eb';
-                
-                if (typeof attemptsChart !== 'undefined') {
-                    updateChartColors(attemptsChart, isDark, chartTextColor, gridColor);
-                }
-                if (typeof usernamesChart !== 'undefined') {
-                    updateChartColors(usernamesChart, isDark, chartTextColor, gridColor);
-                }
-                if (typeof ipsChart !== 'undefined') {
-                    updateChartColors(ipsChart, isDark, chartTextColor, gridColor);
-                }
-                if (typeof countriesChart !== 'undefined') {
-                    updateChartColors(countriesChart, isDark, chartTextColor, gridColor);
-                }
+                // Update chart colors using the new helper function
+                updateAllChartThemes(isDark);
             });
         }
 
@@ -976,7 +981,10 @@ const init = (function() {
     
     function setupTheme() {
         // Initialize theme based on user preference, system preference, or default to light mode
-        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        const isDark = localStorage.theme === 'dark' || 
+            (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        
+        if (isDark) {
             document.documentElement.classList.add('dark');
             localStorage.theme = 'dark';
             const lightIconMenu = document.getElementById('lightIconMenu');
@@ -991,22 +999,27 @@ const init = (function() {
             }
         } else {
             // Default to light mode if no preference is set or system is light mode
+            document.documentElement.classList.remove('dark');
             localStorage.theme = 'light';
             const themeText = document.getElementById('themeText');
             if (themeText) {
                 themeText.textContent = 'Dark Mode';
             }
         }
+        
+        // Ensure map theme is set correctly
+        setMapTheme(isDark);
+        
+        // Ensure chart colors are updated correctly
+        updateAllChartThemes(isDark);
     }
     
     function setupMap() {
-        // Set the appropriate tile layer
-        setMapTheme(document.documentElement.classList.contains('dark'));
+        // This is now handled in setupTheme to ensure it happens in the right sequence
     }
     
     function startApplication() {
         setupTheme();
-        setupMap();
         setupEventListeners();
         
         // Show loading overlay
