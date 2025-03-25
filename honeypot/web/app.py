@@ -7,7 +7,6 @@ from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from sqlalchemy.orm import Session
 from typing import List
 from pathlib import Path
-from datetime import datetime
 from honeypot.core.config import TEMPLATE_DIR, STATIC_DIR, HOST, WEB_PORT, SSH_PORT, TELNET_PORT, FTP_PORT, SMTP_PORT, RDP_PORT, SIP_PORT, MYSQL_PORT
 from honeypot.database.models import get_db, LoginAttempt
 from honeypot.core.system_monitor import SystemMonitor
@@ -90,41 +89,10 @@ async def websocket_endpoint(websocket: WebSocket):
             active_connections.remove(websocket)
 
 @app.get("/api/attempts")
-async def get_attempts(
-    offset: int = 0,
-    limit: int = 1000,
-    count_only: bool = False,
-    since: str = None,
-    db: Session = Depends(get_db)
-):
-    """Get login attempts with pagination."""
-    query = db.query(LoginAttempt)
-    
-    # If since parameter is provided, filter attempts after that timestamp
-    if since:
-        try:
-            since_dt = datetime.fromisoformat(since.replace('Z', '+00:00'))
-            query = query.filter(LoginAttempt.timestamp > since_dt)
-        except ValueError:
-            return JSONResponse(
-                status_code=400,
-                content={"error": "Invalid timestamp format. Expected ISO format."}
-            )
-    
-    total = query.count()
-    
-    if count_only:
-        return {"total": total}
-    
-    attempts = query.order_by(LoginAttempt.timestamp.desc())\
-                   .offset(offset)\
-                   .limit(limit)\
-                   .all()
-    
-    return {
-        "attempts": [attempt.to_dict() for attempt in attempts],
-        "total": total
-    }
+def get_attempts(db: Session = Depends(get_db)):
+    """Get all login attempts."""
+    attempts = db.query(LoginAttempt).order_by(LoginAttempt.timestamp.desc()).all()
+    return [attempt.to_dict() for attempt in attempts]
 
 @app.get("/api/export/plaintext")
 def export_plaintext(db: Session = Depends(get_db), download: bool = False):
