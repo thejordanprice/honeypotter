@@ -6,6 +6,7 @@ from honeypot.core.base_server import BaseHoneypot
 from honeypot.database.models import Protocol
 from honeypot.core.config import HOST, SIP_PORT
 import threading
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -25,73 +26,18 @@ class SIPHoneypot(BaseHoneypot):
             'CANCEL': self._handle_cancel,
             'OPTIONS': self._handle_options
         }
+        
+        # Create UDP socket in init but start in start() method
+        self.udp_socket = None
+        self.udp_thread = None
 
     def _handle_client(self, client_socket: socket.socket, client_ip: str):
-        """Handle an individual client connection (required by base class).
+        """Handle an individual TCP client connection.
         
-        This method is required by the base class but we don't use it directly
-        as we handle both TCP and UDP separately.
+        Process SIP messages received over TCP.
         """
-        pass  # We handle clients in _handle_tcp_client and _handle_udp_message
-
-    def start(self):
-        """Start the SIP honeypot server on both TCP and UDP."""
-        try:
-            # Start TCP server
-            self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            self.server_socket.bind((self.host, self.port))
-            self.server_socket.listen(100)
-            
-            # Start UDP server
-            self.udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            self.udp_socket.bind((self.host, self.port))
-            
-            logger.info(f"SIP Honeypot listening on {self.host}:{self.port} (TCP and UDP)")
-            
-            # Start TCP handler thread
-            tcp_thread = threading.Thread(target=self._handle_tcp_connections)
-            tcp_thread.daemon = True
-            tcp_thread.start()
-            
-            # Handle UDP messages in the main thread
-            self._handle_udp_messages()
-                
-        except Exception as e:
-            logger.error(f"Failed to start SIP Honeypot: {str(e)}")
-            if hasattr(self, 'server_socket'):
-                self.server_socket.close()
-            if hasattr(self, 'udp_socket'):
-                self.udp_socket.close()
-            raise
-
-    def _handle_tcp_connections(self):
-        """Handle TCP connections in a separate thread."""
-        while True:
-            try:
-                client_socket, client_address = self.server_socket.accept()
-                threading.Thread(
-                    target=self._handle_tcp_client,
-                    args=(client_socket, client_address[0])
-                ).start()
-            except Exception as e:
-                logger.error(f"Error accepting TCP connection: {str(e)}")
-
-    def _handle_udp_messages(self):
-        """Handle UDP messages in the main thread."""
-        while True:
-            try:
-                data, client_address = self.udp_socket.recvfrom(65535)
-                self._handle_udp_message(data, client_address[0])
-            except Exception as e:
-                logger.error(f"Error handling UDP message: {str(e)}")
-
-    def _handle_tcp_client(self, client_socket: socket.socket, client_ip: str):
-        """Handle an individual TCP client connection."""
         try:
             logger.debug(f"New TCP connection from {client_ip}")
-            # Set socket timeout
-            client_socket.settimeout(30)
             
             # Read the entire SIP message
             message = self._read_sip_message(client_socket)
@@ -110,6 +56,62 @@ class SIPHoneypot(BaseHoneypot):
         finally:
             client_socket.close()
             logger.debug(f"Closed TCP connection from {client_ip}")
+
+    def start(self):
+        """Start the SIP honeypot server on both TCP and UDP."""
+        try:
+            # Start UDP server before TCP server
+            self.udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            self.udp_socket.bind((self.host, self.port))
+            
+            # Start UDP handler in a separate thread
+            self.udp_thread = threading.Thread(
+                target=self._handle_udp_messages,
+                name="SIP-UDP-Handler",
+                daemon=True
+            )
+            self.udp_thread.start()
+            logger.info(f"SIP UDP handler started on {self.host}:{self.port}")
+            
+            # Call the base class implementation to start TCP handling with thread management
+            logger.info(f"Starting SIP TCP honeypot on {self.host}:{self.port}")
+            super().start()
+                
+        except Exception as e:
+            logger.error(f"Failed to start SIP Honeypot: {str(e)}")
+            if hasattr(self, 'server_socket'):
+                self.server_socket.close()
+            if hasattr(self, 'udp_socket'):
+                self.udp_socket.close()
+            raise
+
+    def _handle_udp_messages(self):
+        """Handle UDP messages in a separate thread."""
+        while True:
+            try:
+                data, client_address = self.udp_socket.recvfrom(65535)
+                client_ip = client_address[0]
+                
+                # Use the thread manager for UDP messages too, but handle differently
+                if not self.thread_manager.submit_connection(
+                    self._handle_udp_message_with_thread_manager, 
+                    client_ip, 
+                    data, 
+                    client_ip
+                ):
+                    logger.warning(f"Rejected UDP message from {client_ip}: too many connections")
+                    
+            except Exception as e:
+                logger.error(f"Error receiving UDP message: {str(e)}")
+                # Sleep briefly to avoid tight loop in case of persistent errors
+                time.sleep(0.1)
+
+    def _handle_udp_message_with_thread_manager(self, data: bytes, client_ip: str):
+        """Wrapper to handle UDP messages with thread manager."""
+        self._handle_udp_message(data, client_ip)
+        
+        # Update activity to prevent timeout
+        self.thread_manager.update_activity(client_ip)
 
     def _read_sip_message(self, sock: socket.socket) -> bytes:
         """Read an entire SIP message from the socket.
@@ -131,6 +133,10 @@ class SIPHoneypot(BaseHoneypot):
                     logger.debug("No more data to read")
                     break
                     
+                # Update activity timestamp to prevent timeout
+                client_ip = sock.getpeername()[0]
+                self.thread_manager.update_activity(client_ip)
+                
                 # Handle different line endings
                 if data == b'\r':
                     buffer.extend(data)
@@ -163,13 +169,27 @@ class SIPHoneypot(BaseHoneypot):
     def _handle_udp_message(self, data: bytes, client_ip: str):
         """Handle a UDP message."""
         try:
-            # Process the message
-            self._process_sip_message(data, client_ip, self.udp_socket)
+            # Create a response socket for sending UDP responses back to the client
+            udp_response_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            
+            try:
+                # Process the message
+                logger.debug(f"Processing UDP message from {client_ip}")
+                self._process_sip_message(data, client_ip, (udp_response_socket, client_ip))
+            finally:
+                # Always close the response socket
+                udp_response_socket.close()
         except Exception as e:
             logger.error(f"Error handling SIP UDP message from {client_ip}: {str(e)}")
 
-    def _process_sip_message(self, data: bytes, client_ip: str, response_socket: socket.socket):
-        """Process a SIP message and send response."""
+    def _process_sip_message(self, data: bytes, client_ip: str, response_socket):
+        """Process a SIP message and send response.
+        
+        Args:
+            data: The SIP message data
+            client_ip: The client's IP address
+            response_socket: Either a socket object (for TCP) or a tuple of (socket, client_address) for UDP
+        """
         try:
             # Decode the message
             message = data.decode('utf-8', errors='ignore')
@@ -220,14 +240,20 @@ class SIPHoneypot(BaseHoneypot):
                 logger.debug(f"Handling SIP method: {method}")
                 response = self.sip_methods[method](message, client_ip)
                 if response:
+                    response_bytes = response.encode()
+                    # Handle different types of response sockets
                     if isinstance(response_socket, socket.socket):
-                        if response_socket.type == socket.SOCK_STREAM:
-                            response_socket.send(response.encode())
-                            logger.debug("Sent TCP response")
-                        else:  # UDP
-                            response_socket.sendto(response.encode(), (client_ip, self.port))
-                            logger.debug("Sent UDP response")
-            
+                        # TCP socket
+                        response_socket.send(response_bytes)
+                        logger.debug("Sent TCP response")
+                    elif isinstance(response_socket, tuple) and len(response_socket) == 2:
+                        # UDP socket and address
+                        sock, address = response_socket
+                        sock.sendto(response_bytes, (address, self.port))
+                        logger.debug(f"Sent UDP response to {address}:{self.port}")
+            else:
+                logger.debug(f"Unsupported SIP method: {method}")
+        
         except Exception as e:
             logger.error(f"Error processing SIP message: {str(e)}", exc_info=True)
 

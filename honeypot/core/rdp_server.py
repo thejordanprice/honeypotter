@@ -18,32 +18,16 @@ class RDPHoneypot(BaseHoneypot):
         """Initialize the RDP honeypot server."""
         super().__init__(host, port, Protocol.RDP)
         self.connection_states: Dict[str, Dict] = {}
-        self.base_timeout = 2.0  # Short timeout for initial connection
         self.recv_buffer_size = 8192
         self.connection_lock = threading.Lock()
 
     def start(self) -> None:
         """Start the RDP honeypot server."""
-        try:
-            self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            self.server_socket.bind((self.host, self.port))
-            self.server_socket.listen(5)
-            logger.info(f"RDP honeypot listening on {self.host}:{self.port}")
-            
-            while True:
-                client_socket, client_address = self.server_socket.accept()
-                self._handle_client(client_socket, client_address)
-        
-        except Exception as e:
-            logger.error(f"Error in RDP server: {str(e)}")
-        finally:
-            if hasattr(self, 'server_socket'):
-                self.server_socket.close()
+        # Use the base class implementation which will handle threading properly
+        super().start()
 
-    def _handle_client(self, client_socket: socket.socket, client_address: Tuple[str, int]) -> None:
+    def _handle_client(self, client_socket: socket.socket, client_ip: str) -> None:
         """Handle a client connection with improved RDP protocol handling."""
-        client_ip = client_address[0]
         all_data = bytearray()
         
         try:
@@ -51,7 +35,6 @@ class RDPHoneypot(BaseHoneypot):
             client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, self.recv_buffer_size)
             client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, self.recv_buffer_size)
             client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
-            client_socket.settimeout(self.base_timeout)
 
             # Check connection state
             with self.connection_lock:
