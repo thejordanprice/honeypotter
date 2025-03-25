@@ -1,11 +1,11 @@
 """FastAPI web application for the SSH Honeypot."""
 import json
-from fastapi import FastAPI, WebSocket, Depends, Request, Response
+from fastapi import FastAPI, WebSocket, Depends, Request, Response, BackgroundTasks
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Dict, Set, Any
 from pathlib import Path
 from honeypot.core.config import TEMPLATE_DIR, STATIC_DIR, HOST, WEB_PORT, SSH_PORT, TELNET_PORT, FTP_PORT, SMTP_PORT, RDP_PORT, SIP_PORT, MYSQL_PORT
 from honeypot.database.models import get_db, LoginAttempt
@@ -14,6 +14,9 @@ import ipaddress
 import logging
 import asyncio
 import os
+import time
+import weakref
+from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
 
@@ -39,8 +42,177 @@ if static_path.exists():
 # Set up templates
 templates = Jinja2Templates(directory=str(TEMPLATE_DIR))
 
-# Store active WebSocket connections
-active_connections: List[WebSocket] = []
+# Enhanced WebSocket connection tracking
+class ConnectionManager:
+    def __init__(self):
+        # Track connections with metadata: {websocket: {last_seen: timestamp, client_info: str, ...}}
+        self.active_connections: Dict[WebSocket, Dict[str, Any]] = {}
+        self.cleanup_task = None
+        self.lock = asyncio.Lock()
+    
+    async def connect(self, websocket: WebSocket, client_info: str) -> None:
+        """Register a new connection with metadata"""
+        async with self.lock:
+            self.active_connections[websocket] = {
+                'client_info': client_info,
+                'connected_at': datetime.now(),
+                'last_active': datetime.now(),
+                'ping_success': True,
+                'messages_sent': 0,
+                'messages_received': 0
+            }
+            # Start cleanup task if not already running
+            if self.cleanup_task is None or self.cleanup_task.done():
+                self.cleanup_task = asyncio.create_task(self.periodic_cleanup())
+    
+    async def disconnect(self, websocket: WebSocket) -> None:
+        """Remove a connection"""
+        async with self.lock:
+            if websocket in self.active_connections:
+                del self.active_connections[websocket]
+                logger.info(f"Removed websocket from active connections, {len(self.active_connections)} remaining")
+    
+    def get_connection_info(self, websocket: WebSocket) -> Dict[str, Any]:
+        """Get metadata for a specific connection"""
+        return self.active_connections.get(websocket, {})
+    
+    def update_activity(self, websocket: WebSocket) -> None:
+        """Update the last_active timestamp for a connection"""
+        if websocket in self.active_connections:
+            self.active_connections[websocket]['last_active'] = datetime.now()
+            self.active_connections[websocket]['messages_received'] += 1
+    
+    def update_ping_status(self, websocket: WebSocket, success: bool) -> None:
+        """Update the ping status for a connection"""
+        if websocket in self.active_connections:
+            self.active_connections[websocket]['ping_success'] = success
+            if success:
+                self.active_connections[websocket]['last_active'] = datetime.now()
+    
+    async def send_text(self, websocket: WebSocket, message: str) -> bool:
+        """Send text to a connection and track success"""
+        try:
+            await websocket.send_text(message)
+            if websocket in self.active_connections:
+                self.active_connections[websocket]['last_active'] = datetime.now()
+                self.active_connections[websocket]['messages_sent'] += 1
+            return True
+        except Exception as e:
+            logger.warning(f"Failed to send message to client: {str(e)}")
+            await self.disconnect(websocket)
+            return False
+    
+    async def broadcast(self, message: str) -> int:
+        """Broadcast a message to all connections and return success count"""
+        success_count = 0
+        failed_connections = []
+        
+        # First attempt to send to all clients
+        connections = list(self.active_connections.keys())  # Make a copy to avoid modification during iteration
+        for websocket in connections:
+            try:
+                await websocket.send_text(message)
+                self.active_connections[websocket]['last_active'] = datetime.now()
+                self.active_connections[websocket]['messages_sent'] += 1
+                success_count += 1
+            except Exception as e:
+                logger.warning(f"Failed to send to {self.active_connections[websocket]['client_info']}: {str(e)}")
+                failed_connections.append(websocket)
+        
+        # Clean up failed connections
+        async with self.lock:
+            for websocket in failed_connections:
+                if websocket in self.active_connections:
+                    del self.active_connections[websocket]
+        
+        return success_count
+    
+    async def verify_connections(self) -> None:
+        """Send a ping to all connections to verify they're still active"""
+        logger.debug("Verifying all active WebSocket connections")
+        connections = list(self.active_connections.keys())
+        
+        for websocket in connections:
+            client_info = self.active_connections[websocket]['client_info']
+            last_active = self.active_connections[websocket]['last_active']
+            
+            # If connection hasn't been active in the last 2 minutes, check it
+            if datetime.now() - last_active > timedelta(minutes=2):
+                logger.debug(f"Pinging inactive connection from {client_info}")
+                try:
+                    # Send a ping and wait for pong
+                    pong_waiter = await websocket.ping()
+                    await asyncio.wait_for(pong_waiter, timeout=5)
+                    logger.debug(f"Ping successful for {client_info}")
+                    self.update_ping_status(websocket, True)
+                except Exception as e:
+                    logger.warning(f"Connection verification failed for {client_info}: {str(e)}")
+                    self.update_ping_status(websocket, False)
+    
+    async def periodic_cleanup(self) -> None:
+        """Periodically clean up stale connections"""
+        try:
+            while True:
+                # Run verification and cleanup every 5 minutes
+                await asyncio.sleep(300)
+                await self.verify_connections()
+                
+                async with self.lock:
+                    # Calculate stale cutoff time (10 minutes)
+                    stale_cutoff = datetime.now() - timedelta(minutes=10)
+                    connections = list(self.active_connections.keys())
+                    
+                    stale_count = 0
+                    for websocket in connections:
+                        client_info = self.active_connections[websocket]['client_info']
+                        last_active = self.active_connections[websocket]['last_active']
+                        ping_success = self.active_connections[websocket]['ping_success']
+                        
+                        # Remove stale connections: either too old or failed ping
+                        if last_active < stale_cutoff or not ping_success:
+                            logger.info(f"Cleaning up stale connection from {client_info} (last active: {last_active})")
+                            try:
+                                await websocket.close(code=1000, reason="Connection timeout")
+                            except:
+                                pass
+                            
+                            if websocket in self.active_connections:
+                                del self.active_connections[websocket]
+                                stale_count += 1
+                
+                if stale_count > 0:
+                    logger.info(f"Cleaned up {stale_count} stale connections, {len(self.active_connections)} remaining")
+                else:
+                    logger.debug(f"No stale connections found, {len(self.active_connections)} connections active")
+                
+                # Log connection statistics
+                if self.active_connections:
+                    total_sent = sum(conn['messages_sent'] for conn in self.active_connections.values())
+                    total_received = sum(conn['messages_received'] for conn in self.active_connections.values())
+                    logger.info(f"WebSocket stats: {len(self.active_connections)} connections, {total_sent} msgs sent, {total_received} msgs received")
+        
+        except asyncio.CancelledError:
+            logger.info("Connection cleanup task cancelled")
+        except Exception as e:
+            logger.error(f"Error in connection cleanup task: {str(e)}")
+            # Restart the task on failure
+            await asyncio.sleep(60)
+            self.cleanup_task = asyncio.create_task(self.periodic_cleanup())
+
+# Initialize connection manager
+connection_manager = ConnectionManager()
+
+# For backwards compatibility, maintain a list view of active connections
+@property
+def active_connections() -> List[WebSocket]:
+    return list(connection_manager.active_connections.keys())
+
+@app.on_event("startup")
+async def startup_event():
+    """Run startup tasks"""
+    # Start the connection verification task
+    asyncio.create_task(connection_manager.periodic_cleanup())
+    logger.info("Started WebSocket connection management tasks")
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
@@ -68,7 +240,7 @@ async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)
     
     try:
         await websocket.accept()
-        active_connections.append(websocket)
+        await connection_manager.connect(websocket, client_info)
         logger.info(f"Accepted WebSocket connection from {client_info}")
         
         # Create a task for periodic system metrics updates
@@ -79,6 +251,8 @@ async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)
                 # Wait for messages from the client with a timeout
                 try:
                     message_text = await asyncio.wait_for(websocket.receive_text(), timeout=60)
+                    connection_manager.update_activity(websocket)
+                    
                     try:
                         message = json.loads(message_text)
                         message_type = message.get('type')
@@ -101,7 +275,7 @@ async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)
                                 'type': 'initial_attempts',
                                 'data': attempts_data
                             }
-                            await websocket.send_text(json.dumps(message))
+                            await connection_manager.send_text(websocket, json.dumps(message))
                         elif message_type == 'request_data_batches':
                             # Send data in batches
                             logger.info(f"Client {client_info} requested data in batches")
@@ -115,6 +289,14 @@ async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)
                             missing_batches = message.get('data', {}).get('batch_numbers', [])
                             logger.info(f"Client {client_info} requested missing batches: {missing_batches}")
                             await send_specific_batches(websocket, db, missing_batches)
+                        elif message_type == 'heartbeat':
+                            # Client heartbeat - just update the last active timestamp
+                            logger.debug(f"Received heartbeat from {client_info}")
+                            # Send a heartbeat response
+                            await connection_manager.send_text(websocket, json.dumps({
+                                'type': 'heartbeat_response',
+                                'data': {'timestamp': datetime.now().isoformat()}
+                            }))
                         else:
                             logger.warning(f"Received unknown message type '{message_type}' from {client_info}")
                     except json.JSONDecodeError:
@@ -128,17 +310,18 @@ async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)
                         pong_waiter = await websocket.ping()
                         await asyncio.wait_for(pong_waiter, timeout=5)
                         logger.debug(f"Ping-pong successful for {client_info}")
+                        connection_manager.update_ping_status(websocket, True)
                     except Exception:
                         logger.info(f"Client {client_info} did not respond to ping, closing connection")
+                        connection_manager.update_ping_status(websocket, False)
                         break
         except Exception as e:
             logger.error(f"WebSocket connection error with {client_info}: {str(e)}")
         finally:
             # Clean up
             periodic_task.cancel()
-            if websocket in active_connections:
-                active_connections.remove(websocket)
-                logger.info(f"Removed {client_info} from active connections")
+            await connection_manager.disconnect(websocket)
+            logger.info(f"Removed {client_info} from active connections")
     except Exception as e:
         logger.error(f"Error accepting WebSocket connection from {client_info}: {str(e)}")
         try:
@@ -153,11 +336,7 @@ async def send_system_metrics(websocket: WebSocket):
         'type': 'system_metrics',
         'data': metrics
     }
-    try:
-        await websocket.send_text(json.dumps(message))
-    except:
-        if websocket in active_connections:
-            active_connections.remove(websocket)
+    await connection_manager.send_text(websocket, json.dumps(message))
 
 async def send_service_status(websocket: WebSocket):
     """Send service status to a specific client."""
@@ -166,11 +345,7 @@ async def send_service_status(websocket: WebSocket):
         'type': 'service_status',
         'data': status
     }
-    try:
-        await websocket.send_text(json.dumps(message))
-    except:
-        if websocket in active_connections:
-            active_connections.remove(websocket)
+    await connection_manager.send_text(websocket, json.dumps(message))
 
 async def send_external_ip(websocket: WebSocket):
     """Send external IP to a specific client."""
@@ -182,7 +357,7 @@ async def send_external_ip(websocket: WebSocket):
             'data': {'ip': ip}  # Always use a consistent structure
         }
         logger.debug(f"Sending external IP message: {message}")
-        await websocket.send_text(json.dumps(message))
+        await connection_manager.send_text(websocket, json.dumps(message))
         logger.info("External IP message sent successfully")
         
         # Check what we're sending (for debugging)
@@ -202,33 +377,49 @@ async def send_external_ip(websocket: WebSocket):
                 'type': 'external_ip',
                 'data': {'ip': 'Connection error'}
             }
-            await websocket.send_text(json.dumps(message))
+            await connection_manager.send_text(websocket, json.dumps(message))
         except:
             pass
-            
-        if websocket in active_connections:
-            active_connections.remove(websocket)
 
 async def send_periodic_updates(websocket: WebSocket):
     """Send periodic system metrics updates to a client."""
     try:
         while True:
-            # Send metrics every 5 seconds if the modal is open
+            # Send metrics every 5 seconds
             await asyncio.sleep(5)
+            
             # Only send if connection is still active
-            if websocket in active_connections:
+            if websocket in connection_manager.active_connections:
                 await send_system_metrics(websocket)
                 
-            # Send service status every 10 seconds
-            if websocket in active_connections and (asyncio.get_event_loop().time() % 10) < 5:
-                await send_service_status(websocket)
+                # Send service status every 10 seconds
+                if websocket in connection_manager.active_connections and (asyncio.get_event_loop().time() % 10) < 5:
+                    await send_service_status(websocket)
+                    
+                # Send a heartbeat to keep track of activity
+                if websocket in connection_manager.active_connections and (asyncio.get_event_loop().time() % 30) < 5:
+                    client_info = connection_manager.get_connection_info(websocket).get('client_info', 'unknown')
+                    logger.debug(f"Sending server heartbeat to {client_info}")
+                    try:
+                        message = {
+                            'type': 'server_heartbeat',
+                            'data': {
+                                'timestamp': datetime.now().isoformat(),
+                                'uptime': time.time() - connection_manager.get_connection_info(websocket).get('connected_at', datetime.now()).timestamp()
+                            }
+                        }
+                        await connection_manager.send_text(websocket, json.dumps(message))
+                    except Exception as e:
+                        logger.warning(f"Failed to send heartbeat: {str(e)}")
+            else:
+                # Connection is not active anymore
+                break
     except asyncio.CancelledError:
         # Task was cancelled, do cleanup
         pass
     except Exception as e:
         logger.error(f"Error in periodic updates: {str(e)}")
-        if websocket in active_connections:
-            active_connections.remove(websocket)
+        # Don't need to remove from connections here as send_text will handle it
 
 @app.get("/api/attempts")
 def get_attempts(db: Session = Depends(get_db)):
@@ -343,36 +534,11 @@ async def broadcast_attempt(attempt: dict):
     }
     message_json = json.dumps(message)
     
-    # Track which clients successfully received the message
-    failed_clients = []
+    # Use the connection manager to broadcast the message
+    success_count = await connection_manager.broadcast(message_json)
     
-    for connection in active_connections[:]:  # Create a copy of the list to avoid modification during iteration
-        try:
-            await connection.send_text(message_json)
-            logger.debug(f"Successfully sent login attempt to client")
-        except Exception as e:
-            logger.warning(f"Failed to send login attempt to client: {str(e)}")
-            failed_clients.append(connection)
-            if connection in active_connections:
-                active_connections.remove(connection)
-    
-    # Retry sending to failed clients (for any that might have temporary issues)
-    if failed_clients:
-        # Wait a moment before retrying
-        await asyncio.sleep(1)
-        
-        for connection in failed_clients[:]:
-            if connection in active_connections:  # Check if client is still connected
-                try:
-                    await connection.send_text(message_json)
-                    logger.info("Successfully retried sending login attempt to client")
-                    failed_clients.remove(connection)
-                except:
-                    logger.warning("Client still unreachable after retry, removing from active connections")
-                    if connection in active_connections:
-                        active_connections.remove(connection)
-    
-    return len(active_connections) - len(failed_clients)  # Return count of successful deliveries
+    logger.debug(f"Broadcast login attempt to {success_count} clients")
+    return success_count
 
 async def send_data_in_batches(websocket: WebSocket, db: Session):
     """Send login attempts data in batches to a client."""
@@ -411,7 +577,7 @@ async def send_data_in_batches(websocket: WebSocket, db: Session):
                 'total_batches': total_batches
             }
         }
-        await websocket.send_text(json.dumps(start_message))
+        await connection_manager.send_text(websocket, json.dumps(start_message))
         
         # Send each batch
         for i in range(total_batches):
@@ -443,14 +609,16 @@ async def send_data_in_batches(websocket: WebSocket, db: Session):
             
             while not success and retry_count < max_retries:
                 try:
-                    await websocket.send_text(json.dumps(batch_message))
-                    success = True
-                    # Track batch completion time
-                    batch_tracking[batch_num]['end_time'] = asyncio.get_event_loop().time()
-                    batch_tracking[batch_num]['status'] = 'sent'
-                    batch_size_kb = len(json.dumps(batch_message)) / 1024
-                    
-                    logger.info(f"Sent batch {batch_num}/{total_batches} with {len(batch_data)} attempts ({batch_size_kb:.2f} KB) to {client_info}")
+                    success = await connection_manager.send_text(websocket, json.dumps(batch_message))
+                    if success:
+                        # Track batch completion time
+                        batch_tracking[batch_num]['end_time'] = asyncio.get_event_loop().time()
+                        batch_tracking[batch_num]['status'] = 'sent'
+                        batch_size_kb = len(json.dumps(batch_message)) / 1024
+                        
+                        logger.info(f"Sent batch {batch_num}/{total_batches} with {len(batch_data)} attempts ({batch_size_kb:.2f} KB) to {client_info}")
+                    else:
+                        raise Exception("Failed to send message")
                 except Exception as e:
                     retry_count += 1
                     if retry_count < max_retries:
@@ -470,7 +638,7 @@ async def send_data_in_batches(websocket: WebSocket, db: Session):
                 'total_batches': total_batches
             }
         }
-        await websocket.send_text(json.dumps(complete_message))
+        await connection_manager.send_text(websocket, json.dumps(complete_message))
         
         # Calculate and log batch transfer statistics
         sent_batches = sum(1 for batch in batch_tracking.values() if batch.get('status') == 'sent')
@@ -492,15 +660,14 @@ async def send_data_in_batches(websocket: WebSocket, db: Session):
                     'message': 'Error occurred during batch data transmission'
                 }
             }
-            await websocket.send_text(json.dumps(error_message))
+            await connection_manager.send_text(websocket, json.dumps(error_message))
         except:
             pass
-            
-        if websocket in active_connections:
-            active_connections.remove(websocket)
 
 async def send_specific_batches(websocket: WebSocket, db: Session, batch_numbers: List[int]):
     """Send specific batches to a client that requested missing batches."""
+    client_info = f"{websocket.client.host}:{websocket.client.port}"
+    
     try:
         # Get all attempts
         attempts = db.query(LoginAttempt).order_by(LoginAttempt.timestamp.desc()).all()
@@ -540,10 +707,11 @@ async def send_specific_batches(websocket: WebSocket, db: Session, batch_numbers
                 # Add small delay between batches
                 await asyncio.sleep(0.05)
                 
-                await websocket.send_text(json.dumps(batch_message))
-                logger.info(f"Sent missing batch {batch_num}/{total_batches} with {len(batch_data)} attempts")
+                success = await connection_manager.send_text(websocket, json.dumps(batch_message))
+                if success:
+                    logger.info(f"Sent missing batch {batch_num}/{total_batches} with {len(batch_data)} attempts to {client_info}")
             else:
-                logger.warning(f"Requested invalid batch number: {batch_num}")
+                logger.warning(f"Requested invalid batch number: {batch_num} from {client_info}")
         
         # Send completion message
         complete_message = {
@@ -553,10 +721,9 @@ async def send_specific_batches(websocket: WebSocket, db: Session, batch_numbers
                 'total_batches': total_batches
             }
         }
-        await websocket.send_text(json.dumps(complete_message))
-        logger.info(f"Completed sending requested missing batches")
+        await connection_manager.send_text(websocket, json.dumps(complete_message))
+        logger.info(f"Completed sending requested missing batches to {client_info}")
         
     except Exception as e:
-        logger.error(f"Error sending specific batches: {str(e)}")
-        if websocket in active_connections:
-            active_connections.remove(websocket) 
+        logger.error(f"Error sending specific batches to {client_info}: {str(e)}")
+        # Connection manager will handle disconnection if needed 

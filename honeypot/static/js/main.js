@@ -362,6 +362,9 @@ const websocketManager = (function() {
     let reconnectDelay = 1000; // Start with 1s delay, will increase exponentially
     let batchTimeout = null; // Timeout for batch loading
     let pendingBatchRequest = false;
+    let heartbeatInterval = null; // Interval for sending heartbeats
+    let lastHeartbeatResponse = null; // Timestamp of last heartbeat response
+    let heartbeatTimeout = null; // Timeout for detecting missed heartbeats
     
     // Expose isReceivingBatches to the window to prevent automatic status updates during batch loading
     window.isReceivingBatches = false;
@@ -422,6 +425,51 @@ const websocketManager = (function() {
                     requestMissingBatches();
                 }
             }, 10000); // 10 second timeout
+        },
+        
+        // New message handlers for heartbeat mechanism
+        heartbeat_response: function(data) {
+            // Server responded to our heartbeat
+            lastHeartbeatResponse = new Date();
+            console.debug('Received heartbeat response:', data);
+            
+            // Clear any pending heartbeat timeout
+            if (heartbeatTimeout) {
+                clearTimeout(heartbeatTimeout);
+                heartbeatTimeout = null;
+            }
+            
+            // Update connection indicator to show healthy connection
+            const indicator = domUtils.getElement('connectionStatusIndicator');
+            if (indicator) {
+                indicator.classList.remove('error');
+                indicator.classList.add('connected');
+            }
+        },
+        
+        server_heartbeat: function(data) {
+            // Server sent us a heartbeat
+            console.debug('Received server heartbeat:', data);
+            
+            // Update connection status
+            const uptime = data.uptime ? Math.round(data.uptime / 60) : '?';
+            uiManager.updateConnectionStatus(`Connected (${uptime} min uptime)`);
+            
+            // Send a response heartbeat
+            sendMessage('heartbeat', { timestamp: new Date().toISOString() });
+            
+            // Update connection indicator
+            const indicator = domUtils.getElement('connectionStatusIndicator');
+            if (indicator) {
+                indicator.classList.remove('error');
+                indicator.classList.add('connected');
+                
+                // Pulse effect on indicator
+                indicator.style.transform = 'scale(1.1)';
+                setTimeout(() => {
+                    indicator.style.transform = 'scale(1)';
+                }, 150);
+            }
         },
         
         batch_data: function(data) {
@@ -608,6 +656,9 @@ const websocketManager = (function() {
             // Update loading detail to show we're waiting for data
             uiManager.updateLoadingStatus('Connected', 'WebSocket connected, requesting data');
             
+            // Start heartbeat mechanism for connection health monitoring
+            startHeartbeat();
+            
             // Request data in batches
             sendMessage('request_data_batches');
             pendingBatchRequest = true;
@@ -679,6 +730,9 @@ const websocketManager = (function() {
             clearTimeout(batchTimeout);
             pendingBatchRequest = false;
             
+            // Stop heartbeat
+            stopHeartbeat();
+            
             // Always try to reconnect when there's an error
             reconnect();
         };
@@ -693,9 +747,72 @@ const websocketManager = (function() {
             clearTimeout(batchTimeout);
             pendingBatchRequest = false;
             
+            // Stop heartbeat
+            stopHeartbeat();
+            
             // Always try to reconnect on close
             reconnect();
         };
+    }
+
+    function startHeartbeat() {
+        // Clear any existing heartbeat interval
+        stopHeartbeat();
+        
+        // Initialize lastHeartbeatResponse with current time
+        lastHeartbeatResponse = new Date();
+        
+        // Start sending heartbeats every 30 seconds
+        heartbeatInterval = setInterval(() => {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                console.debug('Sending client heartbeat');
+                sendMessage('heartbeat', { timestamp: new Date().toISOString() });
+                
+                // Set timeout to detect missed responses (wait 10 seconds for response)
+                heartbeatTimeout = setTimeout(() => {
+                    const now = new Date();
+                    const lastResponseAge = Math.round((now - lastHeartbeatResponse) / 1000);
+                    
+                    if (lastResponseAge > 40) { // Allow for some network delay
+                        console.warn(`No heartbeat response for ${lastResponseAge} seconds, connection may be stale`);
+                        
+                        // Update connection indicator
+                        const indicator = domUtils.getElement('connectionStatusIndicator');
+                        if (indicator) {
+                            indicator.classList.remove('connected');
+                            indicator.classList.add('error');
+                        }
+                        
+                        // Update connection status in UI
+                        uiManager.updateConnectionStatus('Connection unstable - awaiting server response', true);
+                        
+                        // If we miss multiple heartbeats, force reconnection
+                        if (lastResponseAge > 120) { // 2 minutes without response
+                            console.error('Connection unresponsive, forcing reconnection');
+                            if (socket) {
+                                socket.close();
+                            } else {
+                                reconnect();
+                            }
+                        }
+                    }
+                }, 10000);
+            }
+        }, 30000);
+        
+        console.log('Started WebSocket heartbeat monitoring');
+    }
+    
+    function stopHeartbeat() {
+        if (heartbeatInterval) {
+            clearInterval(heartbeatInterval);
+            heartbeatInterval = null;
+        }
+        
+        if (heartbeatTimeout) {
+            clearTimeout(heartbeatTimeout);
+            heartbeatTimeout = null;
+        }
     }
 
     function reconnect() {
