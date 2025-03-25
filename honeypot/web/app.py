@@ -153,50 +153,92 @@ class ConnectionManager:
         """Periodically clean up stale connections"""
         try:
             while True:
-                # Run verification and cleanup every 5 minutes
-                await asyncio.sleep(300)
-                await self.verify_connections()
+                # Run verification and cleanup every 60 seconds instead of 5 minutes (300 seconds)
+                await asyncio.sleep(60)
                 
-                async with self.lock:
-                    # Calculate stale cutoff time (10 minutes)
-                    stale_cutoff = datetime.now() - timedelta(minutes=10)
-                    connections = list(self.active_connections.keys())
+                # Check memory usage
+                try:
+                    import psutil
+                    process = psutil.Process(os.getpid())
+                    memory_info = process.memory_info()
+                    memory_usage_mb = memory_info.rss / 1024 / 1024
+                    logger.info(f"Current memory usage: {memory_usage_mb:.2f} MB with {len(self.active_connections)} active connections")
                     
-                    stale_count = 0
-                    for websocket in connections:
-                        client_info = self.active_connections[websocket]['client_info']
-                        last_active = self.active_connections[websocket]['last_active']
-                        ping_success = self.active_connections[websocket]['ping_success']
-                        
-                        # Remove stale connections: either too old or failed ping
-                        if last_active < stale_cutoff or not ping_success:
-                            logger.info(f"Cleaning up stale connection from {client_info} (last active: {last_active})")
-                            try:
-                                await websocket.close(code=1000, reason="Connection timeout")
-                            except:
-                                pass
-                            
-                            if websocket in self.active_connections:
-                                del self.active_connections[websocket]
-                                stale_count += 1
+                    # If memory usage is high (> 1GB), force more aggressive cleanup
+                    if memory_usage_mb > 1024:
+                        logger.warning(f"High memory usage detected: {memory_usage_mb:.2f} MB. Performing aggressive connection cleanup.")
+                        # Reduce stale timeout to 5 minutes instead of 10 during high memory usage
+                        stale_cutoff = datetime.now() - timedelta(minutes=5)
+                    else:
+                        stale_cutoff = datetime.now() - timedelta(minutes=10)
+                except ImportError:
+                    logger.warning("psutil not installed. Memory monitoring disabled.")
+                    stale_cutoff = datetime.now() - timedelta(minutes=10)
+                except Exception as e:
+                    logger.error(f"Error monitoring memory: {str(e)}")
+                    stale_cutoff = datetime.now() - timedelta(minutes=10)
                 
-                if stale_count > 0:
-                    logger.info(f"Cleaned up {stale_count} stale connections, {len(self.active_connections)} remaining")
-                else:
-                    logger.debug(f"No stale connections found, {len(self.active_connections)} connections active")
+                # Verify connections before cleanup
+                try:
+                    await self.verify_connections()
+                except Exception as e:
+                    logger.error(f"Error in connection verification: {str(e)}")
+                
+                # Perform cleanup with stronger error handling
+                try:
+                    async with self.lock:
+                        connections = list(self.active_connections.keys())
+                        
+                        stale_count = 0
+                        for websocket in connections:
+                            try:
+                                client_info = self.active_connections[websocket]['client_info']
+                                last_active = self.active_connections[websocket]['last_active']
+                                ping_success = self.active_connections[websocket]['ping_success']
+                                
+                                # Remove stale connections: either too old or failed ping
+                                if last_active < stale_cutoff or not ping_success:
+                                    logger.info(f"Cleaning up stale connection from {client_info} (last active: {last_active})")
+                                    try:
+                                        await websocket.close(code=1000, reason="Connection timeout")
+                                    except Exception as close_err:
+                                        logger.warning(f"Error closing websocket: {str(close_err)}")
+                                    
+                                    if websocket in self.active_connections:
+                                        del self.active_connections[websocket]
+                                        stale_count += 1
+                            except Exception as conn_err:
+                                logger.error(f"Error processing connection during cleanup: {str(conn_err)}")
+                                # If we can't process this connection properly, remove it anyway
+                                try:
+                                    if websocket in self.active_connections:
+                                        del self.active_connections[websocket]
+                                        stale_count += 1
+                                except Exception:
+                                    pass
+                    
+                    if stale_count > 0:
+                        logger.info(f"Cleaned up {stale_count} stale connections, {len(self.active_connections)} remaining")
+                    else:
+                        logger.debug(f"No stale connections found, {len(self.active_connections)} connections active")
+                except Exception as cleanup_err:
+                    logger.error(f"Error during connection cleanup: {str(cleanup_err)}")
                 
                 # Log connection statistics
-                if self.active_connections:
-                    total_sent = sum(conn['messages_sent'] for conn in self.active_connections.values())
-                    total_received = sum(conn['messages_received'] for conn in self.active_connections.values())
-                    logger.info(f"WebSocket stats: {len(self.active_connections)} connections, {total_sent} msgs sent, {total_received} msgs received")
+                try:
+                    if self.active_connections:
+                        total_sent = sum(conn['messages_sent'] for conn in self.active_connections.values())
+                        total_received = sum(conn['messages_received'] for conn in self.active_connections.values())
+                        logger.info(f"WebSocket stats: {len(self.active_connections)} connections, {total_sent} msgs sent, {total_received} msgs received")
+                except Exception as stats_err:
+                    logger.error(f"Error calculating connection statistics: {str(stats_err)}")
         
         except asyncio.CancelledError:
             logger.info("Connection cleanup task cancelled")
         except Exception as e:
             logger.error(f"Error in connection cleanup task: {str(e)}")
-            # Restart the task on failure
-            await asyncio.sleep(60)
+            # Restart the task on failure after a short delay
+            await asyncio.sleep(10)  # Shorter delay before restart (was 60 seconds)
             self.cleanup_task = asyncio.create_task(self.periodic_cleanup())
 
 # Initialize connection manager
@@ -210,6 +252,13 @@ def active_connections() -> List[WebSocket]:
 @app.on_event("startup")
 async def startup_event():
     """Run startup tasks"""
+    # Check for psutil for memory monitoring
+    try:
+        import psutil
+        logger.info("psutil available - memory monitoring enabled")
+    except ImportError:
+        logger.warning("psutil not available - consider installing it with 'pip install psutil' to enable memory monitoring")
+
     # Start the connection verification task
     asyncio.create_task(connection_manager.periodic_cleanup())
     logger.info("Started WebSocket connection management tasks")
@@ -248,14 +297,18 @@ async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)
         
         try:
             while True:
-                # Wait for messages from the client with a timeout
+                # Make sure we handle disconnections and timeouts properly
                 try:
-                    message_text = await asyncio.wait_for(websocket.receive_text(), timeout=60)
+                    # Set a timeout for receiving messages to prevent hanging connections
+                    message = await asyncio.wait_for(websocket.receive_text(), timeout=60)
+                    
+                    # Update connection activity timestamp
                     connection_manager.update_activity(websocket)
                     
+                    # Process the received message
                     try:
-                        message = json.loads(message_text)
-                        message_type = message.get('type')
+                        data = json.loads(message)
+                        message_type = data.get('type')
                         logger.debug(f"Received message of type '{message_type}' from {client_info}")
                         
                         # Handle different message types
@@ -282,11 +335,11 @@ async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)
                             await send_data_in_batches(websocket, db)
                         elif message_type == 'batch_ack':
                             # Client acknowledged receipt of a batch
-                            batch_number = message.get('data', {}).get('batch_number')
+                            batch_number = data.get('data', {}).get('batch_number')
                             logger.debug(f"Client {client_info} acknowledged receipt of batch {batch_number}")
                         elif message_type == 'request_missing_batches':
                             # Client requested specific missing batches
-                            missing_batches = message.get('data', {}).get('batch_numbers', [])
+                            missing_batches = data.get('data', {}).get('batch_numbers', [])
                             logger.info(f"Client {client_info} requested missing batches: {missing_batches}")
                             await send_specific_batches(websocket, db, missing_batches)
                         elif message_type == 'heartbeat':
@@ -299,35 +352,52 @@ async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)
                             }))
                         else:
                             logger.warning(f"Received unknown message type '{message_type}' from {client_info}")
+                            await connection_manager.send_text(websocket, json.dumps({
+                                'type': 'error',
+                                'message': f"Unknown message type: {message_type}"
+                            }))
                     except json.JSONDecodeError:
-                        logger.warning(f"Received invalid JSON from {client_info}: {message_text}")
-                    except Exception as e:
-                        logger.error(f"Error processing WebSocket message from {client_info}: {str(e)}")
+                        logger.warning(f"Received invalid JSON from client {client_info}: {message}")
+                        await connection_manager.send_text(websocket, json.dumps({"type": "error", "message": "Invalid JSON format"}))
+                    except Exception as msg_err:
+                        logger.error(f"Error processing message from {client_info}: {str(msg_err)}")
+                        await connection_manager.send_text(websocket, json.dumps({"type": "error", "message": "Error processing message"}))
+                        
                 except asyncio.TimeoutError:
-                    # No message received within timeout, check if client is still connected
+                    # This is normal - we use the timeout to regularly check connection health
                     try:
                         # Send a ping to check connection
                         pong_waiter = await websocket.ping()
                         await asyncio.wait_for(pong_waiter, timeout=5)
                         logger.debug(f"Ping-pong successful for {client_info}")
                         connection_manager.update_ping_status(websocket, True)
-                    except Exception:
-                        logger.info(f"Client {client_info} did not respond to ping, closing connection")
+                    except Exception as ping_err:
+                        logger.info(f"Client {client_info} did not respond to ping: {str(ping_err)}")
                         connection_manager.update_ping_status(websocket, False)
                         break
+                except Exception as e:
+                    logger.warning(f"WebSocket receive error for {client_info}: {str(e)}")
+                    break
+                    
         except Exception as e:
-            logger.error(f"WebSocket connection error with {client_info}: {str(e)}")
+            logger.error(f"Error in WebSocket loop for {client_info}: {str(e)}")
         finally:
-            # Clean up
-            periodic_task.cancel()
-            await connection_manager.disconnect(websocket)
-            logger.info(f"Removed {client_info} from active connections")
+            # Make sure we cancel the periodic task
+            if 'periodic_task' in locals() and not periodic_task.done():
+                periodic_task.cancel()
+                try:
+                    await periodic_task
+                except asyncio.CancelledError:
+                    pass
+                
     except Exception as e:
-        logger.error(f"Error accepting WebSocket connection from {client_info}: {str(e)}")
+        logger.error(f"Error establishing WebSocket connection with {client_info}: {str(e)}")
+    finally:
+        # Make sure we clean up the connection
         try:
-            await websocket.close(code=1011, reason=f"Server error: {str(e)}")
-        except:
-            pass
+            await connection_manager.disconnect(websocket)
+        except Exception as cleanup_err:
+            logger.error(f"Error during connection cleanup: {str(cleanup_err)}")
 
 async def send_system_metrics(websocket: WebSocket):
     """Send system metrics to a specific client."""
