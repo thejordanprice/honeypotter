@@ -1,170 +1,17 @@
 // Helper function to format dates
 function formatDateToLocalTime(isoString) {
-    return dataModel.formatDateToLocalTime(isoString);
+    return formatUtils.formatDateToLocalTime(isoString);
 }
-
-// Menu and overlay utilities
-const menuUtils = {
-    hideMenu: function(menu) {
-        if (!menu) return;
-        domUtils.hide(menu);
-    },
-    
-    showMenu: function(menu) {
-        if (!menu) return;
-        domUtils.show(menu);
-    },
-    
-    createOverlay: function() {
-        const overlay = document.createElement('div');
-        overlay.className = 'menu-overlay';
-        document.body.appendChild(overlay);
-        
-        // Force a reflow before adding the active class
-        domUtils.forceReflow(overlay);
-        domUtils.addClass(overlay, 'active');
-        return overlay;
-    },
-    
-    removeOverlay: function(overlay) {
-        if (!overlay) return;
-        domUtils.removeClass(overlay, 'active');
-        overlay.addEventListener('transitionend', () => {
-            overlay.remove();
-        }, { once: true });
-    },
-    
-    closeMenu: function(menu) {
-        this.hideMenu(menu);
-        const overlay = document.querySelector('.menu-overlay');
-        if (overlay) {
-            this.removeOverlay(overlay);
-        }
-    }
-};
-
-// DOM utilities
-const domUtils = (function() {
-    // Cache for DOM elements
-    const elementCache = {};
-    
-    // Get element by ID with caching
-    function getElement(id, fallback = null) {
-        if (!elementCache[id]) {
-            elementCache[id] = document.getElementById(id);
-        }
-        return elementCache[id] || fallback;
-    }
-    
-    // Get elements by query selector
-    function getElements(selector) {
-        return document.querySelectorAll(selector);
-    }
-    
-    // Update text content if element exists
-    function setText(id, text) {
-        const element = getElement(id);
-        if (element) {
-            element.textContent = text;
-            return true;
-        }
-        return false;
-    }
-    
-    // Add/remove/toggle classes safely
-    function addClass(element, className) {
-        if (element && element.classList) {
-            element.classList.add(className);
-        }
-    }
-    
-    function removeClass(element, className) {
-        if (element && element.classList) {
-            element.classList.remove(className);
-        }
-    }
-    
-    function toggleClass(element, className) {
-        if (element && element.classList) {
-            return element.classList.toggle(className);
-        }
-        return false;
-    }
-    
-    // Animation helper
-    function animateElement(element, className, duration = 200) {
-        if (!element) return;
-        addClass(element, className);
-        setTimeout(() => {
-            removeClass(element, className);
-        }, duration);
-    }
-    
-    // Show/hide elements
-    function show(element) {
-        if (element) {
-            removeClass(element, 'hidden');
-        }
-    }
-    
-    function hide(element) {
-        if (element) {
-            addClass(element, 'hidden');
-        }
-    }
-    
-    // Force reflow (used for animations)
-    function forceReflow(element) {
-        if (element) {
-            void element.offsetHeight;
-        }
-    }
-    
-    // Initialize commonly used elements
-    function initializeElementCache() {
-        const elementsToCache = [
-            'attempts', 'searchInput', 'filterSelect', 'protocolSelect',
-            'connectionStatus', 'connectionStatusIndicator', 'loadingOverlay',
-            'loadingPercentage', 'loadingBar', 'loadingDetail', 'loadingText',
-            'uniqueAttackers', 'totalAttempts', 'prevPage', 'nextPage',
-            'startRange', 'endRange', 'totalItems', 'hamburgerBtn',
-            'mobileMenu', 'exportIPsMenu', 'exportJSONMenu', 'exportCSVMenu',
-            'darkModeToggleMenu', 'lightIconMenu', 'darkIconMenu', 'themeText',
-            'faqButton', 'faqModal', 'closeFaqModal'
-        ];
-        
-        elementsToCache.forEach(id => {
-            elementCache[id] = document.getElementById(id);
-        });
-    }
-    
-    // Clear cache (useful for testing or when DOM changes)
-    function clearCache() {
-        for (const key in elementCache) {
-            delete elementCache[key];
-        }
-    }
-    
-    return {
-        getElement,
-        getElements,
-        setText,
-        addClass,
-        removeClass,
-        toggleClass,
-        animateElement,
-        show,
-        hide,
-        forceReflow,
-        initializeElementCache,
-        clearCache
-    };
-})();
 
 // Initialize map with light/dark theme support
 const map = L.map('map').setView([20, 0], 2);
 let currentTileLayer;
 let heatLayer;
+
+// Make map variables accessible globally
+window.map = map;
+window.currentTileLayer = currentTileLayer;
+window.heatLayer = heatLayer;
 
 // Function to center map on most active region
 function centerMapOnMostActiveRegion(attempts) {
@@ -180,108 +27,26 @@ const darkTileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y
     className: 'dark-tiles'
 });
 
-// Theme management module
-const themeManager = (function() {
-    function setMapTheme(isDark) {
-        if (currentTileLayer) {
-            map.removeLayer(currentTileLayer);
-        }
-        currentTileLayer = isDark ? darkTileLayer : lightTileLayer;
-        currentTileLayer.addTo(map);
-    }
-    
-    function updateAllChartThemes(isDark) {
-        if (typeof updateChartColors !== 'function') return;
-        
-        const chartTextColor = isDark ? '#f3f4f6' : '#1f2937';
-        const gridColor = isDark ? '#374151' : '#e5e7eb';
-        
-        if (typeof attemptsChart !== 'undefined') {
-            updateChartColors(attemptsChart, isDark, chartTextColor, gridColor);
-        }
-        if (typeof usernamesChart !== 'undefined') {
-            updateChartColors(usernamesChart, isDark, chartTextColor, gridColor);
-        }
-        if (typeof ipsChart !== 'undefined') {
-            updateChartColors(ipsChart, isDark, chartTextColor, gridColor);
-        }
-        if (typeof countriesChart !== 'undefined') {
-            updateChartColors(countriesChart, isDark, chartTextColor, gridColor);
-        }
-    }
-    
-    function toggleTheme() {
-        const isDark = document.documentElement.classList.toggle('dark');
-        const lightIconMenu = domUtils.getElement('lightIconMenu');
-        const darkIconMenu = domUtils.getElement('darkIconMenu');
-        const themeText = domUtils.getElement('themeText');
-        
-        if (lightIconMenu && darkIconMenu) {
-            lightIconMenu.classList.toggle('hidden');
-            darkIconMenu.classList.toggle('hidden');
-        }
-        
-        if (themeText) {
-            themeText.textContent = isDark ? 'Light Mode' : 'Dark Mode';
-        }
-        
-        localStorage.theme = isDark ? 'dark' : 'light';
-        setMapTheme(isDark);
-        updateAllChartThemes(isDark);
-        
-        return isDark;
-    }
-    
-    function setupTheme() {
-        // Initialize theme based on user preference, system preference, or default to light mode
-        const isDark = localStorage.theme === 'dark' || 
-            (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
-        
-        if (isDark) {
-            document.documentElement.classList.add('dark');
-            localStorage.theme = 'dark';
-            const lightIconMenu = domUtils.getElement('lightIconMenu');
-            const darkIconMenu = domUtils.getElement('darkIconMenu');
-            const themeText = domUtils.getElement('themeText');
-            if (lightIconMenu && darkIconMenu) {
-                lightIconMenu.classList.remove('hidden');
-                darkIconMenu.classList.add('hidden');
-            }
-            if (themeText) {
-                themeText.textContent = 'Light Mode';
-            }
-        } else {
-            // Default to light mode if no preference is set or system is light mode
-            document.documentElement.classList.remove('dark');
-            localStorage.theme = 'light';
-            const themeText = domUtils.getElement('themeText');
-            if (themeText) {
-                themeText.textContent = 'Dark Mode';
-            }
-        }
-        
-        // Ensure map theme is set correctly
-        setMapTheme(isDark);
-        
-        // Ensure chart colors are updated correctly
-        updateAllChartThemes(isDark);
-    }
-    
-    return {
-        setMapTheme: setMapTheme,
-        updateAllChartThemes: updateAllChartThemes,
-        toggleTheme: toggleTheme,
-        setupTheme: setupTheme
-    };
-})();
+// Make tile layers accessible globally
+window.lightTileLayer = lightTileLayer;
+window.darkTileLayer = darkTileLayer;
+
+// Initialize the appropriate tile layer based on theme
+const isDarkMode = document.documentElement.classList.contains('dark');
+currentTileLayer = isDarkMode ? darkTileLayer : lightTileLayer;
+currentTileLayer.addTo(map);
+window.currentTileLayer = currentTileLayer;
 
 // Function to update map with heat data
 function updateMap(attempt) {
     if (!attempt.latitude || !attempt.longitude) return;
+    
+    // Make sure map is properly initialized
+    dataModel.ensureMapInitialized();
 
     // Remove existing heat layer if it exists
-    if (heatLayer) {
-        map.removeLayer(heatLayer);
+    if (window.heatLayer) {
+        window.map.removeLayer(window.heatLayer);
     }
 
     // Get all attempts with valid coordinates
@@ -301,7 +66,7 @@ function updateMap(attempt) {
     });
 
     // Create and add the heat layer
-    heatLayer = L.heatLayer(heatData, {
+    window.heatLayer = L.heatLayer(heatData, {
         radius: 15,
         blur: 10,
         maxZoom: 10,
@@ -312,7 +77,7 @@ function updateMap(attempt) {
             0.8: 'yellow',
             1.0: 'red'
         }
-    }).addTo(map);
+    }).addTo(window.map);
 }
 
 const attemptsDiv = document.getElementById("attempts");
@@ -421,17 +186,7 @@ const uiManager = (function() {
     }
     
     function updateCounterWithAnimation(elementId, newValue) {
-        const element = domUtils.getElement(elementId);
-        if (!element) return;
-        
-        const currentValue = parseInt(element.textContent) || 0;
-        
-        if (currentValue !== newValue) {
-            element.textContent = newValue;
-            domUtils.removeClass(element, 'metric-update');
-            void element.offsetWidth; // Trigger reflow
-            domUtils.addClass(element, 'metric-update');
-        }
+        animationUtils.updateElementWithAnimation(elementId, newValue);
     }
     
     function createAttemptElement(attempt) {
@@ -454,7 +209,7 @@ const uiManager = (function() {
                             ${attempt.protocol.toUpperCase()}
                         </span>
                     </span>
-                    <span class="text-gray-500 text-sm">${formatDateToLocalTime(attempt.timestamp)}</span>
+                    <span class="text-gray-500 text-sm">${formatUtils.formatDateToLocalTime(attempt.timestamp)}</span>
                 </div>
                 <div class="text-gray-600 mt-2">
                     <div class="break-all">Password: ${passwordDisplay}</div>
@@ -491,14 +246,14 @@ const uiManager = (function() {
     }
     
     return {
-        updateLoadingPercentage: updateLoadingPercentage,
-        toggleLoadingOverlay: toggleLoadingOverlay,
-        updateLoadingPercentageWithDelay: updateLoadingPercentageWithDelay,
-        updateConnectionStatus: updateConnectionStatus,
-        updateCounterWithAnimation: updateCounterWithAnimation,
-        createAttemptElement: createAttemptElement,
-        updateUI: updateUI,
-        updateUniqueAttackersCount: updateUniqueAttackersCount
+        updateLoadingPercentage,
+        toggleLoadingOverlay,
+        updateLoadingPercentageWithDelay,
+        updateConnectionStatus,
+        updateCounterWithAnimation,
+        createAttemptElement,
+        updateUI,
+        updateUniqueAttackersCount
     };
 })();
 
@@ -712,10 +467,10 @@ const websocketManager = (function() {
     }
 
     return {
-        connect: connect,
-        sendMessage: sendMessage,
-        fallbackFetch: fallbackFetch,
-        getAttempts: getAttempts
+        connect,
+        sendMessage,
+        fallbackFetch,
+        getAttempts
     };
 })();
 
@@ -802,87 +557,47 @@ const dataModel = (function() {
         // If we found a hotspot, center the map there with appropriate zoom
         if (hotspotCenter) {
             const zoom = window.innerWidth <= 768 ? 2 : 3;
-            map.setView(hotspotCenter, zoom, { animate: true });
+            if (window.map) {
+                window.map.setView(hotspotCenter, zoom, { animate: true });
+            }
         }
+    }
+
+    // Make sure the map is properly initialized
+    function ensureMapInitialized() {
+        console.log("Checking map initialization");
+        if (!window.map || !window.map._loaded) {
+            console.warn("Map not properly initialized, attempting to fix");
+            return false;
+        }
+        
+        if (!window.currentTileLayer) {
+            console.warn("Tile layer not properly initialized, attempting to fix");
+            const isDarkMode = document.documentElement.classList.contains('dark');
+            window.currentTileLayer = isDarkMode ? window.darkTileLayer : window.lightTileLayer;
+            
+            if (window.currentTileLayer) {
+                window.currentTileLayer.addTo(window.map);
+                console.log("Tile layer re-initialized");
+            }
+        }
+        
+        return true;
     }
 
     // Format date for UI display
     function formatDateToLocalTime(isoString) {
-        const date = new Date(isoString + 'Z');  // Ensure UTC interpretation
-        return date.toLocaleString(undefined, {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
-            hour: 'numeric',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: true
-        });
+        return formatUtils.formatDateToLocalTime(isoString);
     }
 
     return {
-        filterAttempts: filterAttempts,
-        getUniqueAttackers: getUniqueAttackers,
-        centerMapOnMostActiveRegion: centerMapOnMostActiveRegion,
-        formatDateToLocalTime: formatDateToLocalTime
+        filterAttempts,
+        getUniqueAttackers,
+        centerMapOnMostActiveRegion,
+        formatDateToLocalTime,
+        ensureMapInitialized
     };
 })();
-
-// Pagination utilities
-const paginationUtils = {
-    currentPage: 1,
-    itemsPerPage: 10,
-    
-    // Get current page of data
-    getCurrentPageData: function(data) {
-        const startIndex = (this.currentPage - 1) * this.itemsPerPage;
-        const endIndex = Math.min(startIndex + this.itemsPerPage, data.length);
-        return data.slice(startIndex, endIndex);
-    },
-    
-    // Update pagination controls
-    updateControls: function(totalItems) {
-        const startIndex = (this.currentPage - 1) * this.itemsPerPage;
-        const endIndex = Math.min(startIndex + this.itemsPerPage, totalItems);
-        
-        domUtils.setText('startRange', totalItems ? startIndex + 1 : 0);
-        domUtils.setText('endRange', endIndex);
-        domUtils.setText('totalItems', totalItems);
-        
-        const prevButton = domUtils.getElement('prevPage');
-        const nextButton = domUtils.getElement('nextPage');
-        
-        if (prevButton) {
-            prevButton.disabled = this.currentPage === 1;
-        }
-        
-        if (nextButton) {
-            nextButton.disabled = endIndex >= totalItems;
-        }
-    },
-    
-    goToPage: function(page, data, updateCallback) {
-        this.currentPage = page;
-        this.updateControls(data.length);
-        
-        if (typeof updateCallback === 'function') {
-            updateCallback(this.getCurrentPageData(data));
-        }
-    },
-    
-    nextPage: function(data, updateCallback) {
-        const totalPages = Math.ceil(data.length / this.itemsPerPage);
-        if (this.currentPage < totalPages) {
-            this.goToPage(this.currentPage + 1, data, updateCallback);
-        }
-    },
-    
-    prevPage: function(data, updateCallback) {
-        if (this.currentPage > 1) {
-            this.goToPage(this.currentPage - 1, data, updateCallback);
-        }
-    }
-};
 
 let currentPage = 1;
 
@@ -1029,11 +744,30 @@ const init = (function() {
                 }
             }
         });
+        
+        // Make sure map is initialized with the correct tile layer
+        if (!window.currentTileLayer && window.map) {
+            const isDarkMode = document.documentElement.classList.contains('dark');
+            window.currentTileLayer = isDarkMode ? window.darkTileLayer : window.lightTileLayer;
+            window.currentTileLayer.addTo(window.map);
+        }
     }
     
     function startApplication() {
         themeManager.setupTheme();
         setupEventListeners();
+        
+        // Make sure map is initialized
+        if (window.map && window.lightTileLayer && window.darkTileLayer) {
+            const isDarkMode = document.documentElement.classList.contains('dark');
+            if (!window.currentTileLayer) {
+                window.currentTileLayer = isDarkMode ? window.darkTileLayer : window.lightTileLayer;
+                window.currentTileLayer.addTo(window.map);
+                console.log("Map initialized during startup");
+            }
+        } else {
+            console.warn("Map elements not available during startup");
+        }
         
         // Show loading overlay
         uiManager.toggleLoadingOverlay(true);

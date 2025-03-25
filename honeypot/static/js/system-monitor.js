@@ -1,17 +1,19 @@
 // Modal handling
 function openSystemStatusModal() {
-    const modal = document.getElementById('systemStatusModal');
-    modal.classList.remove('hidden');
+    const modal = domUtils.getElement('systemStatusModal');
+    if (!modal) return;
+    
+    domUtils.removeClass(modal, 'hidden');
     // Force a reflow before any animations
-    modal.offsetHeight;
+    domUtils.forceReflow(modal);
     
     // Close mobile menu if open
-    const mobileMenu = document.getElementById('mobileMenu');
+    const mobileMenu = domUtils.getElement('mobileMenu');
     if (mobileMenu) {
-        mobileMenu.classList.add('hidden');
+        domUtils.addClass(mobileMenu, 'hidden');
         const overlay = document.querySelector('.menu-overlay');
         if (overlay) {
-            overlay.classList.remove('active');
+            domUtils.removeClass(overlay, 'active');
             overlay.addEventListener('transitionend', () => {
                 overlay.remove();
             }, { once: true });
@@ -45,7 +47,9 @@ function openSystemStatusModal() {
 }
 
 function closeSystemStatusModal() {
-    const modal = document.getElementById('systemStatusModal');
+    const modal = domUtils.getElement('systemStatusModal');
+    if (!modal) return;
+    
     const modalContent = modal.querySelector('div');
     
     // Start the slide out animation
@@ -56,7 +60,7 @@ function closeSystemStatusModal() {
     
     // Wait for animation to complete before hiding
     setTimeout(() => {
-        modal.classList.add('hidden');
+        domUtils.addClass(modal, 'hidden');
         // Reset transform for next opening
         if (modalContent) {
             modalContent.style.transform = '';
@@ -65,84 +69,46 @@ function closeSystemStatusModal() {
     }, 400); // Match the CSS transition duration
 }
 
-// Format bytes to human readable format
-function formatBytes(bytes) {
-    if (bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-}
-
-// Format uptime to human readable format
-function formatUptime(seconds) {
-    const days = Math.floor(seconds / (24 * 3600));
-    const hours = Math.floor((seconds % (24 * 3600)) / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const remainingSeconds = Math.floor(seconds % 60);
-    
-    if (days > 0) {
-        return `${days}d ${hours}h ${minutes}m ${remainingSeconds}s`;
-    } else if (hours > 0) {
-        return `${hours}h ${minutes}m ${remainingSeconds}s`;
-    } else if (minutes > 0) {
-        return `${minutes}m ${remainingSeconds}s`;
-    } else {
-        return `${remainingSeconds}s`;
-    }
-}
-
-// Function to update element with animation
-function updateElementWithAnimation(elementId, newValue) {
-    const element = document.getElementById(elementId);
-    if (element && element.textContent !== newValue) {
-        element.textContent = newValue;
-        element.classList.remove('metric-update');
-        void element.offsetWidth; // Trigger reflow
-        element.classList.add('metric-update');
-    }
-}
-
 // Process system metrics data received from WebSocket
 function processSystemMetrics(data) {
     try {
         // Update CPU metrics
         if (data.cpu) {
-            updateElementWithAnimation('cpuPercent', `${data.cpu.percent}%`);
-            const cpuBar = document.getElementById('cpuBar');
+            animationUtils.updateElementWithAnimation('cpuPercent', `${data.cpu.percent}%`);
+            const cpuBar = domUtils.getElement('cpuBar');
             if (cpuBar) cpuBar.style.width = `${data.cpu.percent}%`;
         }
         
         // Update Memory metrics
         if (data.memory) {
-            updateElementWithAnimation('memoryPercent', `${data.memory.percent}%`);
-            const memoryBar = document.getElementById('memoryBar');
+            animationUtils.updateElementWithAnimation('memoryPercent', `${data.memory.percent}%`);
+            const memoryBar = domUtils.getElement('memoryBar');
             if (memoryBar) memoryBar.style.width = `${data.memory.percent}%`;
         }
         
         // Update Disk metrics
         if (data.disk) {
-            updateElementWithAnimation('diskPercent', `${data.disk.percent}%`);
-            const diskBar = document.getElementById('diskBar');
+            animationUtils.updateElementWithAnimation('diskPercent', `${data.disk.percent}%`);
+            const diskBar = domUtils.getElement('diskBar');
             if (diskBar) diskBar.style.width = `${data.disk.percent}%`;
         }
         
         // Update Network metrics
         if (data.network) {
-            updateElementWithAnimation('networkSent', formatBytes(data.network.bytes_sent));
-            updateElementWithAnimation('networkReceived', formatBytes(data.network.bytes_recv));
-            updateElementWithAnimation('networkConnections', data.network.connections.toString());
+            animationUtils.updateElementWithAnimation('networkSent', formatUtils.formatBytes(data.network.bytes_sent));
+            animationUtils.updateElementWithAnimation('networkReceived', formatUtils.formatBytes(data.network.bytes_recv));
+            animationUtils.updateElementWithAnimation('networkConnections', data.network.connections.toString());
         }
 
         // Update Uptime
         if (data.uptime) {
-            updateElementWithAnimation('systemUptime', formatUptime(data.uptime.seconds));
+            animationUtils.updateElementWithAnimation('systemUptime', formatUtils.formatUptime(data.uptime.seconds));
         }
 
         // Update System Load
         if (data.load) {
-            updateElementWithAnimation('load1min', data.load['1min'].toFixed(2));
-            updateElementWithAnimation('load5min', data.load['5min'].toFixed(2));
+            animationUtils.updateElementWithAnimation('load1min', data.load['1min'].toFixed(2));
+            animationUtils.updateElementWithAnimation('load5min', data.load['5min'].toFixed(2));
         }
     } catch (error) {
         console.error('Error processing system metrics:', error);
@@ -152,7 +118,7 @@ function processSystemMetrics(data) {
 // Process service status data received from WebSocket
 function processServiceStatus(data) {
     try {
-        const serviceStatus = document.getElementById('serviceStatus');
+        const serviceStatus = domUtils.getElement('serviceStatus');
         if (!serviceStatus) return;
 
         // Service configurations
@@ -172,7 +138,7 @@ function processServiceStatus(data) {
             const isRunning = serviceData.running === true;
             
             // Look for existing service element
-            let serviceElement = document.getElementById(`service-${protocol}`);
+            let serviceElement = domUtils.getElement(`service-${protocol}`);
             
             if (!serviceElement) {
                 // Create new service element if it doesn't exist
@@ -187,9 +153,9 @@ function processServiceStatus(data) {
             const newStatus = isRunning ? 'running' : 'stopped';
             
             if (oldStatus !== newStatus) {
-                serviceElement.classList.remove('metric-update');
-                void serviceElement.offsetWidth; // Trigger reflow
-                serviceElement.classList.add('metric-update');
+                domUtils.removeClass(serviceElement, 'metric-update');
+                domUtils.forceReflow(serviceElement); // Trigger reflow
+                domUtils.addClass(serviceElement, 'metric-update');
             }
 
             serviceElement.setAttribute('data-status', newStatus);
@@ -222,7 +188,7 @@ function processServiceStatus(data) {
 function processExternalIP(data) {
     try {
         console.log('Received external IP data:', data);
-        const ipElement = document.getElementById('externalIP');
+        const ipElement = domUtils.getElement('externalIP');
         if (ipElement) {
             let ipValue;
             
@@ -238,97 +204,87 @@ function processExternalIP(data) {
             
             console.log('Using IP value:', ipValue);
             ipElement.textContent = ipValue;
-            ipElement.classList.remove('metric-update');
-            void ipElement.offsetWidth; // Trigger reflow
-            ipElement.classList.add('metric-update');
+            domUtils.removeClass(ipElement, 'metric-update');
+            domUtils.forceReflow(ipElement); // Trigger reflow
+            domUtils.addClass(ipElement, 'metric-update');
         }
     } catch (error) {
         console.error('Error processing external IP:', error);
         // Set a fallback value in case of error
-        const ipElement = document.getElementById('externalIP');
+        const ipElement = domUtils.getElement('externalIP');
         if (ipElement) {
             ipElement.textContent = 'Error fetching IP';
         }
     }
 }
 
-// Request external IP update
+// Manual refresh of external IP via HTTP request
 function refreshExternalIP() {
-    const ipElement = document.getElementById('externalIP');
-    if (ipElement) {
-        ipElement.textContent = 'Refreshing...';
-    }
-    
-    // Debug the WebSocket state
-    console.log('WebSocket state:', {
-        exists: typeof window.socket !== 'undefined',
-        value: window.socket,
-        readyState: window.socket ? window.socket.readyState : 'N/A',
-        readyStateText: window.socket ? 
-            ['CONNECTING', 'OPEN', 'CLOSING', 'CLOSED'][window.socket.readyState] : 'N/A'
-    });
-    
-    // First try WebSocket if it's available
-    if (typeof window.socket !== 'undefined' && window.socket && window.socket.readyState === WebSocket.OPEN) {
-        console.log('Requesting external IP refresh via WebSocket');
-        window.socket.send(JSON.stringify({
-            type: 'request_external_ip'
-        }));
-    } else {
-        console.log('WebSocket not available, falling back to HTTP request');
-        // Fall back to HTTP request
-        fetch('/api/system/external-ip')
-            .then(response => response.json())
-            .then(data => {
-                console.log('Fetched external IP via HTTP fallback:', data);
-                if (ipElement && data && data.ip) {
-                    ipElement.textContent = data.ip;
-                    ipElement.classList.remove('metric-update');
-                    void ipElement.offsetWidth; // Trigger reflow
-                    ipElement.classList.add('metric-update');
-                }
-            })
-            .catch(error => {
-                console.error('Error fetching external IP via HTTP fallback:', error);
-                if (ipElement) {
-                    ipElement.textContent = 'Try again later';
-                }
-            });
-    }
+    fetch('/api/external_ip')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('HTTP response for external IP:', data);
+            processExternalIP(data);
+        })
+        .catch(error => {
+            console.error('Error fetching external IP:', error);
+            const ipElement = domUtils.getElement('externalIP');
+            if (ipElement) {
+                ipElement.textContent = 'Error fetching IP';
+            }
+        });
 }
 
-// Initialize system monitoring
+// Handle clicking the refresh button for external IP
 document.addEventListener('DOMContentLoaded', function() {
-    const systemStatusModal = document.getElementById('systemStatusModal');
-    const systemStatusButton = document.getElementById('systemStatusButton');
-    const closeSystemStatusModalBtn = document.getElementById('closeSystemStatusModal');
-    const refreshIPBtn = document.getElementById('refreshIP');
-
-    // Modal event listeners
-    if (systemStatusButton) {
-        systemStatusButton.addEventListener('click', openSystemStatusModal);
-    }
-
-    if (closeSystemStatusModalBtn) {
-        closeSystemStatusModalBtn.addEventListener('click', closeSystemStatusModal);
-    }
-
-    if (systemStatusModal) {
-        systemStatusModal.addEventListener('click', (e) => {
-            if (e.target === systemStatusModal) {
-                closeSystemStatusModal();
+    const refreshIPButton = document.getElementById('refreshIP');
+    if (refreshIPButton) {
+        refreshIPButton.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            // Visual feedback
+            this.classList.add('animate-spin');
+            
+            // Try WebSocket first
+            if (typeof window.socket !== 'undefined' && window.socket && window.socket.readyState === WebSocket.OPEN) {
+                window.socket.send(JSON.stringify({
+                    type: 'request_external_ip'
+                }));
+                
+                // Stop spinning after a short delay
+                setTimeout(() => {
+                    this.classList.remove('animate-spin');
+                }, 500);
+            } else {
+                // Fall back to HTTP request
+                refreshExternalIP();
+                
+                // Stop spinning after HTTP request completes (or after 2s as a fallback)
+                setTimeout(() => {
+                    this.classList.remove('animate-spin');
+                }, 2000);
             }
         });
     }
-
-    // Refresh IP button listener
-    if (refreshIPBtn) {
-        console.log('Attaching click handler to refresh IP button');
-        refreshIPBtn.addEventListener('click', function() {
-            console.log('Refresh IP button clicked');
-            refreshExternalIP();
+    
+    // Add listener for the system status button
+    const systemStatusButton = document.getElementById('systemStatusButton');
+    if (systemStatusButton) {
+        systemStatusButton.addEventListener('click', function() {
+            openSystemStatusModal();
         });
-    } else {
-        console.warn('Refresh IP button not found in the DOM');
+    }
+    
+    // Add listener for closing the system status modal
+    const closeSystemStatusButton = document.getElementById('closeSystemStatusModal');
+    if (closeSystemStatusButton) {
+        closeSystemStatusButton.addEventListener('click', function() {
+            closeSystemStatusModal();
+        });
     }
 }); 
