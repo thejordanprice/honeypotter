@@ -362,6 +362,57 @@ async function loadDataChunk(offset, since = null) {
     }
 }
 
+// Function to validate entry count
+async function validateEntryCount() {
+    try {
+        const response = await fetch('/api/attempts?count_only=true');
+        const { total } = await response.json();
+        
+        // Check if the local count matches the server count
+        if (attempts.length !== total) {
+            console.warn(`Entry count mismatch: local ${attempts.length} vs server ${total}`);
+            
+            // Additional check for duplicates
+            const uniqueAttempts = new Map();
+            let duplicatesFound = false;
+            
+            attempts.forEach(attempt => {
+                const key = `${attempt.timestamp}_${attempt.client_ip}_${attempt.protocol}`;
+                if (uniqueAttempts.has(key)) {
+                    duplicatesFound = true;
+                    console.warn('Duplicate entry found:', key);
+                }
+                uniqueAttempts.set(key, attempt);
+            });
+            
+            if (duplicatesFound) {
+                console.warn('Removing duplicates and updating storage...');
+                attempts = Array.from(uniqueAttempts.values());
+                
+                // If after removing duplicates we still have a mismatch, clear everything
+                if (attempts.length !== total) {
+                    localStorage.removeItem('honeypotterData');
+                    window.location.reload();
+                    return false;
+                } else {
+                    // Save the deduplicated data
+                    saveToLocalStorage();
+                    return true;
+                }
+            } else {
+                // If no duplicates found but counts still don't match, clear everything
+                localStorage.removeItem('honeypotterData');
+                window.location.reload();
+                return false;
+            }
+        }
+        return true;
+    } catch (error) {
+        console.error('Error validating entry count:', error);
+        return false;
+    }
+}
+
 // Function to load all data in chunks
 async function loadAllData(forceReload = false) {
     if (isLoadingData) return;
@@ -370,6 +421,14 @@ async function loadAllData(forceReload = false) {
     // Try to load from local storage if not forcing reload
     if (!forceReload && loadFromLocalStorage()) {
         console.log('Using cached data from local storage');
+        
+        // Validate the entry count
+        const isValid = await validateEntryCount();
+        if (!isValid) {
+            isLoadingData = false;
+            return;
+        }
+        
         updateUI();
         updateCounterWithAnimation('totalAttempts', attempts.length);
         updateUniqueAttackersCount();
@@ -472,18 +531,39 @@ async function loadIncrementalData(since) {
         
         if (newData && newData.length > 0) {
             console.log('Received', newData.length, 'new records');
-            attempts = [...newData, ...attempts];
+            
+            // Create a Set of existing entry keys to prevent duplicates
+            const existingEntries = new Set(
+                attempts.map(a => `${a.timestamp}_${a.client_ip}_${a.protocol}`)
+            );
+            
+            // Filter out any duplicates from new data
+            const uniqueNewData = newData.filter(attempt => {
+                const key = `${attempt.timestamp}_${attempt.client_ip}_${attempt.protocol}`;
+                return !existingEntries.has(key);
+            });
+            
+            if (uniqueNewData.length !== newData.length) {
+                console.warn(`Filtered out ${newData.length - uniqueNewData.length} duplicate entries`);
+            }
+            
+            attempts = [...uniqueNewData, ...attempts];
             totalAttemptsCount = total;
             loadedAttemptsCount = attempts.length;
             
-            // Update last timestamp
-            lastDataTimestamp = newData[0].timestamp;
+            // Update last timestamp if we have new data
+            if (uniqueNewData.length > 0) {
+                lastDataTimestamp = uniqueNewData[0].timestamp;
+            }
             
             // Update UI and save
             updateUI();
             updateCounterWithAnimation('totalAttempts', attempts.length);
             updateUniqueAttackersCount();
             saveToLocalStorage();
+            
+            // Validate the count after adding new data
+            await validateEntryCount();
         } else {
             console.log('No new data to load');
         }
