@@ -9,6 +9,7 @@ from pathlib import Path
 from threading import Lock, Thread
 from queue import Queue
 import atexit
+import queue
 
 logger = logging.getLogger(__name__)
 
@@ -95,10 +96,13 @@ class GeolocationService:
                         batch_ips.append(ip)
                         result_callbacks.append(callback)
                 
-                except TimeoutError:
+                except queue.Empty:  # Queue.get timeout raises Empty, not TimeoutError
                     # No items in the queue, check if we should save cache
                     if time.time() - self.last_save_time > self.save_interval:
                         self._save_cache()
+                    continue
+                except Exception as e:
+                    logger.error(f"Error collecting batch items: {str(e)}", exc_info=True)
                     continue
                 
                 # Process the batch (if we have any)
@@ -108,17 +112,23 @@ class GeolocationService:
                 # For free tier IP-API we can only do single lookups
                 # For a paid API this could be replaced with batch API calls
                 for i, ip in enumerate(batch_ips):
-                    location = self._fetch_location(ip)
-                    if result_callbacks[i]:
-                        result_callbacks[i](location)
-                    self.batch_queue.task_done()
+                    try:
+                        location = self._fetch_location(ip)
+                        if result_callbacks[i]:
+                            result_callbacks[i](location)
+                    except Exception as e:
+                        logger.error(f"Error processing IP {ip} in batch: {str(e)}", exc_info=True)
+                    finally:
+                        self.batch_queue.task_done()
                 
                 # Check if we should autosave the cache
                 if time.time() - self.last_save_time > self.save_interval:
                     self._save_cache()
                     
             except Exception as e:
-                logger.error(f"Error in batch processor: {str(e)}")
+                logger.error(f"Critical error in batch processor: {str(e)}", exc_info=True)
+                # Sleep briefly to prevent tight error loops from consuming resources
+                time.sleep(1)
             finally:
                 # Clear for next batch
                 batch_ips = []
@@ -134,31 +144,53 @@ class GeolocationService:
                 time.sleep(self.min_request_interval - time_since_last_request)
 
             # Make API request
-            response = requests.get(f'http://ip-api.com/json/{ip}')
-            self.last_request_time = time.time()
+            logger.debug(f"Fetching geolocation data for IP {ip}")
+            try:
+                response = requests.get(f'http://ip-api.com/json/{ip}', timeout=10)
+                self.last_request_time = time.time()
+            except requests.RequestException as e:
+                logger.error(f"Network error when fetching geolocation for IP {ip}: {str(e)}", exc_info=True)
+                return None
 
             if response.status_code == 200:
-                data = response.json()
-                if data.get('status') == 'success':
-                    location_data = {
-                        'latitude': float(data.get('lat', 0)),
-                        'longitude': float(data.get('lon', 0)),
-                        'country': data.get('country'),
-                        'city': data.get('city'),
-                        'region': data.get('regionName')
-                    }
-                    # Cache the result in memory
-                    with self.cache_lock:
-                        self.cache[ip] = location_data
-                    return location_data
-                else:
-                    logger.warning(f"IP-API returned error for IP {ip}: {data.get('message', 'Unknown error')}")
-            
-            logger.warning(f"Failed to get location for IP {ip}: {response.text}")
-            return None
+                try:
+                    data = response.json()
+                    if data.get('status') == 'success':
+                        location_data = {
+                            'latitude': float(data.get('lat', 0)),
+                            'longitude': float(data.get('lon', 0)),
+                            'country': data.get('country'),
+                            'city': data.get('city'),
+                            'region': data.get('regionName')
+                        }
+                        # Cache the result in memory
+                        with self.cache_lock:
+                            self.cache[ip] = location_data
+                        return location_data
+                    else:
+                        error_msg = data.get('message', 'Unknown error')
+                        logger.warning(f"IP-API returned error for IP {ip}: {error_msg}")
+                        if error_msg == 'private range':
+                            logger.info(f"IP {ip} is in a private range, caching as None")
+                            with self.cache_lock:
+                                self.cache[ip] = None
+                        return None
+                except ValueError as e:
+                    logger.error(f"Invalid JSON response for IP {ip}: {str(e)}", exc_info=True)
+                    logger.debug(f"Response content: {response.text[:200]}...")
+                    return None
+            elif response.status_code == 429:
+                logger.warning(f"Rate limit exceeded for IP-API. Waiting before retry.")
+                # Wait a bit longer than usual to recover from rate limiting
+                time.sleep(5)
+                return None
+            else:
+                logger.warning(f"Failed to get location for IP {ip}: HTTP {response.status_code}")
+                logger.debug(f"Response content: {response.text[:200]}...")
+                return None
 
         except Exception as e:
-            logger.error(f"Error getting location for IP {ip}: {str(e)}")
+            logger.error(f"Unexpected error getting location for IP {ip}: {str(e)}", exc_info=True)
             return None
 
     def get_location(self, ip: str) -> Optional[Dict]:
