@@ -6,7 +6,7 @@ import asyncio
 from abc import ABC, abstractmethod
 from typing import Optional, Dict
 from honeypot.database.models import LoginAttempt, get_db, Protocol
-from honeypot.web.app import broadcast_attempt
+from honeypot.web.websocket_broadcast import broadcast_attempt
 from honeypot.core.geolocation import geolocation_service
 from honeypot.core.thread_manager import ThreadManager
 from honeypot.core.config import (

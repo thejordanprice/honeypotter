@@ -7,6 +7,8 @@ import subprocess
 import platform
 import requests
 import time
+import threading
+from honeypot.database.models import get_db, get_connection_stats, SessionLocal
 
 logger = logging.getLogger(__name__)
 
@@ -455,4 +457,126 @@ class SystemMonitor:
             return logs
         except Exception as e:
             logger.error(f"Error reading system logs: {str(e)}")
-            return [] 
+            return []
+
+def periodic_db_health_check():
+    """Run a periodic database health check to ensure connections are working properly."""
+    logger = logging.getLogger(__name__)
+    
+    while True:
+        try:
+            # Sleep first to allow the system to start up
+            time.sleep(60)  # Check every minute
+            
+            # Get connection stats
+            stats = get_connection_stats()
+            logger.info(f"DB health check: {stats['active_connections']} active, "
+                       f"{stats['pool_checked_out']} checked out, {stats['pool_checkedin']} checked in")
+            
+            # Check for potential connection leaks
+            if stats['potential_leaks']:
+                logger.warning(f"Potential DB connection leaks detected: {len(stats['potential_leaks'])} connections")
+                
+                if len(stats['potential_leaks']) > 10:
+                    logger.error("Critical: Large number of potential DB connection leaks")
+                    
+                    # Force a session cleanup in extreme cases
+                    try:
+                        logger.warning("Attempting to force session registry cleanup")
+                        SessionLocal.remove()
+                        logger.info("Forced session registry cleanup completed")
+                    except Exception as e:
+                        logger.error(f"Failed to force session cleanup: {str(e)}")
+            
+            # Verify database is actually responsive
+            try:
+                db = next(get_db())
+                # Execute a simple query to verify the connection works
+                db.execute("SELECT 1").scalar()
+                db.close()
+                logger.debug("Database connection verified healthy")
+            except Exception as e:
+                logger.error(f"Database health check failed: {str(e)}")
+                
+                # Attempt recovery for serious database problems
+                try:
+                    logger.warning("Attempting connection pool reset")
+                    # Force a session registry cleanup
+                    SessionLocal.remove()
+                    # Let the connection pool recycle its connections
+                    time.sleep(1)
+                    logger.info("Connection pool reset completed")
+                except Exception as recovery_err:
+                    logger.error(f"Failed to reset connection pool: {str(recovery_err)}")
+                
+        except Exception as e:
+            logger.error(f"Error in DB health check thread: {str(e)}")
+
+def periodic_thread_stats():
+    """Periodically log thread and connection statistics."""
+    logger = logging.getLogger(__name__)
+    
+    while True:
+        try:
+            # Sleep first to allow the system to start up
+            time.sleep(30)  # Check every 30 seconds
+            
+            # Import BaseHoneypot here to avoid circular imports
+            try:
+                from honeypot.core.base_server import BaseHoneypot
+                # Log thread pool stats
+                thread_manager = BaseHoneypot.thread_manager
+                active_connections = sum(thread_manager.connections.values())
+                
+                # Count active threads
+                active_threads = len(threading.enumerate())
+                
+                logger.info(f"Thread stats: {active_connections} active connections, "
+                        f"{len(thread_manager.connections)} unique IPs, "
+                        f"{active_threads} total threads")
+                
+                # Add more detailed stats at debug level
+                if logger.getEffectiveLevel() <= logging.DEBUG:
+                    # Log the busiest IPs
+                    if thread_manager.connections:
+                        busiest_ips = sorted(
+                            thread_manager.connections.items(), 
+                            key=lambda x: x[1], 
+                            reverse=True
+                        )[:10]  # Top 10 IPs
+                        
+                        logger.debug("Busiest IPs:")
+                        for ip, count in busiest_ips:
+                            logger.debug(f"  {ip}: {count} connections")
+                    
+                    # Log thread names for debugging
+                    logger.debug("Active threads:")
+                    for thread in threading.enumerate():
+                        logger.debug(f"  {thread.name}")
+            except ImportError:
+                # Handle the case when BaseHoneypot may not be fully initialized
+                logger.debug("Skipping thread stats collection - BaseHoneypot not fully initialized")
+            except Exception as e:
+                logger.error(f"Error collecting thread stats: {str(e)}")
+                
+        except Exception as e:
+            logger.error(f"Error in thread stats monitor: {str(e)}")
+
+def start_monitoring_threads():
+    """Start all monitoring threads."""
+    # Start the database health check
+    health_check_thread = threading.Thread(target=periodic_db_health_check, daemon=True)
+    health_check_thread.name = "DB-Health-Check"
+    health_check_thread.start()
+    logger.info("Database health check thread started")
+    
+    # Start the thread statistics monitor
+    thread_stats_thread = threading.Thread(target=periodic_thread_stats, daemon=True)
+    thread_stats_thread.name = "Thread-Stats-Monitor"
+    thread_stats_thread.start()
+    logger.info("Thread statistics monitor started")
+    
+    return {
+        "health_check_thread": health_check_thread,
+        "thread_stats_thread": thread_stats_thread
+    } 

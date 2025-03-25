@@ -17,6 +17,7 @@ import os
 import time
 import weakref
 from datetime import datetime, timedelta
+from honeypot.web import websocket_broadcast
 
 logger = logging.getLogger(__name__)
 
@@ -251,17 +252,26 @@ def active_connections() -> List[WebSocket]:
 
 @app.on_event("startup")
 async def startup_event():
-    """Run startup tasks"""
-    # Check for psutil for memory monitoring
+    """Execute startup tasks when the FastAPI app starts."""
+    logger.info("Starting honeypot monitoring web interface")
     try:
-        import psutil
-        logger.info("psutil available - memory monitoring enabled")
-    except ImportError:
-        logger.warning("psutil not available - consider installing it with 'pip install psutil' to enable memory monitoring")
-
-    # Start the connection verification task
-    asyncio.create_task(connection_manager.periodic_cleanup())
-    logger.info("Started WebSocket connection management tasks")
+        # Register our connection manager with the websocket broadcast module
+        websocket_broadcast.connection_manager = connection_manager
+        logger.info("WebSocket broadcast system initialized")
+        
+        # Verify the templates directory exists
+        if not Path(TEMPLATE_DIR).exists():
+            logger.warning(f"Templates directory not found: {TEMPLATE_DIR}")
+        else:
+            logger.info(f"Templates directory verified: {TEMPLATE_DIR}")
+            
+        # Verify the static directory exists
+        if not Path(STATIC_DIR).exists():
+            logger.warning(f"Static files directory not found: {STATIC_DIR}")
+        else:
+            logger.info(f"Static files directory verified: {STATIC_DIR}")
+    except Exception as e:
+        logger.error(f"Error during startup: {str(e)}")
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
@@ -791,20 +801,6 @@ def export_csv(db: Session = Depends(get_db), download: bool = False):
         db.rollback()
         logger.error(f"Error exporting CSV: {str(e)}")
         return PlainTextResponse(f"Error exporting data: {str(e)}", status_code=500)
-
-async def broadcast_attempt(attempt: dict):
-    """Broadcast a login attempt to all connected clients."""
-    message = {
-        'type': 'login_attempt',
-        'data': attempt
-    }
-    message_json = json.dumps(message)
-    
-    # Use the connection manager to broadcast the message
-    success_count = await connection_manager.broadcast(message_json)
-    
-    logger.debug(f"Broadcast login attempt to {success_count} clients")
-    return success_count
 
 async def send_data_in_batches(websocket: WebSocket, db: Session):
     """Send login attempts data in batches to a client."""
