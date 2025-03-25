@@ -213,10 +213,21 @@
     </div>
 
     <!-- Loading Overlay -->
-    <div id="loadingOverlay" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-        <div class="flex items-center bg-white dark:bg-gray-800 rounded-lg p-6 shadow-xl max-w-full mx-4">
-            <div class="loading-spinner"></div>
-            <div class="loading-text">Loading data...</div>
+    <div id="loadingOverlay" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="flex flex-col items-center bg-white dark:bg-gray-800 rounded-xl p-8 shadow-2xl max-w-sm mx-4 w-full transform transition-all">
+            <div class="w-full mb-6">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="text-gray-600 dark:text-gray-300 text-sm font-medium" id="loadingText">Loading data...</div>
+                    <div class="text-gray-600 dark:text-gray-300 text-sm font-medium" id="loadingPercentage">0%</div>
+                </div>
+                <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 mb-1 overflow-hidden">
+                    <div id="loadingBar" class="bg-blue-500 dark:bg-blue-400 h-1.5 rounded-full transition-all duration-300 ease-out" style="width: 0%"></div>
+                </div>
+            </div>
+            <div class="flex items-center justify-center space-x-2">
+                <div class="loading-spinner"></div>
+                <div class="text-xs text-gray-500 dark:text-gray-400" id="loadingDetail">Connecting to server...</div>
+            </div>
         </div>
     </div>
 

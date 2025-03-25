@@ -186,11 +186,52 @@ function updateConnectionStatus(status, isError = false) {
     }
 }
 
-function toggleLoadingOverlay(show) {
+function updateLoadingPercentage(percentage) {
+    const percentageElement = document.getElementById('loadingPercentage');
+    const loadingBar = document.getElementById('loadingBar');
+    const loadingDetail = document.getElementById('loadingDetail');
+    const loadingText = document.getElementById('loadingText');
+    
+    if (percentageElement && loadingBar) {
+        const roundedPercentage = Math.round(percentage);
+        percentageElement.textContent = `${roundedPercentage}%`;
+        loadingBar.style.width = `${roundedPercentage}%`;
+        
+        // Update loading detail text based on percentage
+        if (loadingDetail && loadingText) {
+            if (percentage <= 10) {
+                loadingText.textContent = 'Initializing...';
+                loadingDetail.textContent = 'Preparing connection';
+            } else if (percentage <= 30) {
+                loadingText.textContent = 'Connecting...';
+                loadingDetail.textContent = 'Establishing WebSocket connection';
+            } else if (percentage <= 50) {
+                loadingText.textContent = 'Loading...';
+                loadingDetail.textContent = 'Fetching attack data';
+            } else if (percentage <= 70) {
+                loadingText.textContent = 'Processing...';
+                loadingDetail.textContent = 'Analyzing attack patterns';
+            } else if (percentage <= 90) {
+                loadingText.textContent = 'Finalizing...';
+                loadingDetail.textContent = 'Preparing visualization';
+            } else {
+                loadingText.textContent = 'Complete';
+                loadingDetail.textContent = 'Starting application';
+            }
+        }
+    }
+}
+
+function toggleLoadingOverlay(show, percentage = null) {
     const overlay = document.getElementById('loadingOverlay');
+    
     if (show) {
         overlay.classList.remove('hidden');
         document.body.style.overflow = 'hidden';
+        
+        if (percentage !== null) {
+            updateLoadingPercentage(percentage);
+        }
         
         requestAnimationFrame(() => {
             overlay.style.opacity = '1';
@@ -203,8 +244,19 @@ function toggleLoadingOverlay(show) {
         
         setTimeout(() => {
             overlay.classList.add('hidden');
+            updateLoadingPercentage(0);
         }, 300);
     }
+}
+
+// Add a new function to update percentage with delay
+function updateLoadingPercentageWithDelay(percentage) {
+    return new Promise(resolve => {
+        setTimeout(() => {
+            updateLoadingPercentage(percentage);
+            resolve();
+        }, 300); // Increased delay to 300ms for smoother transitions
+    });
 }
 
 // Show loading overlay initially
@@ -215,15 +267,21 @@ function connectWebSocket() {
     const wsUrl = `${protocol}//${window.location.host}/ws`;
     
     updateConnectionStatus('Connecting to WebSocket...');
+    updateLoadingPercentageWithDelay(10); // Start at 10%
     
     socket = new WebSocket(wsUrl);
 
-    socket.onopen = function() {
+    socket.onopen = async function() {
         updateConnectionStatus('Connected to WebSocket');
+        await updateLoadingPercentageWithDelay(30); // WebSocket connected
+        
         fetch('/api/attempts')
             .then(response => response.json())
-            .then(data => {
+            .then(async data => {
+                await updateLoadingPercentageWithDelay(50); // Data received
                 attempts = data;
+                
+                await updateLoadingPercentageWithDelay(70); // Processing data
                 
                 const currentFilters = {
                     search: searchInput.value.toLowerCase().trim(),
@@ -233,11 +291,17 @@ function connectWebSocket() {
                 
                 const filteredAttempts = filterAttempts(attempts);
                 
+                await updateLoadingPercentageWithDelay(80); // Filtering complete
+                
                 // Initialize the counters with animation
                 updateCounterWithAnimation('totalAttempts', attempts.length);
                 updateUniqueAttackersCount();
                 
+                await updateLoadingPercentageWithDelay(90); // Counters updated
+                
                 updateUI();
+                
+                await updateLoadingPercentageWithDelay(100); // UI updated
                 
                 setTimeout(() => toggleLoadingOverlay(false), 500);
             })
