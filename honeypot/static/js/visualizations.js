@@ -2,43 +2,7 @@
 let isInitialLoad = true;
 
 function updateVisualizations(filteredAttempts) {
-    // Clear existing heatmap layer
-    if (heatLayer) {
-        map.removeLayer(heatLayer);
-    }
-
-    // Update map with all filtered attempts
-    if (filteredAttempts.length > 0) {
-        // Get all attempts with valid coordinates
-        const validAttempts = filteredAttempts.filter(a => a.latitude && a.longitude);
-        
-        // Create heatmap data points with intensity based on frequency
-        const locationFrequency = {};
-        validAttempts.forEach(a => {
-            const key = `${a.latitude},${a.longitude}`;
-            locationFrequency[key] = (locationFrequency[key] || 0) + 1;
-        });
-
-        const heatData = validAttempts.map(a => {
-            const key = `${a.latitude},${a.longitude}`;
-            const intensity = Math.min(locationFrequency[key] / 5, 1); // Normalize intensity
-            return [a.latitude, a.longitude, intensity];
-        });
-
-        // Create and add the heat layer
-        heatLayer = L.heatLayer(heatData, {
-            radius: 15,
-            blur: 10,
-            maxZoom: 10,
-            max: 1.0,
-            gradient: {
-                0.4: 'blue',
-                0.6: 'lime',
-                0.8: 'yellow',
-                1.0: 'red'
-            }
-        }).addTo(map);
-    }
+    // Map is now updated in the updateMap function in main.js
     
     // Only center map on initial load
     if (isInitialLoad) {

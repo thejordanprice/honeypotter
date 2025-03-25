@@ -50,7 +50,10 @@ function updateMap(attempt) {
     }
 
     // Get all attempts with valid coordinates
-    const validAttempts = websocketManager.getAttempts().filter(a => a.latitude && a.longitude);
+    // Use filtered attempts instead of all attempts
+    const attempts = websocketManager.getAttempts();
+    const filteredAttempts = dataModel.filterAttempts(attempts);
+    const validAttempts = filteredAttempts.filter(a => a.latitude && a.longitude);
     
     // Create heatmap data points with intensity based on frequency
     const locationFrequency = {};
@@ -318,6 +321,9 @@ const uiManager = (function() {
             .join('');
 
         updateVisualizations(filteredAttempts);
+        
+        // Update map to reflect current filtered data
+        updateMap({latitude: 0, longitude: 0});
     }
     
     function updateUniqueAttackersCount() {
@@ -1038,6 +1044,8 @@ const init = (function() {
             searchInput.addEventListener('input', () => {
                 paginationUtils.currentPage = 1;
                 uiManager.updateUI();
+                // Update map to reflect filtered data
+                updateMap({latitude: 0, longitude: 0});
             });
         }
         
@@ -1045,6 +1053,8 @@ const init = (function() {
             filterSelect.addEventListener('change', () => {
                 paginationUtils.currentPage = 1;
                 uiManager.updateUI();
+                // Update map to reflect filtered data
+                updateMap({latitude: 0, longitude: 0});
             });
         }
         
@@ -1052,6 +1062,8 @@ const init = (function() {
             protocolSelect.addEventListener('change', () => {
                 paginationUtils.currentPage = 1;
                 uiManager.updateUI();
+                // Update map to reflect filtered data
+                updateMap({latitude: 0, longitude: 0});
             });
         }
         
