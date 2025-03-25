@@ -12,6 +12,94 @@ function formatDateToLocalTime(isoString) {
     });
 }
 
+// Menu and overlay utilities
+const menuUtils = {
+    hideMenu: function(menu) {
+        if (!menu) return;
+        menu.classList.add('hidden');
+    },
+    
+    showMenu: function(menu) {
+        if (!menu) return;
+        menu.classList.remove('hidden');
+    },
+    
+    createOverlay: function() {
+        const overlay = document.createElement('div');
+        overlay.className = 'menu-overlay';
+        document.body.appendChild(overlay);
+        
+        // Force a reflow before adding the active class
+        overlay.offsetHeight;
+        overlay.classList.add('active');
+        return overlay;
+    },
+    
+    removeOverlay: function(overlay) {
+        if (!overlay) return;
+        overlay.classList.remove('active');
+        overlay.addEventListener('transitionend', () => {
+            overlay.remove();
+        }, { once: true });
+    },
+    
+    closeMenu: function(menu) {
+        this.hideMenu(menu);
+        const overlay = document.querySelector('.menu-overlay');
+        if (overlay) {
+            this.removeOverlay(overlay);
+        }
+    }
+};
+
+// DOM utilities
+const domUtils = {
+    // Get element by ID with optional fallback value
+    getElement: function(id, fallback = null) {
+        const element = document.getElementById(id);
+        return element || fallback;
+    },
+    
+    // Update text content if element exists
+    setText: function(id, text) {
+        const element = this.getElement(id);
+        if (element) {
+            element.textContent = text;
+            return true;
+        }
+        return false;
+    },
+    
+    // Add/remove/toggle classes safely
+    addClass: function(element, className) {
+        if (element && element.classList) {
+            element.classList.add(className);
+        }
+    },
+    
+    removeClass: function(element, className) {
+        if (element && element.classList) {
+            element.classList.remove(className);
+        }
+    },
+    
+    toggleClass: function(element, className) {
+        if (element && element.classList) {
+            return element.classList.toggle(className);
+        }
+        return false;
+    },
+    
+    // Animation helper
+    animateElement: function(element, className, duration = 200) {
+        if (!element) return;
+        this.addClass(element, className);
+        setTimeout(() => {
+            this.removeClass(element, className);
+        }, duration);
+    }
+};
+
 // Initialize theme based on user preference, system preference, or default to light mode
 if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
     document.documentElement.classList.add('dark');
@@ -147,50 +235,55 @@ let socket = null;
 
 // Function to update counter with simple animation
 function updateCounterWithAnimation(elementId, newValue) {
-    const element = document.getElementById(elementId);
+    const element = domUtils.getElement(elementId);
+    if (!element) return;
+    
     const currentValue = parseInt(element.textContent) || 0;
     
     if (currentValue !== newValue) {
         element.textContent = newValue;
-        element.classList.remove('metric-update');
+        domUtils.removeClass(element, 'metric-update');
         void element.offsetWidth; // Trigger reflow
-        element.classList.add('metric-update');
+        domUtils.addClass(element, 'metric-update');
     }
 }
 
 // Add function to count unique attackers
 function updateUniqueAttackersCount() {
     const uniqueIPs = new Set(attempts.map(attempt => attempt.client_ip));
-    const currentCount = parseInt(document.getElementById('uniqueAttackers').textContent);
+    const currentCount = parseInt(domUtils.getElement('uniqueAttackers')?.textContent) || 0;
     if (currentCount !== uniqueIPs.size) {
         updateCounterWithAnimation('uniqueAttackers', uniqueIPs.size);
     }
 }
 
 function updateConnectionStatus(status, isError = false) {
-    const indicator = document.getElementById('connectionStatusIndicator');
+    const indicator = domUtils.getElement('connectionStatusIndicator');
+    if (!indicator) return;
+    
     const svg = indicator.querySelector('svg');
+    if (!svg) return;
     
     if (status.includes('Connected')) {
         indicator.className = 'connected';
         svg.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>';
-        svg.classList.remove('animate-spin');
+        domUtils.removeClass(svg, 'animate-spin');
     } else if (status.includes('Connecting')) {
         indicator.className = 'reconnecting';
         svg.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>';
-        svg.classList.add('animate-spin');
+        domUtils.addClass(svg, 'animate-spin');
     } else {
         indicator.className = 'disconnected';
         svg.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>';
-        svg.classList.remove('animate-spin');
+        domUtils.removeClass(svg, 'animate-spin');
     }
 }
 
 function updateLoadingPercentage(percentage) {
-    const percentageElement = document.getElementById('loadingPercentage');
-    const loadingBar = document.getElementById('loadingBar');
-    const loadingDetail = document.getElementById('loadingDetail');
-    const loadingText = document.getElementById('loadingText');
+    const percentageElement = domUtils.getElement('loadingPercentage');
+    const loadingBar = domUtils.getElement('loadingBar');
+    const loadingDetail = domUtils.getElement('loadingDetail');
+    const loadingText = domUtils.getElement('loadingText');
     
     if (percentageElement && loadingBar) {
         const roundedPercentage = Math.round(percentage);
@@ -223,10 +316,11 @@ function updateLoadingPercentage(percentage) {
 }
 
 function toggleLoadingOverlay(show, percentage = null) {
-    const overlay = document.getElementById('loadingOverlay');
+    const overlay = domUtils.getElement('loadingOverlay');
+    if (!overlay) return;
     
     if (show) {
-        overlay.classList.remove('hidden');
+        domUtils.removeClass(overlay, 'hidden');
         document.body.style.overflow = 'hidden';
         
         if (percentage !== null) {
@@ -243,7 +337,7 @@ function toggleLoadingOverlay(show, percentage = null) {
         document.body.style.overflow = '';
         
         setTimeout(() => {
-            overlay.classList.add('hidden');
+            domUtils.addClass(overlay, 'hidden');
             updateLoadingPercentage(0);
         }, 300);
     }
@@ -261,6 +355,90 @@ function updateLoadingPercentageWithDelay(percentage) {
 
 // Show loading overlay initially
 toggleLoadingOverlay(true);
+
+// WebSocket message handlers
+const wsMessageHandlers = {
+    login_attempt: function(data) {
+        const newAttempt = data;
+        console.log('Received new attempt:', newAttempt);
+        
+        // Check if this IP is new before adding the attempt
+        const isNewAttacker = !attempts.some(attempt => attempt.client_ip === newAttempt.client_ip);
+        
+        attempts.unshift(newAttempt);
+        updateCounterWithAnimation('totalAttempts', attempts.length);
+        
+        // Only update unique attackers if this is a new IP
+        if (isNewAttacker) {
+            updateUniqueAttackersCount();
+        }
+        
+        updateMap(newAttempt);
+        
+        // Reset to page 1 when new attempt comes in
+        paginationUtils.currentPage = 1;
+        updateUI();
+        
+        const indicator = domUtils.getElement('connectionStatusIndicator');
+        if (indicator) {
+            indicator.style.transform = 'scale(1.2)';
+            setTimeout(() => {
+                indicator.style.transform = 'scale(1)';
+            }, 200);
+        }
+    },
+    
+    initial_attempts: function(data) {
+        attempts = data;
+        
+        // Update loading progress
+        updateLoadingPercentageWithDelay(70).then(() => {
+            // Initialize the counters with animation
+            updateCounterWithAnimation('totalAttempts', attempts.length);
+            updateUniqueAttackersCount();
+            
+            return updateLoadingPercentageWithDelay(90);
+        }).then(() => {
+            // Initialize UI with the data
+            updateUI();
+            centerMapOnMostActiveRegion(attempts);
+            
+            return updateLoadingPercentageWithDelay(100);
+        }).then(() => {
+            // Hide loading overlay
+            setTimeout(() => toggleLoadingOverlay(false), 500);
+        });
+    },
+    
+    system_metrics: function(data) {
+        console.log('Received system metrics');
+        if (typeof processSystemMetrics === 'function') {
+            processSystemMetrics(data);
+        }
+    },
+    
+    service_status: function(data) {
+        console.log('Received service status');
+        if (typeof processServiceStatus === 'function') {
+            processServiceStatus(data);
+        }
+    },
+    
+    external_ip: function(data) {
+        console.log('Received external IP data', data);
+        if (typeof processExternalIP === 'function') {
+            // Pass the entire data object to allow proper handling
+            processExternalIP(data);
+            
+            // Also log what we're receiving to help debug
+            console.log('External IP data details:', {
+                dataType: typeof data,
+                hasIpProperty: data && typeof data === 'object' ? 'ip' in data : 'N/A',
+                raw: JSON.stringify(data)
+            });
+        }
+    }
+};
 
 function connectWebSocket() {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -291,87 +469,14 @@ function connectWebSocket() {
 
     socket.onmessage = function(event) {
         try {
-            const data = JSON.parse(event.data);
-            console.log('Received WebSocket message:', data);
+            const message = JSON.parse(event.data);
+            console.log('Received WebSocket message:', message);
             
-            // Check what type of message this is
-            if (data.type === 'login_attempt') {
-                // This is a login attempt (existing functionality)
-                const newAttempt = data.data;
-                console.log('Received new attempt:', newAttempt);
-                
-                // Check if this IP is new before adding the attempt
-                const isNewAttacker = !attempts.some(attempt => attempt.client_ip === newAttempt.client_ip);
-                
-                attempts.unshift(newAttempt);
-                updateCounterWithAnimation('totalAttempts', attempts.length);
-                
-                // Only update unique attackers if this is a new IP
-                if (isNewAttacker) {
-                    updateUniqueAttackersCount();
-                }
-                
-                updateMap(newAttempt);
-                
-                currentPage = 1;
-                updateUI();
-                
-                const indicator = document.getElementById('connectionStatusIndicator');
-                indicator.style.transform = 'scale(1.2)';
-                setTimeout(() => {
-                    indicator.style.transform = 'scale(1)';
-                }, 200);
-            } 
-            else if (data.type === 'initial_attempts') {
-                // This is the initial data load
-                attempts = data.data;
-                
-                // Update loading progress
-                updateLoadingPercentageWithDelay(70).then(() => {
-                    // Initialize the counters with animation
-                    updateCounterWithAnimation('totalAttempts', attempts.length);
-                    updateUniqueAttackersCount();
-                    
-                    return updateLoadingPercentageWithDelay(90);
-                }).then(() => {
-                    // Initialize UI with the data
-                    updateUI();
-                    centerMapOnMostActiveRegion(attempts);
-                    
-                    return updateLoadingPercentageWithDelay(100);
-                }).then(() => {
-                    // Hide loading overlay
-                    setTimeout(() => toggleLoadingOverlay(false), 500);
-                });
-            }
-            else if (data.type === 'system_metrics') {
-                // Process system metrics
-                console.log('Received system metrics');
-                if (typeof processSystemMetrics === 'function') {
-                    processSystemMetrics(data.data);
-                }
-            }
-            else if (data.type === 'service_status') {
-                // Process service status
-                console.log('Received service status');
-                if (typeof processServiceStatus === 'function') {
-                    processServiceStatus(data.data);
-                }
-            }
-            else if (data.type === 'external_ip') {
-                // Process external IP
-                console.log('Received external IP data', data);
-                if (typeof processExternalIP === 'function') {
-                    // Pass the entire data object to allow proper handling
-                    processExternalIP(data.data);
-                    
-                    // Also log what we're receiving to help debug
-                    console.log('External IP data details:', {
-                        dataType: typeof data.data,
-                        hasIpProperty: data.data && typeof data.data === 'object' ? 'ip' in data.data : 'N/A',
-                        raw: JSON.stringify(data.data)
-                    });
-                }
+            // Use the appropriate handler based on message type
+            if (message.type && wsMessageHandlers[message.type]) {
+                wsMessageHandlers[message.type](message.data);
+            } else {
+                console.warn('Unknown message type:', message.type);
             }
         } catch (error) {
             console.error('Error processing WebSocket message:', error);
@@ -514,24 +619,71 @@ function filterAttempts(attempts) {
     });
 }
 
+// Pagination utilities
+const paginationUtils = {
+    currentPage: 1,
+    itemsPerPage: 10,
+    
+    // Get current page of data
+    getCurrentPageData: function(data) {
+        const startIndex = (this.currentPage - 1) * this.itemsPerPage;
+        const endIndex = Math.min(startIndex + this.itemsPerPage, data.length);
+        return data.slice(startIndex, endIndex);
+    },
+    
+    // Update pagination controls
+    updateControls: function(totalItems) {
+        const startIndex = (this.currentPage - 1) * this.itemsPerPage;
+        const endIndex = Math.min(startIndex + this.itemsPerPage, totalItems);
+        
+        domUtils.setText('startRange', totalItems ? startIndex + 1 : 0);
+        domUtils.setText('endRange', endIndex);
+        domUtils.setText('totalItems', totalItems);
+        
+        const prevButton = domUtils.getElement('prevPage');
+        const nextButton = domUtils.getElement('nextPage');
+        
+        if (prevButton) {
+            prevButton.disabled = this.currentPage === 1;
+        }
+        
+        if (nextButton) {
+            nextButton.disabled = endIndex >= totalItems;
+        }
+    },
+    
+    goToPage: function(page, data, updateCallback) {
+        this.currentPage = page;
+        this.updateControls(data.length);
+        
+        if (typeof updateCallback === 'function') {
+            updateCallback(this.getCurrentPageData(data));
+        }
+    },
+    
+    nextPage: function(data, updateCallback) {
+        const totalPages = Math.ceil(data.length / this.itemsPerPage);
+        if (this.currentPage < totalPages) {
+            this.goToPage(this.currentPage + 1, data, updateCallback);
+        }
+    },
+    
+    prevPage: function(data, updateCallback) {
+        if (this.currentPage > 1) {
+            this.goToPage(this.currentPage - 1, data, updateCallback);
+        }
+    }
+};
+
 let currentPage = 1;
-const itemsPerPage = 10;
 
 function updateUI() {
     const filteredAttempts = filterAttempts(attempts);
     const totalItems = filteredAttempts.length;
     
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
+    paginationUtils.updateControls(totalItems);
     
-    document.getElementById('startRange').textContent = totalItems ? startIndex + 1 : 0;
-    document.getElementById('endRange').textContent = endIndex;
-    document.getElementById('totalItems').textContent = totalItems;
-    
-    document.getElementById('prevPage').disabled = currentPage === 1;
-    document.getElementById('nextPage').disabled = endIndex >= totalItems;
-    
-    const paginatedAttempts = filteredAttempts.slice(startIndex, endIndex);
+    const paginatedAttempts = paginationUtils.getCurrentPageData(filteredAttempts);
     attemptsDiv.innerHTML = paginatedAttempts
         .map(attempt => createAttemptElement(attempt))
         .join('');
@@ -556,21 +708,10 @@ document.addEventListener('DOMContentLoaded', () => {
             mobileMenu.classList.toggle('hidden');
             
             if (!mobileMenu.classList.contains('hidden')) {
-                const overlay = document.createElement('div');
-                overlay.className = 'menu-overlay';
-                document.body.appendChild(overlay);
-                
-                // Force a reflow before adding the active class
-                overlay.offsetHeight;
-                overlay.classList.add('active');
+                menuUtils.createOverlay();
             } else {
                 const overlay = document.querySelector('.menu-overlay');
-                if (overlay) {
-                    overlay.classList.remove('active');
-                    overlay.addEventListener('transitionend', () => {
-                        overlay.remove();
-                    }, { once: true });
-                }
+                menuUtils.removeOverlay(overlay);
             }
         });
     }
@@ -578,28 +719,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // Close menu when clicking outside
     document.addEventListener('click', (e) => {
         if (mobileMenu && !mobileMenu.contains(e.target) && !hamburgerBtn.contains(e.target)) {
-            mobileMenu.classList.add('hidden');
-            const overlay = document.querySelector('.menu-overlay');
-            if (overlay) {
-                overlay.classList.remove('active');
-                overlay.addEventListener('transitionend', () => {
-                    overlay.remove();
-                }, { once: true });
-            }
+            menuUtils.closeMenu(mobileMenu);
         }
     });
 
     // Menu item click handlers
     if (exportIPsMenu) {
         exportIPsMenu.addEventListener('click', () => {
-            mobileMenu.classList.add('hidden');
-            const overlay = document.querySelector('.menu-overlay');
-            if (overlay) {
-                overlay.classList.remove('active');
-                overlay.addEventListener('transitionend', () => {
-                    overlay.remove();
-                }, { once: true });
-            }
+            menuUtils.closeMenu(mobileMenu);
             window.open('/api/export/plaintext', '_blank');
         });
     }
@@ -607,14 +734,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const exportJSONMenu = document.getElementById('exportJSONMenu');
     if (exportJSONMenu) {
         exportJSONMenu.addEventListener('click', () => {
-            mobileMenu.classList.add('hidden');
-            const overlay = document.querySelector('.menu-overlay');
-            if (overlay) {
-                overlay.classList.remove('active');
-                overlay.addEventListener('transitionend', () => {
-                    overlay.remove();
-                }, { once: true });
-            }
+            menuUtils.closeMenu(mobileMenu);
             window.open('/api/export/json', '_blank');
         });
     }
@@ -622,14 +742,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const exportCSVMenu = document.getElementById('exportCSVMenu');
     if (exportCSVMenu) {
         exportCSVMenu.addEventListener('click', () => {
-            mobileMenu.classList.add('hidden');
-            const overlay = document.querySelector('.menu-overlay');
-            if (overlay) {
-                overlay.classList.remove('active');
-                overlay.addEventListener('transitionend', () => {
-                    overlay.remove();
-                }, { once: true });
-            }
+            menuUtils.closeMenu(mobileMenu);
             window.open('/api/export/csv', '_blank');
         });
     }
@@ -651,16 +764,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             
             localStorage.theme = isDark ? 'dark' : 'light';
-            mobileMenu.classList.add('hidden');
-            
-            const overlay = document.querySelector('.menu-overlay');
-            if (overlay) {
-                overlay.classList.remove('active');
-                overlay.addEventListener('transitionend', () => {
-                    overlay.remove();
-                }, { once: true });
-            }
-
+            menuUtils.closeMenu(mobileMenu);
             setMapTheme(isDark);
 
             // Update chart colors
@@ -685,15 +789,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // FAQ Modal handlers
     if (faqButton && faqModal) {
         faqButton.addEventListener('click', () => {
-            mobileMenu.classList.add('hidden');
-            const overlay = document.querySelector('.menu-overlay');
-            if (overlay) {
-                overlay.classList.remove('active');
-                overlay.addEventListener('transitionend', () => {
-                    overlay.remove();
-                }, { once: true });
-            }
-            faqModal.classList.remove('hidden');
+            menuUtils.closeMenu(mobileMenu);
+            menuUtils.showMenu(faqModal);
             // Force a reflow before any animations
             faqModal.offsetHeight;
         });
@@ -701,12 +798,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (closeFaqModal && faqModal) {
         closeFaqModal.addEventListener('click', () => {
-            faqModal.classList.add('hidden');
+            menuUtils.hideMenu(faqModal);
         });
 
         faqModal.addEventListener('click', (e) => {
             if (e.target === faqModal) {
-                faqModal.classList.add('hidden');
+                menuUtils.hideMenu(faqModal);
             }
         });
     }
@@ -715,18 +812,11 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
             if (mobileMenu && !mobileMenu.classList.contains('hidden')) {
-                mobileMenu.classList.add('hidden');
-                const overlay = document.querySelector('.menu-overlay');
-                if (overlay) {
-                    overlay.classList.remove('active');
-                    overlay.addEventListener('transitionend', () => {
-                        overlay.remove();
-                    }, { once: true });
-                }
+                menuUtils.closeMenu(mobileMenu);
             }
             
             if (faqModal && !faqModal.classList.contains('hidden')) {
-                faqModal.classList.add('hidden');
+                menuUtils.hideMenu(faqModal);
             }
         }
     });
@@ -736,34 +826,26 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Add pagination event listeners
-document.getElementById('prevPage').addEventListener('click', () => {
-    if (currentPage > 1) {
-        currentPage--;
-        updateUI();
-    }
+document.getElementById('prevPage')?.addEventListener('click', () => {
+    paginationUtils.prevPage(filterAttempts(attempts), () => updateUI());
 });
 
-document.getElementById('nextPage').addEventListener('click', () => {
-    const filteredAttempts = filterAttempts(attempts);
-    const totalPages = Math.ceil(filteredAttempts.length / itemsPerPage);
-    if (currentPage < totalPages) {
-        currentPage++;
-        updateUI();
-    }
+document.getElementById('nextPage')?.addEventListener('click', () => {
+    paginationUtils.nextPage(filterAttempts(attempts), () => updateUI());
 });
 
 // Search and filter event listeners
 searchInput.addEventListener('input', () => {
-    currentPage = 1;
+    paginationUtils.currentPage = 1;
     updateUI();
 });
 
 filterSelect.addEventListener('change', () => {
-    currentPage = 1;
+    paginationUtils.currentPage = 1;
     updateUI();
 });
 
 protocolSelect.addEventListener('change', () => {
-    currentPage = 1;
+    paginationUtils.currentPage = 1;
     updateUI();
 }); 
