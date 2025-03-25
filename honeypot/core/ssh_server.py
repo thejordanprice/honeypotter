@@ -16,14 +16,21 @@ paramiko_logger.setLevel(logging.WARNING)  # Set base level
 class ParamikoFilter(logging.Filter):
     def filter(self, record):
         # Filter out common scanner/timeout related errors
-        if "Error reading SSH protocol banner" in record.getMessage():
-            return False
-        if "EOFError" in record.getMessage():
-            return False
-        if "Incompatible ssh peer" in record.getMessage():
+        message = record.getMessage()
+        if any(text in message for text in [
+            "Error reading SSH protocol banner",
+            "EOFError",
+            "Incompatible ssh peer",
+            "SSHException",
+            "Exception (server)"
+        ]):
             return False
         return True
 paramiko_logger.addFilter(ParamikoFilter())
+
+# Apply the filter to paramiko.transport specifically
+transport_logger = logging.getLogger("paramiko.transport")
+transport_logger.addFilter(ParamikoFilter())
 
 class HoneypotServerInterface(paramiko.ServerInterface):
     """SSH server interface implementation."""
