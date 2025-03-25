@@ -60,19 +60,6 @@ async def get_external_ip():
     ip = system_monitor.get_external_ip()
     return JSONResponse({"ip": ip})
 
-@app.get("/api/system/logs")
-async def get_system_logs(lines: int = 100):
-    """Get recent system logs."""
-    return JSONResponse(system_monitor.get_system_logs(lines))
-
-@app.get("/config")
-async def get_config():
-    """Get configuration for the frontend."""
-    return JSONResponse({
-        "ws_host": HOST,
-        "ws_port": WEB_PORT
-    })
-
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)):
     """Handle WebSocket connections."""
