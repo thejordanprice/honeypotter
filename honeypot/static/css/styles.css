@@ -10,10 +10,12 @@
 /* Map styles */
 #map {
     height: 400px;
+    min-height: 400px;
     width: 100%;
     border-radius: 0.5rem;
     z-index: 1;
     position: relative;
+    overflow: hidden;
 }
 
 .location-popup {
@@ -423,6 +425,7 @@
     
     #map {
         height: 300px;
+        min-height: 300px;
     }
     
     .container {

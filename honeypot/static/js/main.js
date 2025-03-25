@@ -13,6 +13,25 @@ window.map = map;
 window.currentTileLayer = currentTileLayer;
 window.heatLayer = heatLayer;
 
+// Add this to ensure map is ready before adding layers
+window.map.whenReady(function() {
+    console.log("Map is ready, ensuring proper initialization");
+    setTimeout(function() {
+        // Force map to refresh size
+        window.map.invalidateSize();
+        
+        // Initialize empty heat layer if needed
+        if (!window.heatLayer) {
+            console.log("Creating initial empty heat layer");
+            window.heatLayer = L.heatLayer([], {
+                radius: 20,
+                blur: 15,
+                maxZoom: 10
+            }).addTo(window.map);
+        }
+    }, 200);
+});
+
 // Function to center map on most active region
 function centerMapOnMostActiveRegion(attempts) {
     return dataModel.centerMapOnMostActiveRegion(attempts);
@@ -39,7 +58,7 @@ window.currentTileLayer = currentTileLayer;
 
 // Function to update map with heat data
 function updateMap(attempt) {
-    if (!attempt.latitude || !attempt.longitude) return;
+    console.log("Updating heatmap...");
     
     // Make sure map is properly initialized
     dataModel.ensureMapInitialized();
@@ -50,37 +69,58 @@ function updateMap(attempt) {
     }
 
     // Get all attempts with valid coordinates
-    // Use filtered attempts instead of all attempts
     const attempts = websocketManager.getAttempts();
     const filteredAttempts = dataModel.filterAttempts(attempts);
     const validAttempts = filteredAttempts.filter(a => a.latitude && a.longitude);
     
-    // Create heatmap data points with intensity based on frequency
-    const locationFrequency = {};
-    validAttempts.forEach(a => {
-        const key = `${a.latitude},${a.longitude}`;
-        locationFrequency[key] = (locationFrequency[key] || 0) + 1;
-    });
+    console.log(`Found ${validAttempts.length} valid attempts with coordinates for heatmap`);
+    
+    // Only proceed if we have valid attempts with coordinates
+    if (validAttempts.length > 0) {
+        // Create heatmap data points with intensity based on frequency
+        const locationFrequency = {};
+        validAttempts.forEach(a => {
+            const key = `${a.latitude},${a.longitude}`;
+            locationFrequency[key] = (locationFrequency[key] || 0) + 1;
+        });
 
-    const heatData = validAttempts.map(a => {
-        const key = `${a.latitude},${a.longitude}`;
-        const intensity = Math.min(locationFrequency[key] / 5, 1); // Normalize intensity
-        return [a.latitude, a.longitude, intensity];
-    });
+        // Find max frequency for better normalization
+        const maxFrequency = Math.max(...Object.values(locationFrequency));
+        console.log(`Max attack frequency: ${maxFrequency}`);
 
-    // Create and add the heat layer
-    window.heatLayer = L.heatLayer(heatData, {
-        radius: 15,
-        blur: 10,
-        maxZoom: 10,
-        max: 1.0,
-        gradient: {
-            0.4: 'blue',
-            0.6: 'lime',
-            0.8: 'yellow',
-            1.0: 'red'
-        }
-    }).addTo(window.map);
+        const heatData = validAttempts.map(a => {
+            const key = `${a.latitude},${a.longitude}`;
+            // Scale intensity based on relative frequency, with minimum value of 0.3
+            const intensity = Math.max(0.3, (locationFrequency[key] / (maxFrequency || 1)));
+            return [a.latitude, a.longitude, intensity];
+        });
+
+        // Create and add the heat layer with adjusted settings
+        window.heatLayer = L.heatLayer(heatData, {
+            radius: 20,           // Increased radius for better visibility
+            blur: 15,             // Increased blur for smoother appearance
+            maxZoom: 10,          
+            max: 1.0,
+            gradient: {
+                0.2: 'blue',      // Start color at lower intensity
+                0.4: 'cyan',      // Add cyan for better color transition
+                0.6: 'lime',
+                0.8: 'yellow',
+                1.0: 'red'
+            }
+        }).addTo(window.map);
+        
+        console.log("Heatmap updated successfully");
+    } else {
+        console.log("No valid coordinates found for heatmap");
+        
+        // Add an empty heat layer to initialize the plugin
+        window.heatLayer = L.heatLayer([], {
+            radius: 20,
+            blur: 15,
+            maxZoom: 10
+        }).addTo(window.map);
+    }
 }
 
 const attemptsDiv = document.getElementById("attempts");
@@ -1294,6 +1334,16 @@ const init = (function() {
             window.currentTileLayer = isDarkMode ? window.darkTileLayer : window.lightTileLayer;
             window.currentTileLayer.addTo(window.map);
         }
+        
+        // Add event listener for map invalidation on container resize
+        window.addEventListener('resize', function() {
+            if (window.map) {
+                setTimeout(function() {
+                    console.log("Invalidating map size after resize");
+                    window.map.invalidateSize();
+                }, 100);
+            }
+        });
     }
     
     function startApplication() {
@@ -1308,6 +1358,12 @@ const init = (function() {
                 window.currentTileLayer.addTo(window.map);
                 console.log("Map initialized during startup");
             }
+            
+            // Force map to refresh size after initialization
+            setTimeout(function() {
+                console.log("Invalidating map size on startup");
+                window.map.invalidateSize();
+            }, 500);
         } else {
             console.warn("Map elements not available during startup");
         }
