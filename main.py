@@ -3,6 +3,8 @@ import threading
 import logging
 import os
 import time
+import signal
+import sys
 from logging.handlers import RotatingFileHandler
 from datetime import datetime
 from honeypot.core.ssh_server import SSHHoneypot
@@ -14,9 +16,10 @@ from honeypot.core.sip_server import SIPHoneypot
 from honeypot.core.mysql_server import MySQLHoneypot
 from honeypot.database.models import init_db, start_connection_monitor, get_db, get_connection_stats, SessionLocal
 from honeypot.web.app import app
+from honeypot.core.base_server import BaseHoneypot
 from honeypot.core.config import (
     HOST, SSH_PORT, TELNET_PORT, FTP_PORT, SMTP_PORT, RDP_PORT, SIP_PORT, MYSQL_PORT, WEB_PORT, 
-    LOG_LEVEL, LOG_FILE
+    LOG_LEVEL, LOG_FILE, MAX_THREADS, MAX_CONNECTIONS_PER_IP, CONNECTION_TIMEOUT
 )
 
 # Set up logging
@@ -204,12 +207,74 @@ def periodic_db_health_check():
         except Exception as e:
             logger.error(f"Error in DB health check thread: {str(e)}")
 
+def periodic_thread_stats():
+    """Periodically log thread and connection statistics."""
+    logger = logging.getLogger(__name__)
+    
+    while True:
+        try:
+            # Sleep first to allow the system to start up
+            time.sleep(30)  # Check every 30 seconds
+            
+            # Log thread pool stats
+            thread_manager = BaseHoneypot.thread_manager
+            active_connections = sum(thread_manager.connections.values())
+            
+            # Count active threads
+            active_threads = len(threading.enumerate())
+            
+            logger.info(f"Thread stats: {active_connections} active connections, "
+                       f"{len(thread_manager.connections)} unique IPs, "
+                       f"{active_threads} total threads")
+            
+            # Add more detailed stats at debug level
+            if LOG_LEVEL == 'DEBUG':
+                # Log the busiest IPs
+                if thread_manager.connections:
+                    busiest_ips = sorted(
+                        thread_manager.connections.items(), 
+                        key=lambda x: x[1], 
+                        reverse=True
+                    )[:10]  # Top 10 IPs
+                    
+                    logger.debug("Busiest IPs:")
+                    for ip, count in busiest_ips:
+                        logger.debug(f"  {ip}: {count} connections")
+                
+                # Log thread names for debugging
+                logger.debug("Active threads:")
+                for thread in threading.enumerate():
+                    logger.debug(f"  {thread.name}")
+                
+        except Exception as e:
+            logger.error(f"Error in thread stats monitor: {str(e)}")
+
+def signal_handler(sig, frame):
+    """Handle termination signals gracefully."""
+    logger.info("Received shutdown signal, shutting down...")
+    
+    # Shutdown the thread manager
+    try:
+        BaseHoneypot.thread_manager.shutdown()
+        logger.info("Thread manager shutdown complete")
+    except Exception as e:
+        logger.error(f"Error shutting down thread manager: {str(e)}")
+    
+    # Additional cleanup if needed
+    
+    # Exit
+    sys.exit(0)
+
 def main():
     """Main entry point for the application."""
     try:
         # Set up logging first
         setup_logging()
         logger = logging.getLogger(__name__)
+        
+        # Register signal handlers for graceful shutdown
+        signal.signal(signal.SIGINT, signal_handler)
+        signal.signal(signal.SIGTERM, signal_handler)
         
         # Initialize the database
         init_db()
@@ -224,45 +289,56 @@ def main():
         health_check_thread.name = "DB-Health-Check"
         health_check_thread.start()
         logger.info("Database health check thread started")
+        
+        # Start the thread statistics monitor
+        thread_stats_thread = threading.Thread(target=periodic_thread_stats, daemon=True)
+        thread_stats_thread.name = "Thread-Stats-Monitor"
+        thread_stats_thread.start()
+        logger.info("Thread statistics monitor started")
+
+        # Log thread management configuration
+        logger.info(f"Thread management: max_threads={MAX_THREADS}, "
+                   f"max_connections_per_ip={MAX_CONNECTIONS_PER_IP}, "
+                   f"connection_timeout={CONNECTION_TIMEOUT}s")
 
         # Start SSH server in a separate thread
-        ssh_thread = threading.Thread(target=start_ssh_server)
+        ssh_thread = threading.Thread(target=start_ssh_server, name="SSH-Server")
         ssh_thread.daemon = True
         ssh_thread.start()
         logger.info(f"SSH Honeypot thread started on port {SSH_PORT}")
 
         # Start Telnet server in a separate thread
-        telnet_thread = threading.Thread(target=start_telnet_server)
+        telnet_thread = threading.Thread(target=start_telnet_server, name="Telnet-Server")
         telnet_thread.daemon = True
         telnet_thread.start()
         logger.info(f"Telnet Honeypot thread started on port {TELNET_PORT}")
 
         # Start FTP server in a separate thread
-        ftp_thread = threading.Thread(target=start_ftp_server)
+        ftp_thread = threading.Thread(target=start_ftp_server, name="FTP-Server")
         ftp_thread.daemon = True
         ftp_thread.start()
         logger.info(f"FTP Honeypot thread started on port {FTP_PORT}")
 
         # Start SMTP server in a separate thread
-        smtp_thread = threading.Thread(target=start_smtp_server)
+        smtp_thread = threading.Thread(target=start_smtp_server, name="SMTP-Server")
         smtp_thread.daemon = True
         smtp_thread.start()
         logger.info(f"SMTP Honeypot thread started on port {SMTP_PORT}")
 
         # Start RDP server in a separate thread
-        rdp_thread = threading.Thread(target=start_rdp_server)
+        rdp_thread = threading.Thread(target=start_rdp_server, name="RDP-Server")
         rdp_thread.daemon = True
         rdp_thread.start()
         logger.info(f"RDP Honeypot thread started on port {RDP_PORT}")
 
         # Start SIP server in a separate thread
-        sip_thread = threading.Thread(target=start_sip_server)
+        sip_thread = threading.Thread(target=start_sip_server, name="SIP-Server")
         sip_thread.daemon = True
         sip_thread.start()
         logger.info(f"SIP Honeypot thread started on port {SIP_PORT}")
 
         # Start MySQL server in a separate thread
-        mysql_thread = threading.Thread(target=start_mysql_server)
+        mysql_thread = threading.Thread(target=start_mysql_server, name="MySQL-Server")
         mysql_thread.daemon = True
         mysql_thread.start()
         logger.info(f"MySQL Honeypot thread started on port {MYSQL_PORT}")
