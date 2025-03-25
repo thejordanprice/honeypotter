@@ -248,25 +248,66 @@
                 <div class="space-y-6">
                     <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
                         <h3 class="text-lg font-semibold mb-2">What is Honeypotter?</h3>
-                        <p class="text-gray-600 dark:text-gray-300">Honeypotter is a honeypot monitoring system that tracks and visualizes attempted unauthorized access to various network services (SSH, Telnet, FTP, SMTP, RDP, MySQL). It helps security researchers and system administrators understand attack patterns and origins.</p>
+                        <p class="text-gray-600 dark:text-gray-300">Honeypotter is a honeypot monitoring system that tracks and visualizes attempted unauthorized access to various network services. It helps security researchers and system administrators understand attack patterns and origins while providing valuable insight into emerging threats and attacker techniques.</p>
                     </div>
                     <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
                         <h3 class="text-lg font-semibold mb-2">How does it work?</h3>
-                        <p class="text-gray-600 dark:text-gray-300">The system sets up decoy services that log connection attempts, usernames, passwords, and IP addresses. This data is then analyzed and displayed in real-time through various charts and visualizations.</p>
+                        <p class="text-gray-600 dark:text-gray-300">The system sets up decoy services that log connection attempts, usernames, passwords, and IP addresses. These services appear legitimate to attackers but don't provide actual access to sensitive systems. All interaction data is then analyzed and displayed in real-time through various charts and visualizations.</p>
+                    </div>
+                    <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+                        <h3 class="text-lg font-semibold mb-2">What honeypot services are supported?</h3>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-gray-600 dark:text-gray-300 mt-2">
+                            <div class="bg-white dark:bg-gray-700 rounded p-2 text-center">
+                                <p class="font-medium">SSH</p>
+                            </div>
+                            <div class="bg-white dark:bg-gray-700 rounded p-2 text-center">
+                                <p class="font-medium">Telnet</p>
+                            </div>
+                            <div class="bg-white dark:bg-gray-700 rounded p-2 text-center">
+                                <p class="font-medium">FTP</p>
+                            </div>
+                            <div class="bg-white dark:bg-gray-700 rounded p-2 text-center">
+                                <p class="font-medium">SMTP</p>
+                            </div>
+                            <div class="bg-white dark:bg-gray-700 rounded p-2 text-center">
+                                <p class="font-medium">RDP</p>
+                            </div>
+                            <div class="bg-white dark:bg-gray-700 rounded p-2 text-center">
+                                <p class="font-medium">SIP</p>
+                            </div>
+                            <div class="bg-white dark:bg-gray-700 rounded p-2 text-center">
+                                <p class="font-medium">MySQL</p>
+                            </div>
+                        </div>
                     </div>
                     <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
                         <h3 class="text-lg font-semibold mb-2">What information is collected?</h3>
                         <p class="text-gray-600 dark:text-gray-300">For each connection attempt, we log:</p>
                         <ul class="list-disc ml-6 mt-2 text-gray-600 dark:text-gray-300">
-                            <li>IP address and geolocation data</li>
-                            <li>Attempted username and password</li>
-                            <li>Protocol used (SSH, Telnet, etc.)</li>
+                            <li>IP address and geolocation data (country, city, coordinates)</li>
+                            <li>Attempted username and password combinations</li>
+                            <li>Protocol used (SSH, Telnet, FTP, etc.)</li>
                             <li>Timestamp of the attempt</li>
                         </ul>
                     </div>
                     <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
                         <h3 class="text-lg font-semibold mb-2">Is this legal?</h3>
-                        <p class="text-gray-600 dark:text-gray-300">Yes. Honeypots are legal security tools used for research and defense. We don't engage with attackers or collect any data beyond what they voluntarily provide in their connection attempts.</p>
+                        <p class="text-gray-600 dark:text-gray-300">Yes. Honeypots are legal security tools used for research and defense. We don't engage with attackers or collect any data beyond what they voluntarily provide in their connection attempts. No actual vulnerable services are exposed, and no systems are compromised.</p>
+                    </div>
+                    <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+                        <h3 class="text-lg font-semibold mb-2">How can I use the data collected?</h3>
+                        <p class="text-gray-600 dark:text-gray-300">The data can be used for:</p>
+                        <ul class="list-disc ml-6 mt-2 text-gray-600 dark:text-gray-300">
+                            <li>Early threat detection and intelligence</li>
+                            <li>Understanding attacker techniques and tools</li>
+                            <li>Creating IP blacklists and security rules</li>
+                            <li>Security research and education</li>
+                            <li>Testing and improving security measures</li>
+                        </ul>
+                    </div>
+                    <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+                        <h3 class="text-lg font-semibold mb-2">Is Honeypotter appropriate for production environments?</h3>
+                        <p class="text-gray-600 dark:text-gray-300">While Honeypotter can be deployed in production environments, it's recommended to run it on dedicated systems separated from your critical infrastructure. This ensures that if a honeypot is compromised, your real systems remain secure. Always follow security best practices when deploying honeypots.</p>
                     </div>
                 </div>
             </div>
