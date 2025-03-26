@@ -2045,13 +2045,7 @@ const init = (function() {
                 console.log("Invalidating map size on startup");
                 window.map.invalidateSize();
                 
-                // Create a test animation after map is ready
-                setTimeout(() => {
-                    console.log("Creating test animation to verify functionality");
-                    if (AttackAnimator && typeof AttackAnimator.createTestAnimation === 'function') {
-                        AttackAnimator.createTestAnimation();
-                    }
-                }, 2000);
+                // Removed automatic test animation
             }, 500);
         } else {
             console.warn("Map elements not available during startup");
