@@ -837,6 +837,40 @@ async def send_data_in_batches(websocket: WebSocket, db: Session):
             # First get total count
             total_count = query.count()
             
+            if total_count == 0:
+                logger.info(f"No login attempts found in database for {client_info}")
+                # Send empty batch start message with 1 batch (empty batch)
+                start_message = {
+                    'type': 'batch_start',
+                    'data': {
+                        'total_attempts': 0,
+                        'total_batches': 1  # Changed from 0 to 1
+                    }
+                }
+                await connection_manager.send_text(websocket, json.dumps(start_message))
+                
+                # Send empty batch data message
+                batch_message = {
+                    'type': 'batch_data',
+                    'data': {
+                        'batch_number': 1,
+                        'total_batches': 1,  # Changed from 0 to 1
+                        'attempts': []
+                    }
+                }
+                await connection_manager.send_text(websocket, json.dumps(batch_message))
+                
+                # Send completion message
+                complete_message = {
+                    'type': 'batch_complete',
+                    'data': {
+                        'total_attempts': 0,
+                        'total_batches': 1  # Changed from 0 to 1
+                    }
+                }
+                await connection_manager.send_text(websocket, json.dumps(complete_message))
+                return
+            
             # Use batched fetching for large datasets to reduce memory pressure
             CHUNK_SIZE = 5000  # Process 5000 records at a time
             
