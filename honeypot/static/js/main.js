@@ -87,21 +87,22 @@ const AttackAnimator = {
         
         console.log("Creating attack path from", attackerCoords, "to", serverCoords);
         
-        // Calculate a midpoint for the curve (higher for longer distances)
+        // Calculate distance for scaling the curve
         const distance = this.getDistance(attackerCoords, serverCoords);
-        const midPoint = this.getMidPoint(attackerCoords, serverCoords, distance);
         
-        // Create curved path
-        const curvedPath = [
-            [attackerCoords[0], attackerCoords[1]],
-            [midPoint[0], midPoint[1]],
-            [serverCoords[0], serverCoords[1]]
-        ];
+        // Generate a smooth curve with multiple points
+        const curvePoints = this.generateCurvePoints(attackerCoords, serverCoords, 15);
+        
+        // Determine if dark mode is active
+        const isDarkMode = document.documentElement.classList.contains('dark');
+        
+        // Choose color based on theme
+        const lineColor = isDarkMode ? '#ffffff' : '#3b82f6'; // White for dark mode, blue for light mode
         
         // Create a curved polyline with animation
-        const path = L.polyline(curvedPath, {
-            color: this.getRandomAttackColor(),
-            weight: 3,
+        const path = L.polyline(curvePoints, {
+            color: lineColor,
+            weight: 2.5,
             opacity: 0,
             smoothFactor: 1,
             className: 'attack-path'
@@ -110,8 +111,8 @@ const AttackAnimator = {
         // Add a pulsing marker at the attacker location
         const attackerMarker = L.circleMarker(attackerCoords, {
             radius: 5,
-            color: '#ff0000',
-            fillColor: '#ff0000',
+            color: isDarkMode ? '#ffffff' : '#ef4444', // White for dark mode, red for light mode
+            fillColor: isDarkMode ? '#ffffff' : '#ef4444',
             fillOpacity: 0.8,
             weight: 2
         }).addTo(window.map);
@@ -132,6 +133,43 @@ const AttackAnimator = {
         this.animateAttack(animation);
         
         return animation;
+    },
+    
+    // Generate a smooth curve with many points
+    generateCurvePoints: function(start, end, numPoints) {
+        const points = [];
+        
+        // Calculate midpoint
+        const midLat = (start[0] + end[0]) / 2;
+        const midLng = (start[1] + end[1]) / 2;
+        
+        // Calculate the distance for scaling the curve height
+        const distance = this.getDistance(start, end);
+        
+        // Use a very subtle arc height based on distance (adjust as needed)
+        const arcHeight = Math.min(Math.max(distance / 100, 0.7), 3);
+        
+        // Control point for the quadratic Bézier curve (raised midpoint)
+        const ctrlPoint = [midLat + arcHeight, midLng];
+        
+        // Generate points along a quadratic Bézier curve
+        for (let i = 0; i <= numPoints; i++) {
+            const t = i / numPoints;
+            
+            // Quadratic Bézier curve formula: B(t) = (1-t)²P₀ + 2(1-t)tP₁ + t²P₂
+            // where P₀ is start, P₁ is control point, P₂ is end
+            const lat = Math.pow(1-t, 2) * start[0] + 
+                       2 * (1-t) * t * ctrlPoint[0] + 
+                       Math.pow(t, 2) * end[0];
+            
+            const lng = Math.pow(1-t, 2) * start[1] + 
+                       2 * (1-t) * t * ctrlPoint[1] + 
+                       Math.pow(t, 2) * end[1];
+            
+            points.push([lat, lng]);
+        }
+        
+        return points;
     },
     
     // Animate the attack path
@@ -211,10 +249,11 @@ const AttackAnimator = {
         const lat = (point1[0] + point2[0]) / 2;
         const lon = (point1[1] + point2[1]) / 2;
         
-        // Make the arc higher for longer distances - increased height for visibility
-        const arcHeight = Math.min(Math.max(distance / 20, 8), 25);
+        // Create a proper parabola by calculating arc height 
+        // based on the distance but using a more pronounced curve
+        const arcHeight = Math.min(Math.max(distance / 30, 3), 15);
         
-        // Move the midpoint to create an arc (by adjusting latitude)
+        // Move the midpoint to create a parabolic arc
         return [lat + arcHeight, lon];
     },
     
