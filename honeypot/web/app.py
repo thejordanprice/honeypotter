@@ -792,6 +792,172 @@ def export_csv(db: Session = Depends(get_db), download: bool = False):
         logger.error(f"Error exporting CSV: {str(e)}")
         return PlainTextResponse(f"Error exporting data: {str(e)}", status_code=500)
 
+@app.get("/api/export/mikrotik")
+def export_mikrotik(db: Session = Depends(get_db), download: bool = False):
+    """Export Mikrotik router firewall rules to block all attempted IPs."""
+    try:
+        # Use an explicit transaction
+        db.begin()
+        
+        # Only select distinct IPs directly in the query for efficiency
+        ips = db.query(LoginAttempt.client_ip).distinct().all()
+        
+        # Convert IPs to a list and sort them numerically using ipaddress module
+        ip_list = sorted([ip[0] for ip in ips], key=lambda x: int(ipaddress.ip_address(x)))
+        
+        # Generate Mikrotik firewall rules
+        mikrotik_commands = ["# Honeypotter - Mikrotik Firewall Rules", 
+                             "# Generated on: " + datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                             "# Total IPs: " + str(len(ip_list)),
+                             "",
+                             "# Add address list",
+                             "/ip firewall address-list"]
+        
+        # Add each IP to the address list
+        for ip in ip_list:
+            mikrotik_commands.append(f"add address={ip} list=honeypot-blacklist comment=\"Honeypotter detected attack\"")
+        
+        # Add firewall filter rule if it doesn't exist
+        mikrotik_commands.extend([
+            "",
+            "# Add firewall filter rule (run once)",
+            "/ip firewall filter",
+            "add chain=input src-address-list=honeypot-blacklist action=drop comment=\"Block Honeypotter detected attacks\" place-before=0"
+        ])
+        
+        # Join all commands
+        mikrotik_text = "\n".join(mikrotik_commands)
+        
+        # Explicitly commit to ensure transaction is closed
+        db.commit()
+        
+        if download:
+            return PlainTextResponse(mikrotik_text, headers={
+                "Content-Disposition": "attachment; filename=mikrotik_firewall_rules.rsc"
+            })
+        return PlainTextResponse(mikrotik_text)
+    except Exception as e:
+        # Ensure transaction is rolled back on error
+        db.rollback()
+        logger.error(f"Error exporting Mikrotik rules: {str(e)}")
+        return PlainTextResponse(f"Error exporting data: {str(e)}", status_code=500)
+
+@app.get("/api/export/iptables")
+def export_iptables(db: Session = Depends(get_db), download: bool = False):
+    """Export IPTables firewall rules to block all attempted IPs."""
+    try:
+        # Use an explicit transaction
+        db.begin()
+        
+        # Only select distinct IPs directly in the query for efficiency
+        ips = db.query(LoginAttempt.client_ip).distinct().all()
+        
+        # Convert IPs to a list and sort them numerically using ipaddress module
+        ip_list = sorted([ip[0] for ip in ips], key=lambda x: int(ipaddress.ip_address(x)))
+        
+        # Generate IPTables firewall rules
+        iptables_commands = ["#!/bin/bash", 
+                            "# Honeypotter - IPTables Firewall Rules", 
+                            "# Generated on: " + datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                            "# Total IPs: " + str(len(ip_list)),
+                            "",
+                            "# Create a new chain for Honeypotter blocks",
+                            "iptables -N HONEYPOTTER 2>/dev/null || iptables -F HONEYPOTTER",
+                            "",
+                            "# Link the chain to INPUT if not already done",
+                            "iptables -C INPUT -j HONEYPOTTER 2>/dev/null || iptables -A INPUT -j HONEYPOTTER",
+                            "",
+                            "# Block all IPs from honeypot"]
+        
+        # Add each IP to the chain
+        for ip in ip_list:
+            iptables_commands.append(f"iptables -A HONEYPOTTER -s {ip} -j DROP")
+        
+        # Add commands to save rules
+        iptables_commands.extend([
+            "",
+            "# Save the rules (uncomment the line for your distribution)",
+            "# Debian/Ubuntu:",
+            "# iptables-save > /etc/iptables/rules.v4",
+            "",
+            "# RHEL/CentOS/Fedora:",
+            "# service iptables save",
+            "",
+            "echo \"IPTables rules for ${#ip_list[@]} IPs have been applied.\""
+        ])
+        
+        # Join all commands
+        iptables_text = "\n".join(iptables_commands)
+        
+        # Explicitly commit to ensure transaction is closed
+        db.commit()
+        
+        if download:
+            return PlainTextResponse(iptables_text, headers={
+                "Content-Disposition": "attachment; filename=honeypotter_iptables.sh"
+            })
+        return PlainTextResponse(iptables_text)
+    except Exception as e:
+        # Ensure transaction is rolled back on error
+        db.rollback()
+        logger.error(f"Error exporting IPTables rules: {str(e)}")
+        return PlainTextResponse(f"Error exporting data: {str(e)}", status_code=500)
+
+@app.get("/api/export/cisco")
+def export_cisco(db: Session = Depends(get_db), download: bool = False):
+    """Export Cisco ASA firewall configuration to block all attempted IPs."""
+    try:
+        # Use an explicit transaction
+        db.begin()
+        
+        # Only select distinct IPs directly in the query for efficiency
+        ips = db.query(LoginAttempt.client_ip).distinct().all()
+        
+        # Convert IPs to a list and sort them numerically using ipaddress module
+        ip_list = sorted([ip[0] for ip in ips], key=lambda x: int(ipaddress.ip_address(x)))
+        
+        # Generate Cisco ASA firewall configuration
+        cisco_commands = ["! Honeypotter - Cisco ASA Firewall Configuration", 
+                         "! Generated on: " + datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                         "! Total IPs: " + str(len(ip_list)),
+                         "!",
+                         "! First, create a network object group for the blocked IPs",
+                         "object-group network HONEYPOTTER_BLOCKED_IPS"]
+        
+        # Add each IP to the object group
+        for ip in ip_list:
+            cisco_commands.append(f" network-object host {ip}")
+        
+        # Add access control entries
+        cisco_commands.extend([
+            "!",
+            "! Apply the access control list to block traffic",
+            "access-list OUTSIDE_IN deny ip object-group HONEYPOTTER_BLOCKED_IPS any",
+            "!",
+            "! If you don't have an access-list applied yet, use something like this:",
+            "! access-group OUTSIDE_IN in interface outside",
+            "!",
+            "! To save the configuration:",
+            "! write memory"
+        ])
+        
+        # Join all commands
+        cisco_text = "\n".join(cisco_commands)
+        
+        # Explicitly commit to ensure transaction is closed
+        db.commit()
+        
+        if download:
+            return PlainTextResponse(cisco_text, headers={
+                "Content-Disposition": "attachment; filename=honeypotter_cisco_asa.txt"
+            })
+        return PlainTextResponse(cisco_text)
+    except Exception as e:
+        # Ensure transaction is rolled back on error
+        db.rollback()
+        logger.error(f"Error exporting Cisco ASA configuration: {str(e)}")
+        return PlainTextResponse(f"Error exporting data: {str(e)}", status_code=500)
+
 async def broadcast_attempt(attempt: dict):
     """Broadcast a login attempt to all connected clients."""
     message = {

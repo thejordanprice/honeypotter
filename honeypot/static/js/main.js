@@ -1345,6 +1345,30 @@ const init = (function() {
             });
         }
 
+        const exportMikrotikButton = domUtils.getElement('exportMikrotik');
+        if (exportMikrotikButton) {
+            exportMikrotikButton.addEventListener('click', () => {
+                menuUtils.hideMenu(exportDataModal);
+                window.open('/api/export/mikrotik', '_blank');
+            });
+        }
+
+        const exportIPTablesButton = domUtils.getElement('exportIPTables');
+        if (exportIPTablesButton) {
+            exportIPTablesButton.addEventListener('click', () => {
+                menuUtils.hideMenu(exportDataModal);
+                window.open('/api/export/iptables', '_blank');
+            });
+        }
+
+        const exportCiscoButton = domUtils.getElement('exportCisco');
+        if (exportCiscoButton) {
+            exportCiscoButton.addEventListener('click', () => {
+                menuUtils.hideMenu(exportDataModal);
+                window.open('/api/export/cisco', '_blank');
+            });
+        }
+
         if (darkModeToggleMenu) {
             darkModeToggleMenu.addEventListener('click', () => {
                 themeManager.toggleTheme();
