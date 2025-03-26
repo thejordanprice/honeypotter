@@ -5,6 +5,8 @@ import os
 import time
 import signal
 import sys
+import re
+import unicodedata
 from logging.handlers import RotatingFileHandler
 from datetime import datetime
 from honeypot.core.server_registry import registry
@@ -26,6 +28,75 @@ from honeypot.core.config import (
 
 # Set up logging
 logger = logging.getLogger(__name__)
+
+class SafeLogFormatter(logging.Formatter):
+    """Custom formatter that sanitizes log messages to prevent control character attacks."""
+    
+    def __init__(self, fmt=None, datefmt=None, style='%', validate=True):
+        super().__init__(fmt, datefmt, style, validate)
+    
+    def format(self, record):
+        # Sanitize the message before formatting
+        if record.msg and isinstance(record.msg, str):
+            # Sanitize the message part first
+            record.msg = self._sanitize_text(record.msg)
+        
+        # Sanitize args if they're strings
+        if record.args:
+            args = list(record.args)
+            for i, arg in enumerate(args):
+                if isinstance(arg, str):
+                    args[i] = self._sanitize_text(arg)
+            record.args = tuple(args)
+        
+        # Format with parent formatter
+        formatted = super().format(record)
+        
+        # Double-check the formatted string is also sanitized
+        return self._sanitize_text(formatted)
+    
+    def _sanitize_text(self, text):
+        """Sanitize a string to remove control and non-printable characters."""
+        if not isinstance(text, str):
+            return text
+            
+        # Only replace control characters (0-31) and DEL (127)
+        # This preserves normal punctuation, spaces, etc.
+        sanitized = re.sub(r'[\x00-\x1F\x7F]', '.', text)
+        
+        # Replace only specific problematic Unicode categories
+        # C = Control, Cf = Format, Cc = Control, Cn = Not assigned
+        # This preserves normal characters including punctuation
+        result = ''
+        for c in sanitized:
+            cat = unicodedata.category(c)
+            if cat.startswith('C') and cat not in ('Cs', 'Co'):  # Exclude surrogate and private use
+                result += '.'
+            else:
+                result += c
+        
+        return result
+
+class SafeLogFilter(logging.Filter):
+    """Filter that can block potentially malicious log entries."""
+    
+    def filter(self, record):
+        # Check if this is a string message
+        if not hasattr(record, 'msg') or not isinstance(record.msg, str):
+            return True
+            
+        # Filter out extremely long messages that might be attacks
+        if len(record.msg) > 4000:  # Allow longer legitimate messages
+            return False
+            
+        # Check for high concentrations of control characters
+        if isinstance(record.msg, str):
+            # Count control characters
+            control_chars = sum(1 for c in record.msg if ord(c) < 32 or ord(c) == 127)
+            if len(record.msg) > 0 and control_chars / len(record.msg) > 0.3:  # 30% threshold
+                return False
+        
+        return True
 
 class TimestampedRotatingFileHandler(RotatingFileHandler):
     """Custom rotating file handler that adds timestamps to backup filenames."""
@@ -73,9 +144,12 @@ def setup_logging():
     root_logger = logging.getLogger()
     root_logger.setLevel(getattr(logging, LOG_LEVEL))
     
+    # Create safe log filter
+    safe_filter = SafeLogFilter()
+    
     # Create formatter for all handlers
-    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(name)s - %(message)s', 
-                                 datefmt='%Y-%m-%d %H:%M:%S')
+    formatter = SafeLogFormatter('%(asctime)s - %(levelname)s - %(name)s - %(message)s', 
+                               datefmt='%Y-%m-%d %H:%M:%S')
     
     # Set up rotating file handler (5MB per file)
     # 5MB = 5 * 1024 * 1024 = 5242880 bytes
@@ -85,10 +159,12 @@ def setup_logging():
         backupCount=10     # Keep 10 backup files max
     )
     file_handler.setFormatter(formatter)
+    file_handler.addFilter(safe_filter)
     
     # Console handler
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(formatter)
+    console_handler.addFilter(safe_filter)
     
     # Add handlers to root logger
     root_logger.handlers = []  # Clear any existing handlers
