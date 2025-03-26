@@ -96,7 +96,7 @@ const AttackAnimator = {
         // Determine if dark mode is active
         const isDarkMode = document.documentElement.classList.contains('dark');
         
-        // Choose color based on theme
+        // Choose color based on theme - keep line color the same
         const lineColor = isDarkMode ? '#ffffff' : '#3b82f6'; // White for dark mode, blue for light mode
         
         // Create a curved polyline with animation
@@ -108,22 +108,22 @@ const AttackAnimator = {
             className: 'attack-path'
         }).addTo(window.map);
         
-        // Add a pulsing marker at the attacker location - smaller size
+        // Add a pulsing marker at the attacker location - ALWAYS red regardless of theme
         const attackerMarker = L.circleMarker(attackerCoords, {
-            radius: 3,  // Reduced from 5
-            color: isDarkMode ? '#ffffff' : '#ef4444', // White for dark mode, red for light mode
-            fillColor: isDarkMode ? '#ffffff' : '#ef4444',
+            radius: 3,
+            color: '#ef4444', // Always red for attacker
+            fillColor: '#ef4444',
             fillOpacity: 0.8,
-            weight: 1.5  // Reduced from 2
+            weight: 1.5
         }).addTo(window.map);
         
-        // Add a pulsing marker at the server location - smaller size
+        // Add a pulsing marker at the server location - ALWAYS blue regardless of theme
         const serverMarker = L.circleMarker(serverCoords, {
-            radius: 3,  // Reduced from 5
-            color: isDarkMode ? '#ffffff' : '#3b82f6', // White for dark mode, blue for light mode
-            fillColor: isDarkMode ? '#ffffff' : '#3b82f6',
+            radius: 3,
+            color: '#3b82f6', // Always blue for server
+            fillColor: '#3b82f6',
             fillOpacity: 0.8,
-            weight: 1.5  // Reduced from 2
+            weight: 1.5
         }).addTo(window.map);
         
         // Create an object to track this animation
@@ -156,8 +156,8 @@ const AttackAnimator = {
         // Calculate the distance for scaling the curve height
         const distance = this.getDistance(start, end);
         
-        // Use a very subtle arc height based on distance (adjust as needed)
-        const arcHeight = Math.min(Math.max(distance / 100, 0.7), 3);
+        // Increase the arc height based on distance (increased by ~50%)
+        const arcHeight = Math.min(Math.max(distance / 60, 1.1), 4.5);
         
         // Control point for the quadratic Bézier curve (raised midpoint)
         const ctrlPoint = [midLat + arcHeight, midLng];
@@ -187,8 +187,8 @@ const AttackAnimator = {
         // If already finished, don't continue
         if (animation.finished) return;
         
-        // Update progress - slower for longer animation duration
-        animation.progress += 0.007;  // Reduced from 0.01 for longer animation
+        // Update progress - even slower for longer animation duration
+        animation.progress += 0.005;  // Reduced from 0.007 for longer animation
         
         // Calculate opacity based on progress
         let opacity;
