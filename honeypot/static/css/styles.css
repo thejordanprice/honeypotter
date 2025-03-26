@@ -18,6 +18,26 @@
     overflow: hidden;
 }
 
+/* Attack Animation Styles */
+.attack-path {
+    stroke-dasharray: 4, 8;
+    animation: dash 20s linear infinite;
+    filter: drop-shadow(0 0 3px rgba(59, 130, 246, 0.5));
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+@keyframes dash {
+    to {
+        stroke-dashoffset: -1000;
+    }
+}
+
+.dark .attack-path {
+    filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.5));
+}
+
 .location-popup {
     font-size: 14px;
     line-height: 1.4;

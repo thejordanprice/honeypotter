@@ -262,6 +262,11 @@ const themeManager = (function() {
         window.currentTileLayer.addTo(globalMap);
     }
     
+    // Check if dark theme is currently active
+    function isDarkTheme() {
+        return document.documentElement.classList.contains('dark');
+    }
+    
     function updateAllChartThemes(isDark) {
         if (typeof updateChartColors !== 'function') return;
         
@@ -345,7 +350,8 @@ const themeManager = (function() {
         setMapTheme,
         updateAllChartThemes,
         toggleTheme,
-        setupTheme
+        setupTheme,
+        isDarkTheme
     };
 })();
 
