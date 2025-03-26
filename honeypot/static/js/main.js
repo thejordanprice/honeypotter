@@ -30,6 +30,8 @@ window.lastHeartbeatResponse = null; // Timestamp of last heartbeat response
 window.heartbeatTimeout = null; // Timeout for detecting missed heartbeats
 window.maxReconnectAttempts = 10; // Maximum number of reconnection attempts
 window.isReconnecting = false; // Flag to prevent multiple simultaneous reconnections
+window.serverCoordinates = null; // Server coordinates for attack animation
+window.attackAnimations = []; // Array to store active attack animations
 
 // Add this to ensure map is ready before adding layers
 window.map.whenReady(function() {
@@ -74,7 +76,224 @@ currentTileLayer = isDarkMode ? darkTileLayer : lightTileLayer;
 currentTileLayer.addTo(map);
 window.currentTileLayer = currentTileLayer;
 
-// Function to update map with heat data
+// Class for handling attack animations
+const AttackAnimator = {
+    // Create a curved line between attacker and server
+    createAttackPath: function(attackerCoords, serverCoords) {
+        if (!attackerCoords || !serverCoords) {
+            console.error("Missing coordinates for attack animation", { attacker: attackerCoords, server: serverCoords });
+            return null;
+        }
+        
+        console.log("Creating attack path from", attackerCoords, "to", serverCoords);
+        
+        // Calculate a midpoint for the curve (higher for longer distances)
+        const distance = this.getDistance(attackerCoords, serverCoords);
+        const midPoint = this.getMidPoint(attackerCoords, serverCoords, distance);
+        
+        // Create curved path
+        const curvedPath = [
+            [attackerCoords[0], attackerCoords[1]],
+            [midPoint[0], midPoint[1]],
+            [serverCoords[0], serverCoords[1]]
+        ];
+        
+        // Create a curved polyline with animation
+        const path = L.polyline(curvedPath, {
+            color: this.getRandomAttackColor(),
+            weight: 3,
+            opacity: 0,
+            smoothFactor: 1,
+            className: 'attack-path'
+        }).addTo(window.map);
+        
+        // Add a pulsing marker at the attacker location
+        const attackerMarker = L.circleMarker(attackerCoords, {
+            radius: 5,
+            color: '#ff0000',
+            fillColor: '#ff0000',
+            fillOpacity: 0.8,
+            weight: 2
+        }).addTo(window.map);
+        
+        // Create an object to track this animation
+        const animation = {
+            path: path,
+            marker: attackerMarker,
+            progress: 0,
+            finished: false,
+            created: Date.now()
+        };
+        
+        // Add to active animations array
+        window.attackAnimations.push(animation);
+        
+        // Start the animation
+        this.animateAttack(animation);
+        
+        return animation;
+    },
+    
+    // Animate the attack path
+    animateAttack: function(animation) {
+        // If already finished, don't continue
+        if (animation.finished) return;
+        
+        // Update progress - slower for better visibility
+        animation.progress += 0.01;
+        
+        // Calculate opacity based on progress
+        let opacity;
+        if (animation.progress < 0.2) {
+            // Fade in
+            opacity = animation.progress * 5;
+        } else if (animation.progress > 0.8) {
+            // Fade out 
+            opacity = (1 - animation.progress) * 5;
+        } else {
+            // Full opacity during middle of animation
+            opacity = 1;
+        }
+        
+        // Apply opacity
+        animation.path.setStyle({ opacity: opacity });
+        
+        // Pulse the marker
+        const markerRadius = 5 + (Math.sin(animation.progress * 10) + 1) * 3;
+        animation.marker.setRadius(markerRadius);
+        
+        // Continue animation until complete
+        if (animation.progress < 1) {
+            requestAnimationFrame(() => this.animateAttack(animation));
+        } else {
+            // Mark as finished and remove from map after a delay
+            animation.finished = true;
+            setTimeout(() => {
+                window.map.removeLayer(animation.path);
+                window.map.removeLayer(animation.marker);
+                // Remove from animations array
+                const index = window.attackAnimations.indexOf(animation);
+                if (index > -1) {
+                    window.attackAnimations.splice(index, 1);
+                }
+            }, 100);
+        }
+    },
+    
+    // Get random color for attack path
+    getRandomAttackColor: function() {
+        // Brighter colors that will stand out better
+        const colors = ['#ff0000', '#ff4500', '#ffa500', '#ffff00', '#00ff00', '#00ffff', '#0000ff', '#ff00ff'];
+        return colors[Math.floor(Math.random() * colors.length)];
+    },
+    
+    // Calculate distance between two coordinates
+    getDistance: function(point1, point2) {
+        const R = 6371; // Radius of the earth in km
+        const dLat = this.deg2rad(point2[0] - point1[0]);
+        const dLon = this.deg2rad(point2[1] - point1[1]);
+        const a = 
+            Math.sin(dLat/2) * Math.sin(dLat/2) +
+            Math.cos(this.deg2rad(point1[0])) * Math.cos(this.deg2rad(point2[0])) * 
+            Math.sin(dLon/2) * Math.sin(dLon/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        return R * c; // Distance in km
+    },
+    
+    // Convert degrees to radians
+    deg2rad: function(deg) {
+        return deg * (Math.PI/180);
+    },
+    
+    // Get a midpoint for the curve, elevated based on distance
+    getMidPoint: function(point1, point2, distance) {
+        // Calculate midpoint
+        const lat = (point1[0] + point2[0]) / 2;
+        const lon = (point1[1] + point2[1]) / 2;
+        
+        // Make the arc higher for longer distances - increased height for visibility
+        const arcHeight = Math.min(Math.max(distance / 20, 8), 25);
+        
+        // Move the midpoint to create an arc (by adjusting latitude)
+        return [lat + arcHeight, lon];
+    },
+    
+    // Function to fetch server coordinates using IP
+    fetchServerCoordinates: function(serverIP) {
+        if (!serverIP || serverIP === '-' || serverIP === 'Unknown' || serverIP === 'Error fetching IP') {
+            // Use a default location if no IP available
+            console.log('Using default server coordinates (San Francisco)');
+            return Promise.resolve([37.7749, -122.4194]); // San Francisco
+        }
+        
+        console.log(`Fetching coordinates for IP: ${serverIP}`);
+        
+        return fetch(`https://ipapi.co/${serverIP}/json/`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data && data.latitude && data.longitude) {
+                    console.log('Server coordinates resolved:', [data.latitude, data.longitude]);
+                    return [data.latitude, data.longitude];
+                } else {
+                    console.warn('Invalid location data received:', data);
+                    throw new Error('Invalid location data');
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching server coordinates:', error);
+                // Use a default location if there's an error
+                return [37.7749, -122.4194]; // San Francisco
+            });
+    },
+    
+    // Check if server coordinates are ok for animation
+    validateCoordinates: function(coords) {
+        const valid = Array.isArray(coords) && 
+               coords.length === 2 && 
+               !isNaN(coords[0]) && 
+               !isNaN(coords[1]);
+               
+        if (!valid) {
+            console.warn("Invalid coordinates detected:", coords);
+        }
+        
+        return valid;
+    },
+    
+    // Create a test animation to verify functionality
+    createTestAnimation: function() {
+        if (!window.serverCoordinates) {
+            window.serverCoordinates = [37.7749, -122.4194]; // San Francisco
+        }
+        
+        // Create a random point somewhere in the world
+        const randomLat = (Math.random() * 140) - 70; // -70 to 70
+        const randomLng = (Math.random() * 360) - 180; // -180 to 180
+        
+        console.log("Creating test animation from", [randomLat, randomLng], "to", window.serverCoordinates);
+        
+        return this.createAttackPath([randomLat, randomLng], window.serverCoordinates);
+    }
+};
+
+// Add this anywhere after the AttackAnimator is defined
+// This global function allows triggering a test animation from the console
+window.testAttackAnimation = function() {
+    if (AttackAnimator && typeof AttackAnimator.createTestAnimation === 'function') {
+        console.log("Triggering test attack animation via console command");
+        return AttackAnimator.createTestAnimation();
+    } else {
+        console.error("AttackAnimator is not available");
+        return null;
+    }
+};
+
+// Modify updateMap function to add attack animations
 function updateMap(attempt) {
     console.log("Updating heatmap...");
     
@@ -129,6 +348,68 @@ function updateMap(attempt) {
         }).addTo(window.map);
         
         console.log("Heatmap updated successfully");
+        
+        // If this is a new attempt with valid coordinates, animate it
+        if (attempt && attempt.latitude && attempt.longitude) {
+            console.log("Processing new attack for animation:", attempt);
+            
+            // Ensure the coordinate values are properly parsed as numbers
+            let attackerLat = parseFloat(attempt.latitude);
+            let attackerLng = parseFloat(attempt.longitude);
+            
+            console.log("Parsed coordinates:", attackerLat, attackerLng);
+            
+            if (isNaN(attackerLat) || isNaN(attackerLng)) {
+                console.warn("Invalid coordinates in attack data:", attempt);
+                return;
+            }
+            
+            const attackerCoords = [attackerLat, attackerLng];
+            
+            // Ensure we have server coordinates
+            if (!window.serverCoordinates || !AttackAnimator.validateCoordinates(window.serverCoordinates)) {
+                console.log("No server coordinates available for animation, fetching now");
+                
+                // Get the external IP element
+                const ipElement = document.getElementById('externalIP');
+                const serverIP = ipElement ? ipElement.textContent : null;
+                
+                // Use default coordinates if no IP available
+                if (!serverIP || serverIP === '-' || serverIP === 'Unknown') {
+                    window.serverCoordinates = [37.7749, -122.4194]; // San Francisco default
+                    console.log("Using default server coordinates for animation");
+                    AttackAnimator.createAttackPath(attackerCoords, window.serverCoordinates);
+                    return;
+                }
+                
+                // Fetch server coordinates if we have a valid IP
+                console.log(`Fetching server coordinates for attack animation. Current IP: ${serverIP}`);
+                AttackAnimator.fetchServerCoordinates(serverIP)
+                    .then(coords => {
+                        if (AttackAnimator.validateCoordinates(coords)) {
+                            window.serverCoordinates = coords;
+                            // Now create the attack animation
+                            console.log("Creating attack animation with newly fetched server coordinates");
+                            AttackAnimator.createAttackPath(attackerCoords, window.serverCoordinates);
+                        } else {
+                            console.warn("Invalid server coordinates returned:", coords);
+                            // Use default coordinates as fallback
+                            window.serverCoordinates = [37.7749, -122.4194];
+                            AttackAnimator.createAttackPath(attackerCoords, window.serverCoordinates);
+                        }
+                    })
+                    .catch(err => {
+                        console.error("Error fetching server coordinates:", err);
+                        // Use default coordinates on error
+                        window.serverCoordinates = [37.7749, -122.4194];
+                        AttackAnimator.createAttackPath(attackerCoords, window.serverCoordinates);
+                    });
+            } else {
+                // Create attack animation directly if we already have server coordinates
+                console.log(`Creating attack path from ${attackerCoords} to ${window.serverCoordinates}`);
+                AttackAnimator.createAttackPath(attackerCoords, window.serverCoordinates);
+            }
+        }
     } else {
         console.log("No valid coordinates found for heatmap");
         
@@ -1705,9 +1986,49 @@ const init = (function() {
             setTimeout(function() {
                 console.log("Invalidating map size on startup");
                 window.map.invalidateSize();
+                
+                // Create a test animation after map is ready
+                setTimeout(() => {
+                    console.log("Creating test animation to verify functionality");
+                    if (AttackAnimator && typeof AttackAnimator.createTestAnimation === 'function') {
+                        AttackAnimator.createTestAnimation();
+                    }
+                }, 2000);
             }, 500);
         } else {
             console.warn("Map elements not available during startup");
+        }
+        
+        // Initialize server coordinates for attack animations
+        // Get external IP from the DOM or fetch it
+        const ipElement = document.getElementById('externalIP');
+        if (ipElement && ipElement.textContent && ipElement.textContent !== '-') {
+            // Use existing IP if available
+            console.log("Getting server coordinates from existing IP");
+            AttackAnimator.fetchServerCoordinates(ipElement.textContent)
+                .then(coords => {
+                    window.serverCoordinates = coords;
+                    console.log("Server coordinates initialized:", coords);
+                });
+        } else {
+            // Set default coordinates immediately so animations can work
+            window.serverCoordinates = [37.7749, -122.4194]; // San Francisco default
+            console.log("Using default server coordinates for initial setup");
+            
+            // Fetch server coordinates after a short delay (after IP might be loaded)
+            setTimeout(() => {
+                const ipElement = document.getElementById('externalIP');
+                const ipValue = ipElement ? ipElement.textContent : null;
+                
+                if (ipValue && ipValue !== '-' && ipValue !== 'Unknown') {
+                    console.log("Getting server coordinates with delayed IP:", ipValue);
+                    AttackAnimator.fetchServerCoordinates(ipValue)
+                        .then(coords => {
+                            window.serverCoordinates = coords;
+                            console.log("Server coordinates initialized with delay:", coords);
+                        });
+                }
+            }, 3000); // Wait 3 seconds for IP to potentially load
         }
         
         // Show loading overlay
