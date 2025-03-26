@@ -1,6 +1,7 @@
 # Ignore honeypot files
 honeypot.db
 honeypot.log
+honeypot.*-*.log
 
 honeypot/core/geolocation_cache.json
 
