@@ -379,6 +379,14 @@ async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)
                                 'type': 'heartbeat_response',
                                 'data': {'timestamp': datetime.now().isoformat()}
                             }))
+                        elif message_type == 'ping':
+                            # Client ping (especially after sleep/wake) - respond immediately with pong
+                            logger.debug(f"Received ping from {client_info}, responding with pong")
+                            # Send a pong response
+                            await connection_manager.send_text(websocket, json.dumps({
+                                'type': 'pong',
+                                'data': {'timestamp': datetime.now().isoformat()}
+                            }))
                         else:
                             logger.warning(f"Received unknown message type '{message_type}' from {client_info}")
                             await connection_manager.send_text(websocket, json.dumps({

@@ -13,6 +13,18 @@ window.map = map;
 window.currentTileLayer = currentTileLayer;
 window.heatLayer = heatLayer;
 window.connectionFailed = false; // Add a flag to track connection failure state
+window.lastActiveTimestamp = Date.now(); // Track when the page was last active
+window.reconnectAttempts = 0; // Move reconnect attempts to global scope
+window.reconnectTimeout = null; // Track reconnect timeout
+window.pingTimeout = null; // Track ping timeout
+window.reconnectDelay = 1000; // Start with 1s delay, will increase exponentially
+window.batchTimeout = null; // Timeout for batch loading
+window.pendingBatchRequest = false;
+window.heartbeatInterval = null; // Interval for sending heartbeats
+window.lastHeartbeatResponse = null; // Timestamp of last heartbeat response
+window.heartbeatTimeout = null; // Timeout for detecting missed heartbeats
+window.maxReconnectAttempts = 10; // Maximum number of reconnection attempts
+window.isReconnecting = false; // Flag to prevent multiple simultaneous reconnections
 
 // Add this to ensure map is ready before adding layers
 window.map.whenReady(function() {
@@ -251,20 +263,90 @@ const uiManager = (function() {
     
     function toggleLoadingOverlay(show, percentage = null) {
         const overlay = domUtils.getElement('loadingOverlay');
+        
         if (!overlay) return;
         
         if (show) {
-            domUtils.removeClass(overlay, 'hidden');
+            // Show the loading overlay
+            overlay.classList.remove('hidden');
             document.body.style.overflow = 'hidden';
             
+            // If percentage is provided, update the loading percentage
             if (percentage !== null) {
                 updateLoadingPercentage(percentage);
+                
+                // If percentage is less than 100, make sure we don't add refresh button yet
+                if (percentage < 100) {
+                    const loadingActions = domUtils.getElement('loadingActions');
+                    if (loadingActions) {
+                        loadingActions.innerHTML = '';
+                    }
+                }
             }
             
+            // Animate appearance
             requestAnimationFrame(() => {
                 overlay.style.opacity = '1';
                 overlay.style.visibility = 'visible';
             });
+            
+            // Add reconnecting class if we're in reconnection mode (only after the first connection attempt)
+            if (window.reconnectAttempts > 0 && window.isReconnecting) {
+                overlay.classList.add('reconnecting');
+                
+                // Add buttons only if we've reached the maximum number of reconnection attempts
+                const loadingActions = domUtils.getElement('loadingActions');
+                if (loadingActions) {
+                    if (window.reconnectAttempts >= window.maxReconnectAttempts) {
+                        // Show both buttons when max attempts reached
+                        loadingActions.innerHTML = '<button id="reconnectNowButton" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 mr-2">Reconnect Now</button>' +
+                                                  '<button id="refreshPageButton" class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600">Refresh Page</button>';
+                        
+                        // Add event listeners to the buttons
+                        const reconnectButton = document.getElementById('reconnectNowButton');
+                        const refreshButton = document.getElementById('refreshPageButton');
+                        
+                        if (reconnectButton) {
+                            reconnectButton.addEventListener('click', () => {
+                                // Clear any pending reconnect timers
+                                if (window.reconnectTimeout) {
+                                    clearTimeout(window.reconnectTimeout);
+                                    window.reconnectTimeout = null;
+                                }
+                                
+                                // Set reconnection attempts to 0 to avoid exponential backoff
+                                window.reconnectAttempts = 0;
+                                
+                                // Try to reconnect immediately
+                                websocketManager.reconnect();
+                                
+                                // Update the loading status
+                                updateLoadingStatus('Reconnecting...', 'Attempting to reconnect now');
+                            });
+                        }
+                        
+                        if (refreshButton) {
+                            refreshButton.addEventListener('click', () => {
+                                // Reset the connection failed flag when refreshing
+                                window.connectionFailed = false;
+                                window.location.reload();
+                            });
+                        }
+                    } else {
+                        // When still trying automatic reconnections, show a message instead of buttons
+                        const attemptInfo = `Reconnection Attempt ${window.reconnectAttempts} of ${window.maxReconnectAttempts}`;
+                        loadingActions.innerHTML = `<div class="py-2 px-4 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded text-center">${attemptInfo}</div>`;
+                    }
+                }
+            } else {
+                overlay.classList.remove('reconnecting');
+                
+                // Clear any reconnection messages during initial connection
+                const loadingActions = domUtils.getElement('loadingActions');
+                if (loadingActions) {
+                    loadingActions.innerHTML = '';
+                }
+            }
         } else {
             // Cancel any running loading animation
             if (window.loadingAnimationId) {
@@ -278,12 +360,20 @@ const uiManager = (function() {
                 if (loadingBar) loadingBar.style.width = '100%';
             }
             
+            // Animate disappearance
             overlay.style.opacity = '0';
             overlay.style.visibility = 'hidden';
             document.body.style.overflow = '';
             
+            // Hide after animation completes
             setTimeout(() => {
-                domUtils.addClass(overlay, 'hidden');
+                overlay.classList.add('hidden');
+                
+                // Reset classes
+                overlay.classList.remove('reconnecting');
+                overlay.classList.remove('connection-failed');
+                
+                // Reset loading bar
                 updateLoadingPercentage(0);
             }, 300);
         }
@@ -398,24 +488,18 @@ const uiManager = (function() {
 
 // WebSocket module
 const websocketManager = (function() {
+    // Store active connection and data
     let socket = null;
     let attempts = [];
-    let batchesPending = 0;
-    let batchesReceived = 0;
-    let totalBatches = 0;
-    let isReceivingBatches = false;
-    let reconnectAttempts = 0;
-    let maxReconnectAttempts = 10; // Increased from 5 to 10 for more resilience
-    let reconnectDelay = 1000; // Start with 1s delay, will increase exponentially
-    let batchTimeout = null; // Timeout for batch loading
-    let pendingBatchRequest = false;
-    let heartbeatInterval = null; // Interval for sending heartbeats
-    let lastHeartbeatResponse = null; // Timestamp of last heartbeat response
-    let heartbeatTimeout = null; // Timeout for detecting missed heartbeats
+    let isReceivingBatches = false; // Flag to track when we're receiving batch data
+    let totalBatches = 0; // Track total number of batches expected
+    let batchesReceived = 0; // Track number of batches received
+    let batchesPending = 0; // Track number of batches still pending
     
     // Expose isReceivingBatches to the window to prevent automatic status updates during batch loading
     window.isReceivingBatches = false;
     
+    // Add the message handlers  
     const messageHandlers = {
         login_attempt: function(data) {
             const newAttempt = data;
@@ -463,8 +547,8 @@ const websocketManager = (function() {
             });
             
             // Set a timeout to detect stalled batch transfers
-            clearTimeout(batchTimeout);
-            batchTimeout = setTimeout(() => {
+            clearTimeout(window.batchTimeout);
+            window.batchTimeout = setTimeout(() => {
                 if (isReceivingBatches && batchesPending > 0) {
                     console.warn(`Batch transfer stalled at ${batchesReceived}/${totalBatches} batches`);
                     uiManager.updateLoadingStatus('Transfer Stalled', 
@@ -477,13 +561,13 @@ const websocketManager = (function() {
         // New message handlers for heartbeat mechanism
         heartbeat_response: function(data) {
             // Server responded to our heartbeat
-            lastHeartbeatResponse = new Date();
+            window.lastHeartbeatResponse = new Date();
             console.debug('Received heartbeat response:', data);
             
             // Clear any pending heartbeat timeout
-            if (heartbeatTimeout) {
-                clearTimeout(heartbeatTimeout);
-                heartbeatTimeout = null;
+            if (window.heartbeatTimeout) {
+                clearTimeout(window.heartbeatTimeout);
+                window.heartbeatTimeout = null;
             }
             
             // Update connection indicator to show healthy connection
@@ -519,12 +603,32 @@ const websocketManager = (function() {
             }
         },
         
+        // Add new ping/pong handler
+        pong: function(data) {
+            console.log('Received pong response from server');
+            // If there's a ping timeout, clear it
+            if (window.pingTimeout) {
+                clearTimeout(window.pingTimeout);
+                window.pingTimeout = null;
+            }
+            
+            // Reset the active timestamp
+            window.lastActiveTimestamp = Date.now();
+            
+            // Update connection indicator to show healthy connection
+            const indicator = domUtils.getElement('connectionStatusIndicator');
+            if (indicator) {
+                indicator.classList.remove('error');
+                indicator.classList.add('connected');
+            }
+        },
+        
         batch_data: function(data) {
             console.log(`Received batch ${data.batch_number}/${totalBatches}`);
             
             // Reset timeout on receiving batch data
-            clearTimeout(batchTimeout);
-            batchTimeout = setTimeout(() => {
+            clearTimeout(window.batchTimeout);
+            window.batchTimeout = setTimeout(() => {
                 if (isReceivingBatches && batchesPending > 0) {
                     console.warn(`Batch transfer stalled at ${batchesReceived}/${totalBatches} batches`);
                     uiManager.updateLoadingStatus('Transfer Stalled', 
@@ -570,7 +674,7 @@ const websocketManager = (function() {
             window.isReceivingBatches = false; // Update window variable
             
             // Clear batch timeout
-            clearTimeout(batchTimeout);
+            clearTimeout(window.batchTimeout);
             
             // Verify we received all batches
             if (batchesReceived !== totalBatches) {
@@ -596,16 +700,20 @@ const websocketManager = (function() {
                 `Data transfer error, reconnecting...`);
             
             // Clear batch timeout and state
-            clearTimeout(batchTimeout);
+            clearTimeout(window.batchTimeout);
             isReceivingBatches = false;
             window.isReceivingBatches = false; // Update window variable
             
             // Force reconnection after a brief delay
             setTimeout(() => {
-                if (socket) {
-                    socket.close();
+                if (!window.isReconnecting) {
+                    if (socket) {
+                        socket.close();
+                    } else {
+                        reconnect();
+                    }
                 } else {
-                    reconnect();
+                    console.log('Batch error reconnection skipped - reconnection already in progress');
                 }
             }, 2000);
         },
@@ -683,6 +791,9 @@ const websocketManager = (function() {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = `${protocol}//${window.location.host}/ws`;
         
+        // Make sure we're not in reconnecting mode for the initial connection
+        window.isReconnecting = false;
+        
         uiManager.updateConnectionStatus('Connecting to WebSocket...');
         uiManager.updateLoadingPercentageWithDelay(10).then(() => {
             uiManager.updateLoadingStatus('Initializing...', 'Preparing connection parameters');
@@ -691,11 +802,13 @@ const websocketManager = (function() {
         socket = new WebSocket(wsUrl);
         // Explicitly set socket on window object to make it accessible from other scripts
         window.socket = socket;
+        window.lastActiveTimestamp = Date.now(); // Reset active timestamp on new connection
 
         socket.onopen = async function() {
             // Reset reconnect attempts on successful connection
-            reconnectAttempts = 0;
-            reconnectDelay = 1000;
+            window.reconnectAttempts = 0;
+            window.reconnectDelay = 1000;
+            window.isReconnecting = false; // Reset the reconnecting flag
             
             // Reset connection failed flag on successful connection
             window.connectionFailed = false;
@@ -711,24 +824,24 @@ const websocketManager = (function() {
             
             // Request data in batches
             sendMessage('request_data_batches');
-            pendingBatchRequest = true;
+            window.pendingBatchRequest = true;
             
             // Set a timeout for the initial batch start response
-            clearTimeout(batchTimeout);
-            batchTimeout = setTimeout(() => {
-                if (pendingBatchRequest) {
+            clearTimeout(window.batchTimeout);
+            window.batchTimeout = setTimeout(() => {
+                if (window.pendingBatchRequest) {
                     console.warn('No batch_start response received, retrying request');
                     uiManager.updateLoadingStatus('Waiting...', 'Server delayed, retrying data request');
                     sendMessage('request_data_batches');
                     
                     // Set another timeout for another retry
-                    batchTimeout = setTimeout(() => {
-                        if (pendingBatchRequest) {
+                    window.batchTimeout = setTimeout(() => {
+                        if (window.pendingBatchRequest) {
                             console.warn('Still no batch response, forcing reconnection');
-                            pendingBatchRequest = false;
+                            window.pendingBatchRequest = false;
                             
                             uiManager.updateLoadingStatus('Reconnecting...', 
-                                `Connection lost. Reconnecting in ${Math.round(delay/1000)}s (${reconnectAttempts}/${maxReconnectAttempts})`);
+                                `Connection lost. Reconnecting soon...`);
                             
                             // Force reconnection instead of falling back to HTTP
                             if (socket) {
@@ -755,15 +868,34 @@ const websocketManager = (function() {
                 const message = JSON.parse(event.data);
                 console.log('Received WebSocket message:', message);
                 
+                // Update active timestamp on any message received
+                window.lastActiveTimestamp = Date.now();
+                
+                // If we received a pong response, clear the ping timeout
+                if (message.type === 'pong' && window.pingTimeout) {
+                    console.log('Received pong response, connection is healthy');
+                    clearTimeout(window.pingTimeout);
+                    window.pingTimeout = null;
+                }
+                
                 // If receiving batch_start, clear pending batch request flag
                 if (message.type === 'batch_start') {
-                    pendingBatchRequest = false;
-                    clearTimeout(batchTimeout);
+                    window.pendingBatchRequest = false;
+                    clearTimeout(window.batchTimeout);
                 }
                 
                 // Use the appropriate handler based on message type
                 if (message.type && messageHandlers[message.type]) {
                     messageHandlers[message.type](message.data);
+                    
+                    // Update isReceivingBatches state for batch operations
+                    if (message.type === 'batch_start') {
+                        isReceivingBatches = true;
+                        window.isReceivingBatches = true;
+                    } else if (message.type === 'batch_complete') {
+                        isReceivingBatches = false;
+                        window.isReceivingBatches = false;
+                    }
                 } else {
                     console.warn('Unknown message type:', message.type);
                 }
@@ -775,10 +907,11 @@ const websocketManager = (function() {
         socket.onerror = function(error) {
             uiManager.updateConnectionStatus('WebSocket error: ' + error.message, true);
             console.error('WebSocket error:', error);
+            console.log(`Socket error event fired. Current reconnect status: attempts=${window.reconnectAttempts}, isReconnecting=${window.isReconnecting}`);
             
             // Clear pending batch request timeout
-            clearTimeout(batchTimeout);
-            pendingBatchRequest = false;
+            clearTimeout(window.batchTimeout);
+            window.pendingBatchRequest = false;
             
             // Clear any loading animation in progress
             if (window.loadingAnimationId) {
@@ -789,19 +922,26 @@ const websocketManager = (function() {
             // Stop heartbeat
             stopHeartbeat();
             
+            // Show the loading overlay if it's not already visible
+            const loadingOverlay = domUtils.getElement('loadingOverlay');
+            if (loadingOverlay && loadingOverlay.classList.contains('hidden')) {
+                uiManager.toggleLoadingOverlay(true, 15);
+            }
+            
             // Always try to reconnect when there's an error
             reconnect();
         };
 
         socket.onclose = function() {
             uiManager.updateConnectionStatus('WebSocket connection closed. Reconnecting...', true);
+            console.log(`Socket close event fired. Current reconnect status: attempts=${window.reconnectAttempts}, isReconnecting=${window.isReconnecting}`);
             
             // Clear the window.socket reference since it's no longer valid
             window.socket = null;
             
             // Clear pending batch request timeout
-            clearTimeout(batchTimeout);
-            pendingBatchRequest = false;
+            clearTimeout(window.batchTimeout);
+            window.pendingBatchRequest = false;
             
             // Clear any loading animation in progress
             if (window.loadingAnimationId) {
@@ -810,13 +950,19 @@ const websocketManager = (function() {
             }
             
             // If we've already reached max reconnects, don't try again
-            if (reconnectAttempts >= maxReconnectAttempts) {
+            if (window.reconnectAttempts >= window.maxReconnectAttempts) {
                 console.warn("Already reached maximum reconnection attempts, not attempting again");
                 return;
             }
             
             // Stop heartbeat
             stopHeartbeat();
+            
+            // Show the loading overlay if it's not already visible
+            const loadingOverlay = domUtils.getElement('loadingOverlay');
+            if (loadingOverlay && loadingOverlay.classList.contains('hidden')) {
+                uiManager.toggleLoadingOverlay(true, 15);
+            }
             
             // Always try to reconnect on close
             reconnect();
@@ -828,18 +974,18 @@ const websocketManager = (function() {
         stopHeartbeat();
         
         // Initialize lastHeartbeatResponse with current time
-        lastHeartbeatResponse = new Date();
+        window.lastHeartbeatResponse = new Date();
         
         // Start sending heartbeats every 30 seconds
-        heartbeatInterval = setInterval(() => {
+        window.heartbeatInterval = setInterval(() => {
             if (socket && socket.readyState === WebSocket.OPEN) {
                 console.debug('Sending client heartbeat');
                 sendMessage('heartbeat', { timestamp: new Date().toISOString() });
                 
                 // Set timeout to detect missed responses (wait 10 seconds for response)
-                heartbeatTimeout = setTimeout(() => {
+                window.heartbeatTimeout = setTimeout(() => {
                     const now = new Date();
-                    const lastResponseAge = Math.round((now - lastHeartbeatResponse) / 1000);
+                    const lastResponseAge = Math.round((now - window.lastHeartbeatResponse) / 1000);
                     
                     if (lastResponseAge > 40) { // Allow for some network delay
                         console.warn(`No heartbeat response for ${lastResponseAge} seconds, connection may be stale`);
@@ -857,10 +1003,16 @@ const websocketManager = (function() {
                         // If we miss multiple heartbeats, force reconnection
                         if (lastResponseAge > 120) { // 2 minutes without response
                             console.error('Connection unresponsive, forcing reconnection');
-                            if (socket) {
-                                socket.close();
+                            
+                            // Only reconnect if not already reconnecting
+                            if (!window.isReconnecting) {
+                                if (socket) {
+                                    socket.close();
+                                } else {
+                                    reconnect();
+                                }
                             } else {
-                                reconnect();
+                                console.log('Heartbeat reconnection skipped - reconnection already in progress');
                             }
                         }
                     }
@@ -872,46 +1024,91 @@ const websocketManager = (function() {
     }
     
     function stopHeartbeat() {
-        if (heartbeatInterval) {
-            clearInterval(heartbeatInterval);
-            heartbeatInterval = null;
+        if (window.heartbeatInterval) {
+            clearInterval(window.heartbeatInterval);
+            window.heartbeatInterval = null;
         }
         
-        if (heartbeatTimeout) {
-            clearTimeout(heartbeatTimeout);
-            heartbeatTimeout = null;
+        if (window.heartbeatTimeout) {
+            clearTimeout(window.heartbeatTimeout);
+            window.heartbeatTimeout = null;
         }
     }
 
     function reconnect() {
-        reconnectAttempts++;
+        // If already reconnecting, don't start another reconnection process
+        if (window.isReconnecting) {
+            console.log('Reconnection already in progress, ignoring duplicate request');
+            return;
+        }
+        
+        // Calculate the call stack trace to identify what triggered the reconnection
+        let callStack;
+        try {
+            throw new Error("Reconnection trace");
+        } catch (e) {
+            callStack = e.stack.split('\n').slice(1, 3).join('\n');
+        }
+        
+        window.reconnectAttempts++;
+        console.log(`Starting reconnection attempt ${window.reconnectAttempts} of ${window.maxReconnectAttempts}`);
+        console.log(`Triggered by: ${callStack}`);
+        
+        // Special handling for the first reconnection attempt
+        // If this is the first reconnection attempt during initial page load, treat it differently
+        const isFirstStartupReconnect = window.reconnectAttempts === 1 && 
+                                      document.readyState !== 'complete';
+        
+        // Set isReconnecting based on whether this is a first startup attempt or not
+        window.isReconnecting = !isFirstStartupReconnect;
         
         // Make sure we reset the receiving batches state
         isReceivingBatches = false;
         window.isReceivingBatches = false;
         
-        if (reconnectAttempts <= maxReconnectAttempts) {
+        if (window.reconnectAttempts <= window.maxReconnectAttempts) {
             // Exponential backoff for reconnect attempts
-            const delay = Math.min(30000, reconnectDelay * Math.pow(1.5, reconnectAttempts - 1));
-            console.log(`Attempting to reconnect (${reconnectAttempts}/${maxReconnectAttempts}) in ${delay/1000} seconds...`);
-            
-            // Update UI to show reconnection attempt before starting the timer
-            uiManager.updateLoadingStatus('Reconnecting...', 
-                `Connection lost. Reconnecting in ${Math.round(delay/1000)}s (${reconnectAttempts}/${maxReconnectAttempts})`);
+            const delay = Math.min(30000, window.reconnectDelay * Math.pow(1.5, window.reconnectAttempts - 1));
+            console.log(`Attempting to reconnect (${window.reconnectAttempts}/${window.maxReconnectAttempts}) in ${delay/1000} seconds...`);
             
             // Show loading overlay if it's not already visible
             const loadingOverlay = domUtils.getElement('loadingOverlay');
             if (loadingOverlay && loadingOverlay.classList.contains('hidden')) {
                 uiManager.toggleLoadingOverlay(true, 15);
+            } else {
+                // Update UI to show reconnection attempt before starting the timer
+                uiManager.updateLoadingStatus('Reconnecting...', 
+                    `Connection lost. Reconnecting in ${Math.round(delay/1000)}s (${window.reconnectAttempts}/${window.maxReconnectAttempts})`);
+                
+                // Update the loading actions with attempt info
+                const loadingActions = domUtils.getElement('loadingActions');
+                if (loadingActions) {
+                    const attemptInfo = `Reconnection Attempt ${window.reconnectAttempts} of ${window.maxReconnectAttempts}`;
+                    loadingActions.innerHTML = `<div class="py-2 px-4 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded text-center">${attemptInfo}</div>`;
+                }
+                
+                // Add reconnecting class to overlay if not already present
+                if (!loadingOverlay.classList.contains('reconnecting')) {
+                    loadingOverlay.classList.add('reconnecting');
+                }
             }
             
-            setTimeout(() => {
+            // Clear any existing reconnect timeout
+            if (window.reconnectTimeout) {
+                clearTimeout(window.reconnectTimeout);
+            }
+            
+            // Set a new reconnect timeout
+            window.reconnectTimeout = setTimeout(() => {
+                window.reconnectTimeout = null; // Clear the reference once it's executed
+                window.isReconnecting = false; // Reset the reconnecting flag before connecting
                 connect();
             }, delay);
         } else {
             console.error('Maximum reconnection attempts reached');
             // Set the connection failed flag to prevent automatic status updates
             window.connectionFailed = true;
+            window.isReconnecting = false; // Reset the reconnecting flag
             
             uiManager.updateConnectionStatus('Connection failed after multiple attempts. Please refresh the page.', true);
             
@@ -931,10 +1128,29 @@ const websocketManager = (function() {
             // Add a refresh button to the loading overlay
             const loadingActions = domUtils.getElement('loadingActions');
             if (loadingActions) {
-                loadingActions.innerHTML = '<button id="refreshPageButton" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">Refresh Page</button>';
+                loadingActions.innerHTML = '<button id="reconnectNowButton" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 mr-2">Reconnect Now</button>' +
+                                           '<button id="refreshPageButton" class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600">Refresh Page</button>';
                 
-                // Add event listener to the refresh button
+                // Add event listeners to the buttons
+                const reconnectButton = document.getElementById('reconnectNowButton');
                 const refreshButton = document.getElementById('refreshPageButton');
+                
+                if (reconnectButton) {
+                    reconnectButton.addEventListener('click', () => {
+                        // Reset the connection failed flag
+                        window.connectionFailed = false;
+                        
+                        // Reset reconnection attempts to 0
+                        window.reconnectAttempts = 0;
+                        
+                        // Try to reconnect immediately
+                        connect();
+                        
+                        // Update the loading status
+                        uiManager.updateLoadingStatus('Reconnecting...', 'Attempting to reconnect now');
+                    });
+                }
+                
                 if (refreshButton) {
                     refreshButton.addEventListener('click', () => {
                         // Reset the connection failed flag when refreshing
@@ -995,8 +1211,8 @@ const websocketManager = (function() {
         
         // Set a timeout to detect if we don't receive the missing batches
         if (success) {
-            clearTimeout(batchTimeout);
-            batchTimeout = setTimeout(() => {
+            clearTimeout(window.batchTimeout);
+            window.batchTimeout = setTimeout(() => {
                 if (isReceivingBatches && batchesPending > 0) {
                     console.warn('Did not receive missing batches in time, forcing reconnection');
                     
@@ -1008,10 +1224,14 @@ const websocketManager = (function() {
                     window.isReceivingBatches = false;
                     
                     // Force a reconnection instead of falling back to HTTP
-                    if (socket) {
-                        socket.close();
+                    if (!window.isReconnecting) {
+                        if (socket) {
+                            socket.close();
+                        } else {
+                            reconnect();
+                        }
                     } else {
-                        reconnect();
+                        console.log('Batch recovery reconnection skipped - reconnection already in progress');
                     }
                 }
             }, 15000); // 15 second timeout for missing batches
@@ -1026,16 +1246,21 @@ const websocketManager = (function() {
             isReceivingBatches = false;
             window.isReceivingBatches = false;
             
-            if (socket) {
-                socket.close();
+            // Force a reconnection instead of falling back to HTTP
+            if (!window.isReconnecting) {
+                if (socket) {
+                    socket.close();
+                } else {
+                    reconnect();
+                }
             } else {
-                reconnect();
+                console.log('Batch failure reconnection skipped - reconnection already in progress');
             }
         }
     }
     
     function finalizeBatchLoading() {
-        clearTimeout(batchTimeout);
+        clearTimeout(window.batchTimeout);
         
         uiManager.updateLoadingPercentageWithDelay(70).then(() => {
             // Initialize the counters with animation
@@ -1212,8 +1437,7 @@ let currentPage = 1;
 // Initialization module
 const init = (function() {
     function setupEventListeners() {
-        // Initialize the element cache first
-        domUtils.initializeElementCache();
+        // Initialize the element cache is now called in startApplication
         
         // Reset connection failed state on page load
         window.connectionFailed = false;
@@ -1442,6 +1666,10 @@ const init = (function() {
     }
     
     function startApplication() {
+        // Initialize element cache first, before any DOM operations
+        domUtils.initializeElementCache();
+        
+        // Then initialize other components
         themeManager.setupTheme();
         setupEventListeners();
         
@@ -1480,3 +1708,109 @@ document.addEventListener('DOMContentLoaded', init.start);
 
 // Clean up global event listeners that are now in the init module
 // No need to repeat the event listener registrations here 
+
+// Function to check WebSocket health
+function checkConnectionHealth() {
+    console.log('Checking WebSocket connection health');
+    
+    // If already reconnecting or reached max attempts, don't do anything
+    if (window.isReconnecting) {
+        console.log('Reconnection already in progress, skipping connection health check');
+        return;
+    }
+    
+    // If socket doesn't exist or we're already in a reconnection process, don't do anything
+    if (!window.socket || window.reconnectAttempts > 0) {
+        console.log('No socket or reconnection attempts > 0, initiating new connection');
+        if (window.reconnectAttempts === 0) {
+            // Show the loading overlay before reconnecting
+            const loadingOverlay = domUtils.getElement('loadingOverlay');
+            if (loadingOverlay && loadingOverlay.classList.contains('hidden')) {
+                uiManager.toggleLoadingOverlay(true, 15);
+            }
+            websocketManager.reconnect();
+        }
+        return;
+    }
+    
+    // Check if socket is in a healthy state
+    const now = Date.now();
+    const timeSinceActive = now - window.lastActiveTimestamp;
+    const socketState = window.socket.readyState;
+    
+    console.log(`Connection check: Socket state=${socketState}, Time since active=${Math.round(timeSinceActive/1000)}s`);
+    
+    if (socketState === WebSocket.CLOSED || socketState === WebSocket.CLOSING) {
+        console.log('Socket is closed or closing, reconnecting');
+        // Show the loading overlay before reconnecting
+        const loadingOverlay = domUtils.getElement('loadingOverlay');
+        if (loadingOverlay && loadingOverlay.classList.contains('hidden')) {
+            uiManager.toggleLoadingOverlay(true, 15);
+        }
+        websocketManager.reconnect();
+        return;
+    }
+    
+    // Even if socket appears OPEN, it might be stale if device was sleeping
+    if (socketState === WebSocket.OPEN && timeSinceActive > 30000) {
+        console.log('Socket appears open but may be stale, sending test message');
+        
+        // Try to send a ping message to verify connection
+        const pingSuccess = websocketManager.sendMessage('ping', { timestamp: new Date().toISOString() });
+        
+        // Set a timeout to verify we get a response
+        window.pingTimeout = setTimeout(() => {
+            console.log('No ping response received, connection is stale. Reconnecting...');
+            
+            // Show the loading overlay before reconnecting
+            const loadingOverlay = domUtils.getElement('loadingOverlay');
+            if (loadingOverlay && loadingOverlay.classList.contains('hidden')) {
+                uiManager.toggleLoadingOverlay(true, 15);
+            }
+            
+            // Force reconnection
+            if (window.socket) {
+                window.socket.close();
+            }
+            websocketManager.reconnect();
+        }, 2000);
+    }
+}
+
+// Add event listeners for page visibility and network changes
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+        console.log('Page became visible, checking connection');
+        window.lastActiveTimestamp = Date.now();
+        checkConnectionHealth();
+    }
+});
+
+// Handle focus events (useful for tab switching)
+window.addEventListener('focus', () => {
+    console.log('Window focused, checking connection');
+    window.lastActiveTimestamp = Date.now();
+    checkConnectionHealth();
+});
+
+// Handle online status changes
+window.addEventListener('online', () => {
+    console.log('Network connection restored');
+    window.lastActiveTimestamp = Date.now();
+    checkConnectionHealth();
+});
+
+window.addEventListener('offline', () => {
+    console.log('Network connection lost');
+    // No need to do anything, the WebSocket error handlers will trigger reconnection
+});
+
+// Update active timestamp periodically when page is visible
+function updateActiveTimestamp() {
+    if (document.visibilityState === 'visible') {
+        window.lastActiveTimestamp = Date.now();
+    }
+}
+
+// Update active timestamp every 10 seconds when page is visible
+setInterval(updateActiveTimestamp, 10000); 
