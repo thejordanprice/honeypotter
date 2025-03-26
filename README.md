@@ -34,6 +34,9 @@ A comprehensive honeypot monitoring system that tracks and visualizes SSH, Telne
   - Plaintext IP list
   - JSON format
   - CSV format with detailed attempt data
+  - MikroTik firewall rules
+  - IPTables firewall rules
+  - Cisco ASA firewall configuration
 - **Secure Implementation**: 
   - Safe credential capture
   - No system modifications
@@ -50,6 +53,18 @@ A comprehensive honeypot monitoring system that tracks and visualizes SSH, Telne
 ## Requirements
 
 - Python 3.8+
+- Dependencies:
+  - paramiko==3.4.0
+  - websockets==12.0
+  - SQLAlchemy==2.0.27
+  - python-dotenv==1.0.1
+  - rich==13.7.0
+  - fastapi==0.110.0
+  - uvicorn==0.27.1
+  - aiofiles==23.2.1
+  - jinja2==3.1.3
+  - requests==2.31.0
+  - psutil==5.9.8
 
 ## Installation
 
@@ -90,6 +105,12 @@ Edit the `.env` file to configure:
 - `MYSQL_PORT`: MySQL server port (default: 3306)
 - `WEB_PORT`: Web interface port (default: 8080)
 
+### Thread Management Settings
+- `MAX_THREADS`: Maximum worker threads (default: 50)
+- `MAX_CONNECTIONS_PER_IP`: Max connections from a single IP (default: 5)
+- `CONNECTION_TIMEOUT`: Timeout in seconds for inactive connections (default: 15)
+- `MAX_QUEUED_CONNECTIONS`: Max queued connections (default: 100)
+
 ### Database Settings
 - `DATABASE_URL`: SQLite database path (default: sqlite:///honeypot.db)
 
@@ -118,6 +139,12 @@ python main.py
    - Network activity
    - Geolocation data
    - Protocol-specific analytics
+   
+4. Export data or generate firewall rules:
+   - Click the hamburger menu in the top right corner
+   - Select "Export Data"
+   - Choose the desired export format (Plaintext, JSON, CSV)
+   - Or generate firewall rules (MikroTik, IPTables, Cisco ASA)
 
 ## Development
 
@@ -135,13 +162,22 @@ honeypotter/
 │   │   ├── sip_server.py
 │   │   ├── mysql_server.py
 │   │   ├── system_monitor.py
-│   │   └── geolocation.py
+│   │   ├── thread_manager.py
+│   │   ├── server_registry.py
+│   │   ├── geolocation.py
+│   │   ├── base_server.py
+│   │   └── config.py
 │   ├── database/       # Database models and utilities
 │   ├── templates/      # Web interface templates
+│   │   └── index.html  # Main dashboard
+│   ├── static/         # Static assets
+│   │   ├── css/
+│   │   └── js/
 │   └── web/           # Web application and API
-├── docs/              # Documentation
-├── tests/             # Test suite
-└── requirements.txt   # Python dependencies
+│       └── app.py      # FastAPI application
+├── main.py             # Main entry point
+├── requirements.txt    # Python dependencies
+└── .env.example        # Example environment configuration
 ```
 
 ## Security Considerations
@@ -177,3 +213,4 @@ MIT License - See [LICENSE](LICENSE) file for details
 - [Chart.js](https://www.chartjs.org/) for data visualization
 - [Tailwind CSS](https://tailwindcss.com/) for styling
 - [psutil](https://psutil.readthedocs.io/) for system monitoring
+- [ip-api.com](https://ip-api.com/) for IP geolocation services
