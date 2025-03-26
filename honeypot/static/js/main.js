@@ -17,11 +17,13 @@ const map = L.map('map', {
 }).setView([20, 0], 2);
 let currentTileLayer;
 let heatLayer;
+let heatmapEnabled = true; // Track if heatmap is enabled
 
 // Make map variables accessible globally
 window.map = map;
 window.currentTileLayer = currentTileLayer;
 window.heatLayer = heatLayer;
+window.heatmapEnabled = heatmapEnabled;
 window.connectionFailed = false; // Add a flag to track connection failure state
 window.lastActiveTimestamp = Date.now(); // Track when the page was last active
 window.reconnectAttempts = 0; // Move reconnect attempts to global scope
@@ -36,6 +38,58 @@ window.heartbeatTimeout = null; // Timeout for detecting missed heartbeats
 window.maxReconnectAttempts = 10; // Maximum number of reconnection attempts
 window.isReconnecting = false; // Flag to prevent multiple simultaneous reconnections
 window.serverCoordinates = null; // Server coordinates for attack animation
+
+// Create custom heatmap toggle control
+L.Control.HeatmapToggle = L.Control.extend({
+    options: {
+        position: 'topleft'
+    },
+
+    onAdd: function(map) {
+        const container = L.DomUtil.create('div', 'leaflet-control-heatmap leaflet-bar leaflet-control');
+        this._link = L.DomUtil.create('a', window.heatmapEnabled ? 'leaflet-control-heatmap-active' : '', container);
+        this._link.href = '#';
+        this._link.title = 'Toggle Heatmap';
+        this._link.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M10.0284 1.11813C9.69728 1.2952 9.53443 1.61638 9.49957 1.97965C9.48456 2.15538 9.46201 2.32986 9.43136 2.50363C9.3663 2.87248 9.24303 3.3937 9.01205 3.98313C8.5513 5.15891 7.67023 6.58926 5.96985 7.65195C3.57358 9.14956 2.68473 12.5146 3.06456 15.527C3.45234 18.6026 5.20871 21.7903 8.68375 22.9486C9.03 23.0641 9.41163 22.9817 9.67942 22.7337C10.0071 22.4303 10.0238 22.0282 9.94052 21.6223C9.87941 21.3244 9.74999 20.5785 9.74999 19.6875C9.74999 19.3992 9.76332 19.1034 9.79413 18.8068C10.3282 20.031 11.0522 20.9238 11.7758 21.5623C12.8522 22.5121 13.8694 22.8574 14.1722 22.9466C14.402 23.0143 14.6462 23.0185 14.8712 22.9284C17.5283 21.8656 19.2011 20.4232 20.1356 18.7742C21.068 17.1288 21.1993 15.3939 20.9907 13.8648C20.7833 12.3436 20.2354 10.9849 19.7537 10.0215C19.3894 9.29292 19.0534 8.77091 18.8992 8.54242C18.7101 8.26241 18.4637 8.04626 18.1128 8.00636C17.8332 7.97456 17.5531 8.06207 17.3413 8.24739L15.7763 9.61686C15.9107 7.44482 15.1466 5.61996 14.1982 4.24472C13.5095 3.24609 12.7237 2.47913 12.1151 1.96354C11.8094 1.70448 11.5443 1.50549 11.3525 1.36923C11.2564 1.30103 11.1784 1.24831 11.1224 1.21142C10.7908 0.99291 10.3931 0.923125 10.0284 1.11813ZM7.76396 20.256C7.75511 20.0744 7.74999 19.8842 7.74999 19.6875C7.75 18.6347 7.89677 17.3059 8.47802 16.0708C8.67271 15.6572 8.91614 15.254 9.21914 14.8753C9.47408 14.5566 9.89709 14.4248 10.2879 14.5423C10.6787 14.6598 10.959 15.003 10.9959 15.4094C11.2221 17.8977 12.2225 19.2892 13.099 20.0626C13.5469 20.4579 13.979 20.7056 14.292 20.8525C15.5 20.9999 17.8849 18.6892 18.3955 17.7882C19.0569 16.6211 19.1756 15.356 19.0091 14.1351C18.8146 12.7092 18.2304 11.3897 17.7656 10.5337L14.6585 13.2525C14.3033 13.5634 13.779 13.5835 13.401 13.3008C13.023 13.018 12.8942 12.5095 13.092 12.0809C14.4081 9.22933 13.655 6.97987 12.5518 5.38019C12.1138 4.74521 11.6209 4.21649 11.18 3.80695C11.0999 4.088 10.9997 4.39262 10.8742 4.71284C10.696 5.16755 10.4662 5.65531 10.1704 6.15187C9.50801 7.26379 8.51483 8.41987 7.02982 9.34797C5.57752 10.2556 4.71646 12.6406 5.04885 15.2768C5.29944 17.2643 6.20241 19.1244 7.76396 20.256Z" fill="currentColor"/>
+        </svg>`;
+
+        L.DomEvent.on(this._link, 'click', this._click, this);
+        L.DomEvent.disableClickPropagation(container);
+
+        return container;
+    },
+
+    _click: function(e) {
+        L.DomEvent.stopPropagation(e);
+        L.DomEvent.preventDefault(e);
+        
+        window.heatmapEnabled = !window.heatmapEnabled;
+        this._updateHeatmapState();
+    },
+    
+    _updateHeatmapState: function() {
+        if (window.heatmapEnabled) {
+            L.DomUtil.addClass(this._link, 'leaflet-control-heatmap-active');
+            if (window.heatLayer) {
+                window.map.addLayer(window.heatLayer);
+            }
+        } else {
+            L.DomUtil.removeClass(this._link, 'leaflet-control-heatmap-active');
+            if (window.heatLayer) {
+                window.map.removeLayer(window.heatLayer);
+            }
+        }
+    }
+});
+
+L.control.heatmapToggle = function(options) {
+    return new L.Control.HeatmapToggle(options);
+};
+
+// Add the heatmap toggle control to the map
+window.heatmapToggleControl = L.control.heatmapToggle();
+window.heatmapToggleControl.addTo(map);
 
 // Add this to ensure map is ready before adding layers
 window.map.whenReady(function() {
@@ -390,7 +444,7 @@ function updateMap(attempt) {
             return [a.latitude, a.longitude, intensity];
         });
 
-        // Create and add the heat layer with adjusted settings
+        // Create the heat layer with adjusted settings
         window.heatLayer = L.heatLayer(heatData, {
             radius: 20,           // Increased radius for better visibility
             blur: 15,             // Increased blur for smoother appearance
@@ -403,7 +457,15 @@ function updateMap(attempt) {
                 0.8: 'yellow',
                 1.0: 'red'
             }
-        }).addTo(window.map);
+        });
+        
+        // Only add the heat layer to the map if heatmap is enabled
+        if (window.heatmapEnabled) {
+            window.heatLayer.addTo(window.map);
+            console.log("Heatmap added to map");
+        } else {
+            console.log("Heatmap updated but not displayed (disabled by user)");
+        }
         
         console.log("Heatmap updated successfully");
         
@@ -471,12 +533,17 @@ function updateMap(attempt) {
     } else {
         console.log("No valid coordinates found for heatmap");
         
-        // Add an empty heat layer to initialize the plugin
+        // Create an empty heat layer
         window.heatLayer = L.heatLayer([], {
             radius: 20,
             blur: 15,
             maxZoom: 10
-        }).addTo(window.map);
+        });
+        
+        // Only add to map if enabled
+        if (window.heatmapEnabled) {
+            window.heatLayer.addTo(window.map);
+        }
     }
 }
 

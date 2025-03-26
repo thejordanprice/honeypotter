@@ -306,6 +306,12 @@ const themeManager = (function() {
         setMapTheme(isDark);
         updateAllChartThemes(isDark);
         
+        // Make sure heatmap toggle button looks correct with new theme
+        if (window.heatmapToggleControl && 
+            window.heatmapToggleControl._updateHeatmapState) {
+            window.heatmapToggleControl._updateHeatmapState();
+        }
+        
         return isDark;
     }
     
