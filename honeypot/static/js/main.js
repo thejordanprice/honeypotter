@@ -1323,49 +1323,79 @@ const init = (function() {
         // Export buttons inside modal
         const exportIPsButton = domUtils.getElement('exportIPs');
         if (exportIPsButton) {
-            exportIPsButton.addEventListener('click', () => {
+            const ipsExportHandler = () => {
                 menuUtils.hideMenu(exportDataModal);
                 window.open('/api/export/plaintext', '_blank');
+            };
+            exportIPsButton.addEventListener('click', ipsExportHandler);
+            exportIPsButton.addEventListener('touchend', (e) => {
+                e.preventDefault(); // Prevent default to avoid double events
+                ipsExportHandler();
             });
         }
 
         const exportJSONButton = domUtils.getElement('exportJSON');
         if (exportJSONButton) {
-            exportJSONButton.addEventListener('click', () => {
+            const jsonExportHandler = () => {
                 menuUtils.hideMenu(exportDataModal);
                 window.open('/api/export/json', '_blank');
+            };
+            exportJSONButton.addEventListener('click', jsonExportHandler);
+            exportJSONButton.addEventListener('touchend', (e) => {
+                e.preventDefault(); // Prevent default to avoid double events
+                jsonExportHandler();
             });
         }
 
         const exportCSVButton = domUtils.getElement('exportCSV');
         if (exportCSVButton) {
-            exportCSVButton.addEventListener('click', () => {
+            const csvExportHandler = () => {
                 menuUtils.hideMenu(exportDataModal);
                 window.open('/api/export/csv', '_blank');
+            };
+            exportCSVButton.addEventListener('click', csvExportHandler);
+            exportCSVButton.addEventListener('touchend', (e) => {
+                e.preventDefault(); // Prevent default to avoid double events
+                csvExportHandler();
             });
         }
 
         const exportMikrotikButton = domUtils.getElement('exportMikrotik');
         if (exportMikrotikButton) {
-            exportMikrotikButton.addEventListener('click', () => {
+            const mikrotikExportHandler = () => {
                 menuUtils.hideMenu(exportDataModal);
                 window.open('/api/export/mikrotik', '_blank');
+            };
+            exportMikrotikButton.addEventListener('click', mikrotikExportHandler);
+            exportMikrotikButton.addEventListener('touchend', (e) => {
+                e.preventDefault(); // Prevent default to avoid double events
+                mikrotikExportHandler();
             });
         }
 
         const exportIPTablesButton = domUtils.getElement('exportIPTables');
         if (exportIPTablesButton) {
-            exportIPTablesButton.addEventListener('click', () => {
+            const iptablesExportHandler = () => {
                 menuUtils.hideMenu(exportDataModal);
                 window.open('/api/export/iptables', '_blank');
+            };
+            exportIPTablesButton.addEventListener('click', iptablesExportHandler);
+            exportIPTablesButton.addEventListener('touchend', (e) => {
+                e.preventDefault(); // Prevent default to avoid double events
+                iptablesExportHandler();
             });
         }
 
         const exportCiscoButton = domUtils.getElement('exportCisco');
         if (exportCiscoButton) {
-            exportCiscoButton.addEventListener('click', () => {
+            const ciscoExportHandler = () => {
                 menuUtils.hideMenu(exportDataModal);
                 window.open('/api/export/cisco', '_blank');
+            };
+            exportCiscoButton.addEventListener('click', ciscoExportHandler);
+            exportCiscoButton.addEventListener('touchend', (e) => {
+                e.preventDefault(); // Prevent default to avoid double events
+                ciscoExportHandler();
             });
         }
 
