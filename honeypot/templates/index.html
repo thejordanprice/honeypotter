@@ -68,23 +68,11 @@
                         <!-- Mobile Menu -->
                         <div id="mobileMenu" class="hidden absolute top-full right-0 w-64 bg-white dark:bg-gray-800 shadow-lg rounded-lg z-50">
                             <div class="p-4 space-y-4">
-                                <button id="exportIPsMenu" class="w-full p-2 flex items-center gap-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                                    <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V7a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                    </svg>
-                                    <span>Export Plaintext</span>
-                                </button>
-                                <button id="exportJSONMenu" class="w-full p-2 flex items-center gap-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                                    <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                    </svg>
-                                    <span>Export JSON</span>
-                                </button>
-                                <button id="exportCSVMenu" class="w-full p-2 flex items-center gap-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                                <button id="exportDataButton" class="w-full p-2 flex items-center gap-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
                                     <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                                     </svg>
-                                    <span>Export CSV</span>
+                                    <span>Export Data</span>
                                 </button>
                                 <button id="systemStatusButton" class="w-full p-2 flex items-center gap-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
                                     <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -448,6 +436,59 @@
                         <div id="serviceStatus" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
                             <!-- Service status items will be inserted here -->
                         </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export Data Modal -->
+    <div id="exportDataModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 backdrop-filter backdrop-blur-sm">
+        <div class="bg-white dark:bg-gray-900 w-11/12 max-w-md rounded-lg shadow-xl max-h-[90vh] flex flex-col overflow-hidden transform transition-transform duration-300" onclick="event.stopPropagation()">
+            <div class="flex-none bg-white dark:bg-gray-900 rounded-t-lg w-full">
+                <div class="flex justify-between items-center p-6">
+                    <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Export Data</h2>
+                    <button id="closeExportDataModal" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div class="modal-content flex-grow overflow-y-auto dark:bg-gray-900">
+                <div class="p-6 space-y-6">
+                    
+                    <!-- Export Buttons -->
+                    <div class="space-y-4">
+                        <button id="exportIPs" class="w-full p-4 flex items-center gap-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                            <svg class="w-6 h-6 text-gray-700 dark:text-gray-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V7a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            <div class="flex-1">
+                                <h3 class="text-lg font-medium text-gray-900 dark:text-white">Plaintext</h3>
+                                <p class="text-sm text-gray-500 dark:text-gray-400">Simple list of all IP addresses</p>
+                            </div>
+                        </button>
+                        
+                        <button id="exportJSON" class="w-full p-4 flex items-center gap-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                            <svg class="w-6 h-6 text-gray-700 dark:text-gray-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            <div class="flex-1">
+                                <h3 class="text-lg font-medium text-gray-900 dark:text-white">JSON</h3>
+                                <p class="text-sm text-gray-500 dark:text-gray-400">Complete data in JSON format</p>
+                            </div>
+                        </button>
+                        
+                        <button id="exportCSV" class="w-full p-4 flex items-center gap-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                            <svg class="w-6 h-6 text-gray-700 dark:text-gray-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                            </svg>
+                            <div class="flex-1">
+                                <h3 class="text-lg font-medium text-gray-900 dark:text-white">CSV</h3>
+                                <p class="text-sm text-gray-500 dark:text-gray-400">Spreadsheet-friendly CSV format</p>
+                            </div>
+                        </button>
                     </div>
                 </div>
             </div>

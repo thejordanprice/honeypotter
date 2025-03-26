@@ -1269,11 +1269,13 @@ const init = (function() {
         // Hamburger Menu
         const hamburgerBtn = domUtils.getElement('hamburgerBtn');
         const mobileMenu = domUtils.getElement('mobileMenu');
-        const exportIPsMenu = domUtils.getElement('exportIPsMenu');
         const darkModeToggleMenu = domUtils.getElement('darkModeToggleMenu');
         const faqButton = domUtils.getElement('faqButton');
         const faqModal = domUtils.getElement('faqModal');
         const closeFaqModal = domUtils.getElement('closeFaqModal');
+        const exportDataButton = domUtils.getElement('exportDataButton');
+        const exportDataModal = domUtils.getElement('exportDataModal');
+        const closeExportDataModal = domUtils.getElement('closeExportDataModal');
 
         if (hamburgerBtn && mobileMenu) {
             hamburgerBtn.addEventListener('click', (e) => {
@@ -1296,26 +1298,49 @@ const init = (function() {
             }
         });
 
-        // Menu item click handlers
-        if (exportIPsMenu) {
-            exportIPsMenu.addEventListener('click', () => {
+        // Export Data Modal handlers
+        if (exportDataButton && exportDataModal) {
+            exportDataButton.addEventListener('click', () => {
                 menuUtils.closeMenu(mobileMenu);
+                menuUtils.showMenu(exportDataModal);
+                // Force a reflow before any animations
+                exportDataModal.offsetHeight;
+            });
+        }
+
+        if (closeExportDataModal && exportDataModal) {
+            closeExportDataModal.addEventListener('click', () => {
+                menuUtils.hideMenu(exportDataModal);
+            });
+
+            exportDataModal.addEventListener('click', (e) => {
+                if (e.target === exportDataModal) {
+                    menuUtils.hideMenu(exportDataModal);
+                }
+            });
+        }
+
+        // Export buttons inside modal
+        const exportIPsButton = domUtils.getElement('exportIPs');
+        if (exportIPsButton) {
+            exportIPsButton.addEventListener('click', () => {
+                menuUtils.hideMenu(exportDataModal);
                 window.open('/api/export/plaintext', '_blank');
             });
         }
 
-        const exportJSONMenu = domUtils.getElement('exportJSONMenu');
-        if (exportJSONMenu) {
-            exportJSONMenu.addEventListener('click', () => {
-                menuUtils.closeMenu(mobileMenu);
+        const exportJSONButton = domUtils.getElement('exportJSON');
+        if (exportJSONButton) {
+            exportJSONButton.addEventListener('click', () => {
+                menuUtils.hideMenu(exportDataModal);
                 window.open('/api/export/json', '_blank');
             });
         }
 
-        const exportCSVMenu = domUtils.getElement('exportCSVMenu');
-        if (exportCSVMenu) {
-            exportCSVMenu.addEventListener('click', () => {
-                menuUtils.closeMenu(mobileMenu);
+        const exportCSVButton = domUtils.getElement('exportCSV');
+        if (exportCSVButton) {
+            exportCSVButton.addEventListener('click', () => {
+                menuUtils.hideMenu(exportDataModal);
                 window.open('/api/export/csv', '_blank');
             });
         }
@@ -1358,6 +1383,10 @@ const init = (function() {
                 
                 if (faqModal && !faqModal.classList.contains('hidden')) {
                     menuUtils.hideMenu(faqModal);
+                }
+                
+                if (exportDataModal && !exportDataModal.classList.contains('hidden')) {
+                    menuUtils.hideMenu(exportDataModal);
                 }
                 
                 const systemStatusModal = domUtils.getElement('systemStatusModal');

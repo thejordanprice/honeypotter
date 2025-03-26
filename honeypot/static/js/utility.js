@@ -85,9 +85,9 @@ const domUtils = (function() {
             'loadingPercentage', 'loadingBar', 'loadingDetail', 'loadingText',
             'uniqueAttackers', 'totalAttempts', 'prevPage', 'nextPage',
             'startRange', 'endRange', 'totalItems', 'hamburgerBtn',
-            'mobileMenu', 'exportIPsMenu', 'exportJSONMenu', 'exportCSVMenu',
+            'mobileMenu', 'exportDataButton', 'exportIPs', 'exportJSON', 'exportCSV',
             'darkModeToggleMenu', 'lightIconMenu', 'darkIconMenu', 'themeText',
-            'faqButton', 'faqModal', 'closeFaqModal',
+            'faqButton', 'faqModal', 'closeFaqModal', 'exportDataModal', 'closeExportDataModal',
             'cpuPercent', 'cpuBar', 'memoryPercent', 'memoryBar', 'diskPercent', 'diskBar',
             'networkSent', 'networkReceived', 'networkConnections', 'systemUptime',
             'load1min', 'load5min', 'externalIP', 'serviceStatus', 'systemStatusModal'

@@ -363,7 +363,8 @@
 
 /* FAQ Modal and System Status Modal Styles */
 #faqModal,
-#systemStatusModal {
+#systemStatusModal,
+#exportDataModal {
     position: fixed;
     top: 0;
     left: 0;
@@ -387,27 +388,31 @@
 }
 
 #faqModal:not(.hidden),
-#systemStatusModal:not(.hidden) {
+#systemStatusModal:not(.hidden),
+#exportDataModal:not(.hidden) {
     opacity: 1;
     visibility: visible;
     pointer-events: auto;
 }
 
 #faqModal > div,
-#systemStatusModal > div {
+#systemStatusModal > div,
+#exportDataModal > div {
     transform: translateY(100%);
     opacity: 0;
     transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 #faqModal:not(.hidden) > div,
-#systemStatusModal:not(.hidden) > div {
+#systemStatusModal:not(.hidden) > div,
+#exportDataModal:not(.hidden) > div {
     transform: translateY(0);
     opacity: 1;
 }
 
 #closeFaqModal,
-#closeSystemStatusModal {
+#closeSystemStatusModal,
+#closeExportDataModal {
     position: relative;
     display: flex;
     align-items: center;
@@ -416,12 +421,14 @@
 }
 
 #closeFaqModal:hover,
-#closeSystemStatusModal:hover {
+#closeSystemStatusModal:hover,
+#closeExportDataModal:hover {
     transform: scale(1.1) rotate(90deg);
 }
 
 #closeFaqModal:active,
-#closeSystemStatusModal:active {
+#closeSystemStatusModal:active,
+#closeExportDataModal:active {
     transform: scale(0.95);
 }
 
@@ -475,11 +482,13 @@
         height: 20px;
     }
     
-    #faqModal {
+    #faqModal,
+    #exportDataModal {
         padding: 0.5rem;
     }
     
-    #faqModal .bg-white {
+    #faqModal .bg-white,
+    #exportDataModal .bg-white {
         width: calc(100% - 1rem);
         max-height: calc(100vh - 1rem);
         margin: 0.5rem;
@@ -495,11 +504,13 @@
         display: inline;
     }
     
-    #faqModal {
+    #faqModal,
+    #exportDataModal {
         padding: 2rem;
     }
     
-    #faqModal .bg-white {
+    #faqModal .bg-white,
+    #exportDataModal .bg-white {
         margin: 0;
         max-height: 85vh;
     }
