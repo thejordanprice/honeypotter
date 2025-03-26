@@ -296,6 +296,7 @@ const uiManager = (function() {
             });
             
             // Add reconnecting class if we're in reconnection mode (only after the first connection attempt)
+            // Check if this is a genuine reconnection (not an initial page load)
             if (window.reconnectAttempts > 0 && window.isReconnecting) {
                 overlay.classList.add('reconnecting');
                 
@@ -799,6 +800,11 @@ const websocketManager = (function() {
         // Make sure we're not in reconnecting mode for the initial connection
         window.isReconnecting = false;
         
+        // Initial page load should not count as a reconnection attempt
+        if (document.readyState !== 'complete') {
+            window.reconnectAttempts = 0;
+        }
+        
         uiManager.updateConnectionStatus('Connecting to WebSocket...');
         uiManager.updateLoadingPercentageWithDelay(10).then(() => {
             uiManager.updateLoadingStatus('Initializing...', 'Preparing connection parameters');
@@ -1055,7 +1061,14 @@ const websocketManager = (function() {
             callStack = e.stack.split('\n').slice(1, 3).join('\n');
         }
         
-        window.reconnectAttempts++;
+        // Check if this is an initial page load or a genuine reconnection attempt
+        const isInitialPageLoad = window.reconnectAttempts === 0 && document.readyState !== 'complete';
+        
+        // Only increment reconnectAttempts for genuine reconnection attempts, not initial page load
+        if (!isInitialPageLoad) {
+            window.reconnectAttempts++;
+        }
+        
         console.log(`Starting reconnection attempt ${window.reconnectAttempts} of ${window.maxReconnectAttempts}`);
         console.log(`Triggered by: ${callStack}`);
         
@@ -1065,7 +1078,8 @@ const websocketManager = (function() {
                                       document.readyState !== 'complete';
         
         // Set isReconnecting based on whether this is a first startup attempt or not
-        window.isReconnecting = !isFirstStartupReconnect;
+        // Don't set isReconnecting to true for initial page load
+        window.isReconnecting = !isFirstStartupReconnect && !isInitialPageLoad;
         
         // Make sure we reset the receiving batches state
         isReceivingBatches = false;
@@ -1717,6 +1731,12 @@ document.addEventListener('DOMContentLoaded', init.start);
 // Function to check WebSocket health
 function checkConnectionHealth() {
     console.log('Checking WebSocket connection health');
+    
+    // Skip health check during initial page load
+    if (document.readyState !== 'complete') {
+        console.log('Page still loading, skipping connection health check');
+        return;
+    }
     
     // If already reconnecting or reached max attempts, don't do anything
     if (window.isReconnecting) {
