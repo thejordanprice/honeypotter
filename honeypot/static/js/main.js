@@ -4,7 +4,12 @@ function formatDateToLocalTime(isoString) {
 }
 
 // Initialize map with light/dark theme support
-const map = L.map('map').setView([20, 0], 2);
+const map = L.map('map', {
+    fullscreenControl: true,
+    fullscreenControlOptions: {
+        position: 'topleft'
+    }
+}).setView([20, 0], 2);
 let currentTileLayer;
 let heatLayer;
 
