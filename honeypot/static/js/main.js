@@ -3,6 +3,11 @@ function formatDateToLocalTime(isoString) {
     return formatUtils.formatDateToLocalTime(isoString);
 }
 
+// Global variables
+if (!window.attackAnimations) {
+    window.attackAnimations = [];
+}
+
 // Initialize map with light/dark theme support
 const map = L.map('map', {
     fullscreenControl: true,
@@ -31,7 +36,6 @@ window.heartbeatTimeout = null; // Timeout for detecting missed heartbeats
 window.maxReconnectAttempts = 10; // Maximum number of reconnection attempts
 window.isReconnecting = false; // Flag to prevent multiple simultaneous reconnections
 window.serverCoordinates = null; // Server coordinates for attack animation
-window.attackAnimations = []; // Array to store active attack animations
 
 // Add this to ensure map is ready before adding layers
 window.map.whenReady(function() {
@@ -71,7 +75,7 @@ window.lightTileLayer = lightTileLayer;
 window.darkTileLayer = darkTileLayer;
 
 // Initialize the appropriate tile layer based on theme
-const isDarkMode = document.documentElement.classList.contains('dark');
+const isDarkMode = themeManager.isDarkTheme();
 currentTileLayer = isDarkMode ? darkTileLayer : lightTileLayer;
 currentTileLayer.addTo(map);
 window.currentTileLayer = currentTileLayer;
@@ -94,7 +98,7 @@ const AttackAnimator = {
         const curvePoints = this.generateCurvePoints(attackerCoords, serverCoords, 15);
         
         // Determine if dark mode is active
-        const isDarkMode = document.documentElement.classList.contains('dark');
+        const isDarkMode = themeManager.isDarkTheme();
         
         // Choose color based on theme - keep line color the same
         const lineColor = isDarkMode ? '#ffffff' : '#3b82f6'; // White for dark mode, blue for light mode
@@ -2029,7 +2033,7 @@ const init = (function() {
         
         // Make sure map is initialized
         if (window.map && window.lightTileLayer && window.darkTileLayer) {
-            const isDarkMode = document.documentElement.classList.contains('dark');
+            const isDarkMode = themeManager.isDarkTheme();
             if (!window.currentTileLayer) {
                 window.currentTileLayer = isDarkMode ? window.darkTileLayer : window.lightTileLayer;
                 window.currentTileLayer.addTo(window.map);
