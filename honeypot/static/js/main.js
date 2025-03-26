@@ -299,8 +299,8 @@ const uiManager = (function() {
                 if (loadingActions) {
                     if (window.reconnectAttempts >= window.maxReconnectAttempts) {
                         // Show both buttons when max attempts reached
-                        loadingActions.innerHTML = '<button id="reconnectNowButton" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 mr-2">Reconnect Now</button>' +
-                                                  '<button id="refreshPageButton" class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600">Refresh Page</button>';
+                        loadingActions.innerHTML = '<button id="reconnectNowButton" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 text-white rounded shadow hover:shadow-md transition-all mr-2">Reconnect Now</button>' +
+                                                  '<button id="refreshPageButton" class="px-4 py-2 bg-gray-500 hover:bg-gray-600 dark:bg-gray-600 dark:hover:bg-gray-700 text-white rounded shadow hover:shadow-md transition-all">Refresh Page</button>';
                         
                         // Add event listeners to the buttons
                         const reconnectButton = document.getElementById('reconnectNowButton');
@@ -335,7 +335,7 @@ const uiManager = (function() {
                     } else {
                         // When still trying automatic reconnections, show a message instead of buttons
                         const attemptInfo = `Reconnection Attempt ${window.reconnectAttempts} of ${window.maxReconnectAttempts}`;
-                        loadingActions.innerHTML = `<div class="py-2 px-4 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded text-center">${attemptInfo}</div>`;
+                        loadingActions.innerHTML = `<div class="py-2 px-4 bg-blue-100 dark:bg-gray-800 text-blue-800 dark:text-gray-200 rounded text-center font-medium">${attemptInfo}</div>`;
                     }
                 }
             } else {
@@ -1084,7 +1084,7 @@ const websocketManager = (function() {
                 const loadingActions = domUtils.getElement('loadingActions');
                 if (loadingActions) {
                     const attemptInfo = `Reconnection Attempt ${window.reconnectAttempts} of ${window.maxReconnectAttempts}`;
-                    loadingActions.innerHTML = `<div class="py-2 px-4 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded text-center">${attemptInfo}</div>`;
+                    loadingActions.innerHTML = `<div class="py-2 px-4 bg-blue-100 dark:bg-gray-800 text-blue-800 dark:text-gray-200 rounded text-center font-medium">${attemptInfo}</div>`;
                 }
                 
                 // Add reconnecting class to overlay if not already present
@@ -1128,8 +1128,8 @@ const websocketManager = (function() {
             // Add a refresh button to the loading overlay
             const loadingActions = domUtils.getElement('loadingActions');
             if (loadingActions) {
-                loadingActions.innerHTML = '<button id="reconnectNowButton" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 mr-2">Reconnect Now</button>' +
-                                           '<button id="refreshPageButton" class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600">Refresh Page</button>';
+                loadingActions.innerHTML = '<button id="reconnectNowButton" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 text-white rounded shadow hover:shadow-md transition-all mr-2">Reconnect Now</button>' +
+                                           '<button id="refreshPageButton" class="px-4 py-2 bg-gray-500 hover:bg-gray-600 dark:bg-gray-600 dark:hover:bg-gray-700 text-white rounded shadow hover:shadow-md transition-all">Refresh Page</button>';
                 
                 // Add event listeners to the buttons
                 const reconnectButton = document.getElementById('reconnectNowButton');

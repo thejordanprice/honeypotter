@@ -598,4 +598,17 @@ html, body {
 .chart-container {
     max-width: 100%;
     overflow: hidden;
+}
+
+/* Reconnection attempt message in dark mode */
+.dark #loadingActions .py-2.px-4 {
+    background-color: #1f2937 !important; /* Darker background */
+    color: #e5e7eb !important; /* Lighter text for better contrast */
+}
+
+/* Leaflet control attribution styling */
+.leaflet-control-attribution {
+    font-size: 8px !important;
+    padding: 2px 4px !important;
+    background-color: rgba(255, 255, 255, 0.7) !important;
 } 
