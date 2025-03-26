@@ -21,7 +21,7 @@
 /* Attack Animation Styles */
 .attack-path {
     stroke-dasharray: 4, 8;
-    animation: dash 10s linear infinite;
+    animation: dash 14s linear infinite;
     filter: drop-shadow(0 0 3px rgba(59, 130, 246, 0.5));
     stroke-width: 2;
     stroke-linecap: round;

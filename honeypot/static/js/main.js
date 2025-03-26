@@ -108,19 +108,29 @@ const AttackAnimator = {
             className: 'attack-path'
         }).addTo(window.map);
         
-        // Add a pulsing marker at the attacker location
+        // Add a pulsing marker at the attacker location - smaller size
         const attackerMarker = L.circleMarker(attackerCoords, {
-            radius: 5,
+            radius: 3,  // Reduced from 5
             color: isDarkMode ? '#ffffff' : '#ef4444', // White for dark mode, red for light mode
             fillColor: isDarkMode ? '#ffffff' : '#ef4444',
             fillOpacity: 0.8,
-            weight: 2
+            weight: 1.5  // Reduced from 2
+        }).addTo(window.map);
+        
+        // Add a pulsing marker at the server location - smaller size
+        const serverMarker = L.circleMarker(serverCoords, {
+            radius: 3,  // Reduced from 5
+            color: isDarkMode ? '#ffffff' : '#3b82f6', // White for dark mode, blue for light mode
+            fillColor: isDarkMode ? '#ffffff' : '#3b82f6',
+            fillOpacity: 0.8,
+            weight: 1.5  // Reduced from 2
         }).addTo(window.map);
         
         // Create an object to track this animation
         const animation = {
             path: path,
-            marker: attackerMarker,
+            attackerMarker: attackerMarker,
+            serverMarker: serverMarker,
             progress: 0,
             finished: false,
             created: Date.now()
@@ -177,8 +187,8 @@ const AttackAnimator = {
         // If already finished, don't continue
         if (animation.finished) return;
         
-        // Update progress - slower for better visibility
-        animation.progress += 0.01;
+        // Update progress - slower for longer animation duration
+        animation.progress += 0.007;  // Reduced from 0.01 for longer animation
         
         // Calculate opacity based on progress
         let opacity;
@@ -196,9 +206,13 @@ const AttackAnimator = {
         // Apply opacity
         animation.path.setStyle({ opacity: opacity });
         
-        // Pulse the marker
-        const markerRadius = 5 + (Math.sin(animation.progress * 10) + 1) * 3;
-        animation.marker.setRadius(markerRadius);
+        // Pulse the attacker marker - smaller amplitude
+        const markerRadius = 3 + (Math.sin(animation.progress * 10) + 1) * 2;  // Base 3, max +2
+        animation.attackerMarker.setRadius(markerRadius);
+        
+        // Pulse the server marker (out of phase with attacker marker) - smaller amplitude
+        const serverMarkerRadius = 3 + (Math.sin((animation.progress * 10) + Math.PI) + 1) * 2;  // Base 3, max +2
+        animation.serverMarker.setRadius(serverMarkerRadius);
         
         // Continue animation until complete
         if (animation.progress < 1) {
@@ -208,7 +222,8 @@ const AttackAnimator = {
             animation.finished = true;
             setTimeout(() => {
                 window.map.removeLayer(animation.path);
-                window.map.removeLayer(animation.marker);
+                window.map.removeLayer(animation.attackerMarker);
+                window.map.removeLayer(animation.serverMarker);
                 // Remove from animations array
                 const index = window.attackAnimations.indexOf(animation);
                 if (index > -1) {
