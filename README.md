@@ -173,7 +173,7 @@ honeypotter/
 │   ├── static/         # Static assets
 │   │   ├── css/
 │   │   └── js/
-│   └── web/           # Web application and API
+│   └── web/            # Web application and API
 │       └── app.py      # FastAPI application
 ├── main.py             # Main entry point
 ├── requirements.txt    # Python dependencies
