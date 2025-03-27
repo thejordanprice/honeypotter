@@ -307,6 +307,34 @@ const AttackAnimator = {
             return null;
         }
         
+        // Check if an animation already exists for these coordinates
+        const coordKey = `${attackerCoords[0]},${attackerCoords[1]}_${serverCoords[0]},${serverCoords[1]}`;
+        const existingAnimation = this.findExistingAnimation(attackerCoords, serverCoords);
+        
+        if (existingAnimation) {
+            console.log("Found existing animation for these coordinates, extending timeout");
+            
+            // Clear the existing timeout if it exists
+            if (existingAnimation.timeoutId) {
+                clearTimeout(existingAnimation.timeoutId);
+            }
+            
+            // Reset the creation timestamp
+            existingAnimation.created = Date.now();
+            
+            // Set a new timeout
+            if (existingAnimation.usesTimeouts) {
+                const timeout = existingAnimation.timeoutDuration;
+                console.log(`Extending animation timeout: ${timeout}ms (Mode: ${window.animationMode})`);
+                
+                existingAnimation.timeoutId = setTimeout(() => {
+                    this.fadeOutAnimation(existingAnimation);
+                }, timeout);
+            }
+            
+            return existingAnimation;
+        }
+        
         console.log("Creating attack path from", attackerCoords, "to", serverCoords);
         console.log(`Animation mode: ${window.animationMode} (${window.animationMode > 0 ? 'Using timeouts' : 'Using auto-completion'})`);
         
@@ -399,6 +427,8 @@ const AttackAnimator = {
             progress: 0,
             finished: false,
             created: Date.now(),
+            sourceCoords: [...attackerCoords],  // Store coordinates for comparison
+            destCoords: [...serverCoords],      // Store coordinates for comparison
             // Store whether this animation uses timeouts or auto-completion
             usesTimeouts: window.animationMode > 0,
             // Store the configured timeout value at creation time
@@ -421,63 +451,98 @@ const AttackAnimator = {
             console.log(`Setting animation timeout: ${timeout}ms (Mode: ${window.animationMode})`);
             
             animation.timeoutId = setTimeout(() => {
-                console.log(`Animation timeout triggered after ${timeout}ms`);
-                // Mark as finished to stop animation cycle
-                animation.finished = true;
-                
-                // Add fade-out animation to path
-                if (animation.path) {
-                    const pathElement = animation.path._path || 
-                                    (animation.path._renderer && animation.path._renderer._rootGroup) ||
-                                    animation.path._container;
-                    
-                    if (pathElement && pathElement.style) {
-                        pathElement.style.transition = 'opacity 0.4s ease-out';
-                        pathElement.style.opacity = '0';
-                    }
-                }
-                
-                // Add fade-out animation to markers
-                if (animation.attackerMarker) {
-                    const attackerElement = animation.attackerMarker._path || 
-                                          (animation.attackerMarker._renderer && animation.attackerMarker._renderer._rootGroup) ||
-                                          animation.attackerMarker._container;
-                    
-                    if (attackerElement && attackerElement.style) {
-                        attackerElement.style.transition = 'opacity 0.4s ease-out';
-                        attackerElement.style.opacity = '0';
-                    }
-                }
-                
-                if (animation.serverMarker) {
-                    const serverElement = animation.serverMarker._path || 
-                                        (animation.serverMarker._renderer && animation.serverMarker._renderer._rootGroup) ||
-                                        animation.serverMarker._container;
-                    
-                    if (serverElement && serverElement.style) {
-                        serverElement.style.transition = 'opacity 0.4s ease-out';
-                        serverElement.style.opacity = '0';
-                    }
-                }
-                
-                // Remove from map after fade completes
-                setTimeout(() => {
-                    if (animation.path) window.map.removeLayer(animation.path);
-                    if (animation.attackerMarker) window.map.removeLayer(animation.attackerMarker);
-                    if (animation.serverMarker) window.map.removeLayer(animation.serverMarker);
-                    
-                    // Remove from animations array
-                    const index = window.attackAnimations.indexOf(animation);
-                    if (index > -1) {
-                        window.attackAnimations.splice(index, 1);
-                    }
-                }, 400);
+                this.fadeOutAnimation(animation);
             }, timeout);
         } else {
             console.log("No timeout set: using automatic animation lifecycle");
         }
         
         return animation;
+    },
+    
+    // Find existing animation with same source and destination coordinates
+    findExistingAnimation: function(sourceCoords, destCoords) {
+        // Define a small threshold for coordinate comparison (to account for small float differences)
+        const threshold = 0.001; // approximately 100 meters at the equator
+        
+        for (let i = 0; i < window.attackAnimations.length; i++) {
+            const anim = window.attackAnimations[i];
+            
+            // Skip if animation is already marked as finished
+            if (anim.finished) continue;
+            
+            // Compare source coordinates
+            const sourceMatch = 
+                Math.abs(anim.sourceCoords[0] - sourceCoords[0]) < threshold &&
+                Math.abs(anim.sourceCoords[1] - sourceCoords[1]) < threshold;
+            
+            // Compare destination coordinates
+            const destMatch = 
+                Math.abs(anim.destCoords[0] - destCoords[0]) < threshold &&
+                Math.abs(anim.destCoords[1] - destCoords[1]) < threshold;
+            
+            // If both match, return this animation
+            if (sourceMatch && destMatch) {
+                return anim;
+            }
+        }
+        
+        return null;
+    },
+    
+    // Handle fading out and removing an animation
+    fadeOutAnimation: function(animation) {
+        console.log(`Animation timeout triggered after ${animation.timeoutDuration}ms`);
+        // Mark as finished to stop animation cycle
+        animation.finished = true;
+        
+        // Add fade-out animation to path
+        if (animation.path) {
+            const pathElement = animation.path._path || 
+                            (animation.path._renderer && animation.path._renderer._rootGroup) ||
+                            animation.path._container;
+            
+            if (pathElement && pathElement.style) {
+                pathElement.style.transition = 'opacity 0.4s ease-out';
+                pathElement.style.opacity = '0';
+            }
+        }
+        
+        // Add fade-out animation to markers
+        if (animation.attackerMarker) {
+            const attackerElement = animation.attackerMarker._path || 
+                                  (animation.attackerMarker._renderer && animation.attackerMarker._renderer._rootGroup) ||
+                                  animation.attackerMarker._container;
+            
+            if (attackerElement && attackerElement.style) {
+                attackerElement.style.transition = 'opacity 0.4s ease-out';
+                attackerElement.style.opacity = '0';
+            }
+        }
+        
+        if (animation.serverMarker) {
+            const serverElement = animation.serverMarker._path || 
+                                (animation.serverMarker._renderer && animation.serverMarker._renderer._rootGroup) ||
+                                animation.serverMarker._container;
+            
+            if (serverElement && serverElement.style) {
+                serverElement.style.transition = 'opacity 0.4s ease-out';
+                serverElement.style.opacity = '0';
+            }
+        }
+        
+        // Remove from map after fade completes
+        setTimeout(() => {
+            if (animation.path) window.map.removeLayer(animation.path);
+            if (animation.attackerMarker) window.map.removeLayer(animation.attackerMarker);
+            if (animation.serverMarker) window.map.removeLayer(animation.serverMarker);
+            
+            // Remove from animations array
+            const index = window.attackAnimations.indexOf(animation);
+            if (index > -1) {
+                window.attackAnimations.splice(index, 1);
+            }
+        }, 400);
     },
     
     // Generate a smooth curve with many points
@@ -751,57 +816,6 @@ const AttackAnimator = {
                 }, remainingTime);
             }
         });
-    },
-    
-    // Helper function to fade out and remove an animation
-    fadeOutAnimation: function(animation) {
-        // Add fade-out animation to path
-        if (animation.path) {
-            const pathElement = animation.path._path || 
-                            (animation.path._renderer && animation.path._renderer._rootGroup) ||
-                            animation.path._container;
-            
-            if (pathElement && pathElement.style) {
-                pathElement.style.transition = 'opacity 0.4s ease-out';
-                pathElement.style.opacity = '0';
-            }
-        }
-        
-        // Add fade-out animation to markers
-        if (animation.attackerMarker) {
-            const attackerElement = animation.attackerMarker._path || 
-                                  (animation.attackerMarker._renderer && animation.attackerMarker._renderer._rootGroup) ||
-                                  animation.attackerMarker._container;
-            
-            if (attackerElement && attackerElement.style) {
-                attackerElement.style.transition = 'opacity 0.4s ease-out';
-                attackerElement.style.opacity = '0';
-            }
-        }
-        
-        if (animation.serverMarker) {
-            const serverElement = animation.serverMarker._path || 
-                                (animation.serverMarker._renderer && animation.serverMarker._renderer._rootGroup) ||
-                                animation.serverMarker._container;
-            
-            if (serverElement && serverElement.style) {
-                serverElement.style.transition = 'opacity 0.4s ease-out';
-                serverElement.style.opacity = '0';
-            }
-        }
-        
-        // Remove from map after fade completes
-        setTimeout(() => {
-            if (animation.path) window.map.removeLayer(animation.path);
-            if (animation.attackerMarker) window.map.removeLayer(animation.attackerMarker);
-            if (animation.serverMarker) window.map.removeLayer(animation.serverMarker);
-            
-            // Remove from animations array
-            const index = window.attackAnimations.indexOf(animation);
-            if (index > -1) {
-                window.attackAnimations.splice(index, 1);
-            }
-        }, 400);
     }
 };
 
