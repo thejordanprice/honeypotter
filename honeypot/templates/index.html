@@ -66,6 +66,10 @@
             border-radius: 4px;
             box-shadow: 0 1px 5px rgba(0,0,0,0.65);
         }
+        .dark .leaflet-control-animation {
+            background-color: #374151;
+            box-shadow: 0 1px 5px rgba(0,0,0,0.85);
+        }
         .leaflet-control-animation a {
             background-position: 50% 50%;
             background-repeat: no-repeat;
@@ -81,12 +85,21 @@
             position: relative;
             transition: background-color 0.25s ease-in-out;
         }
+        .dark .leaflet-control-animation a {
+            color: #e5e7eb;
+        }
         .leaflet-control-animation a:hover {
             background-color: #f4f4f4;
+        }
+        .dark .leaflet-control-animation a:hover {
+            background-color: #4b5563;
         }
         .leaflet-control-animation-active {
             background-color: #e5e5e5;
             transition: background-color 0.25s ease-in-out;
+        }
+        .dark .leaflet-control-animation-active {
+            background-color: #4b5563;
         }
         .animation-text-badge {
             position: absolute;
@@ -111,8 +124,10 @@
             transform: scale(0.5);
         }
         .dark .animation-text-badge {
-            background-color: #60a5fa;
-            border: 1px solid rgba(0,0,0,0.2);
+            background-color: #2563eb !important; /* Force a strong blue color with !important */
+            color: white !important;
+            border: none !important;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.5) !important;
         }
     </style>
 </head>
