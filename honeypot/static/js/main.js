@@ -69,7 +69,20 @@ L.Control.HeatmapToggle = L.Control.extend({
                     line.setAttribute("stroke", "#ff0000");
                     line.setAttribute("stroke-width", "2");
                     line.setAttribute("class", "strike-through-line");
+                    
+                    // Set initial state for animation
+                    line.style.opacity = '0';
+                    line.style.strokeDasharray = '24';
+                    line.style.strokeDashoffset = '24';
+                    line.style.transition = 'opacity 0.3s ease, stroke-dashoffset 0.3s ease';
+                    
                     svg.appendChild(line);
+                    
+                    // Trigger animation
+                    setTimeout(() => {
+                        line.style.opacity = '1';
+                        line.style.strokeDashoffset = '0';
+                    }, 10);
                 }
             }, 0);
         }
@@ -95,11 +108,22 @@ L.Control.HeatmapToggle = L.Control.extend({
                 window.map.addLayer(window.heatLayer);
             }
             
-            // Remove strike-through line if it exists
+            // Animate strike-through line removal if it exists
             const svg = this._link.querySelector('svg');
             const strikeLine = svg.querySelector('.strike-through-line');
             if (strikeLine) {
-                svg.removeChild(strikeLine);
+                // Animate out
+                strikeLine.style.transition = 'opacity 0.3s ease, stroke-dashoffset 0.3s ease';
+                strikeLine.style.opacity = '0';
+                strikeLine.style.strokeDasharray = '24';
+                strikeLine.style.strokeDashoffset = '24';
+                
+                // Remove after animation completes
+                setTimeout(() => {
+                    if (strikeLine.parentNode) {
+                        svg.removeChild(strikeLine);
+                    }
+                }, 300);
             }
         } else {
             L.DomUtil.removeClass(this._link, 'leaflet-control-heatmap-active');
@@ -107,7 +131,7 @@ L.Control.HeatmapToggle = L.Control.extend({
                 window.map.removeLayer(window.heatLayer);
             }
             
-            // Add strike-through line if it doesn't exist
+            // Add and animate strike-through line if it doesn't exist
             const svg = this._link.querySelector('svg');
             if (!svg.querySelector('.strike-through-line')) {
                 const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
@@ -118,7 +142,20 @@ L.Control.HeatmapToggle = L.Control.extend({
                 line.setAttribute("stroke", "#ff0000");
                 line.setAttribute("stroke-width", "2");
                 line.setAttribute("class", "strike-through-line");
+                
+                // Set initial state for animation
+                line.style.opacity = '0';
+                line.style.strokeDasharray = '24';
+                line.style.strokeDashoffset = '24';
+                line.style.transition = 'opacity 0.3s ease, stroke-dashoffset 0.3s ease';
+                
                 svg.appendChild(line);
+                
+                // Trigger animation
+                setTimeout(() => {
+                    line.style.opacity = '1';
+                    line.style.strokeDashoffset = '0';
+                }, 10);
             }
         }
     }
@@ -2355,7 +2392,20 @@ L.Control.AnimationToggle = L.Control.extend({
                     line.setAttribute("stroke", "#ff0000");
                     line.setAttribute("stroke-width", "2");
                     line.setAttribute("class", "strike-through-line");
+                    
+                    // Set initial state for animation
+                    line.style.opacity = '0';
+                    line.style.strokeDasharray = '24';
+                    line.style.strokeDashoffset = '24';
+                    line.style.transition = 'opacity 0.3s ease, stroke-dashoffset 0.3s ease';
+                    
                     svg.appendChild(line);
+                    
+                    // Trigger animation
+                    setTimeout(() => {
+                        line.style.opacity = '1';
+                        line.style.strokeDashoffset = '0';
+                    }, 10);
                 }
             }, 0);
         }
@@ -2378,11 +2428,22 @@ L.Control.AnimationToggle = L.Control.extend({
         if (window.animationsEnabled) {
             L.DomUtil.addClass(this._link, 'leaflet-control-animation-active');
             
-            // Remove strike-through line if it exists
+            // Animate strike-through line removal if it exists
             const svg = this._link.querySelector('svg');
             const strikeLine = svg.querySelector('.strike-through-line');
             if (strikeLine) {
-                svg.removeChild(strikeLine);
+                // Animate out
+                strikeLine.style.transition = 'opacity 0.3s ease, stroke-dashoffset 0.3s ease';
+                strikeLine.style.opacity = '0';
+                strikeLine.style.strokeDasharray = '24';
+                strikeLine.style.strokeDashoffset = '24';
+                
+                // Remove after animation completes
+                setTimeout(() => {
+                    if (strikeLine.parentNode) {
+                        svg.removeChild(strikeLine);
+                    }
+                }, 300);
             }
         } else {
             L.DomUtil.removeClass(this._link, 'leaflet-control-animation-active');
@@ -2397,7 +2458,7 @@ L.Control.AnimationToggle = L.Control.extend({
                 window.attackAnimations = [];
             }
             
-            // Add strike-through line if it doesn't exist
+            // Add and animate strike-through line if it doesn't exist
             const svg = this._link.querySelector('svg');
             if (!svg.querySelector('.strike-through-line')) {
                 const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
@@ -2408,7 +2469,20 @@ L.Control.AnimationToggle = L.Control.extend({
                 line.setAttribute("stroke", "#ff0000");
                 line.setAttribute("stroke-width", "2");
                 line.setAttribute("class", "strike-through-line");
+                
+                // Set initial state for animation
+                line.style.opacity = '0';
+                line.style.strokeDasharray = '24';
+                line.style.strokeDashoffset = '24';
+                line.style.transition = 'opacity 0.3s ease, stroke-dashoffset 0.3s ease';
+                
                 svg.appendChild(line);
+                
+                // Trigger animation
+                setTimeout(() => {
+                    line.style.opacity = '1';
+                    line.style.strokeDashoffset = '0';
+                }, 10);
             }
         }
     }
