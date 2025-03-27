@@ -23,7 +23,7 @@ WEB_PORT = int(os.getenv('WEB_PORT', 8080))
 # Thread management settings
 MAX_THREADS = int(os.getenv('MAX_THREADS', 50))  # Maximum worker threads
 MAX_CONNECTIONS_PER_IP = int(os.getenv('MAX_CONNECTIONS_PER_IP', 5))  # Max connections from a single IP
-CONNECTION_TIMEOUT = int(os.getenv('CONNECTION_TIMEOUT', 15))  # Timeout in seconds for inactive connections
+CONNECTION_TIMEOUT = int(os.getenv('CONNECTION_TIMEOUT', 5))  # Timeout in seconds for inactive connections
 MAX_QUEUED_CONNECTIONS = int(os.getenv('MAX_QUEUED_CONNECTIONS', 100))  # Max queued connections
 
 # Database settings
