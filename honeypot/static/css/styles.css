@@ -226,6 +226,7 @@
 .dark .leaflet-control-zoom-out,
 .dark .leaflet-control-fullscreen a,
 .dark .leaflet-control-heatmap a,
+.dark .leaflet-control-animation a,
 .dark .leaflet-control * {
     color: #000 !important;
     background-color: #fff !important;
@@ -235,7 +236,8 @@
 .dark .leaflet-control-zoom-in:hover,
 .dark .leaflet-control-zoom-out:hover,
 .dark .leaflet-control-fullscreen a:hover,
-.dark .leaflet-control-heatmap a:hover {
+.dark .leaflet-control-heatmap a:hover,
+.dark .leaflet-control-animation a:hover {
     background-color: #f4f4f4 !important;
 }
 
@@ -275,10 +277,38 @@
     width: 20px;
     height: 20px;
     color: #000;
+    transition: all 0.2s ease;
 }
 
 .dark .leaflet-control-heatmap a svg {
     color: #000;
+}
+
+/* Animation toggle control styling */
+.leaflet-control-animation a {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    transition: background-color 0.2s ease;
+}
+
+.leaflet-control-animation a svg {
+    width: 20px;
+    height: 20px;
+    color: #000;
+    transition: all 0.2s ease;
+}
+
+.dark .leaflet-control-animation a svg {
+    color: #000;
+}
+
+.leaflet-control-animation-active {
+    background-color: #e5e5e5;
+}
+
+.dark .leaflet-control-animation-active {
+    background-color: #e5e5e5 !important;
 }
 
 /* Dark mode map tile styling */

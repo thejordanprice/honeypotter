@@ -312,6 +312,12 @@ const themeManager = (function() {
             window.heatmapToggleControl._updateHeatmapState();
         }
         
+        // Make sure animation toggle button looks correct with new theme
+        if (window.animationToggleControl && 
+            window.animationToggleControl._updateAnimationState) {
+            window.animationToggleControl._updateAnimationState();
+        }
+        
         return isDark;
     }
     
