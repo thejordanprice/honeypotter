@@ -936,17 +936,22 @@ function updateHeatmapData(attempt) {
                 }
             }
 
-            // Find max frequency for better normalization
-            const maxFrequency = Math.max(...Object.values(locationFrequency), 1);
-            console.log(`Max frequency: ${maxFrequency}`);
-            
             // Create heatmap data points from frequency
             const heatData = [];
+            let maxFreq = 0;
+
             for (const key in locationFrequency) {
                 const [lat, lng] = key.split(',');
-                // Scale intensity based on relative frequency, with minimum value of 0.3
-                const intensity = Math.max(0.3, (locationFrequency[key] / maxFrequency));
-                heatData.push([parseFloat(lat), parseFloat(lng), intensity]);
+                // Track maximum frequency for logging
+                if (locationFrequency[key] > maxFreq) {
+                    maxFreq = locationFrequency[key];
+                }
+                // Use the raw count for intensity without custom scaling
+                heatData.push([parseFloat(lat), parseFloat(lng), locationFrequency[key]]);
+            }
+
+            if (maxFreq > 0) {
+                console.log(`Heatmap updated with max intensity value: ${maxFreq}`);
             }
 
             // Update the existing heat layer data
@@ -1103,7 +1108,6 @@ function createNewHeatLayer(attempt) {
         
         // Process valid attempts
         let validAttempts = 0;
-        let maxFreq = 0;
         let points = [];
         
         console.log("Processing attack data for heatmap...");
@@ -1124,20 +1128,29 @@ function createNewHeatLayer(attempt) {
                 } else {
                     window.heatPoints[keyStr].count++;
                 }
-                
-                // Track the highest frequency
-                if (window.heatPoints[keyStr].count > maxFreq) {
-                    maxFreq = window.heatPoints[keyStr].count;
-                }
             }
         }
         
-        console.log(`Processed ${validAttempts} valid attacks, max frequency: ${maxFreq}`);
+        console.log(`Processed ${validAttempts} valid attacks`);
         
         // Convert the heatPoints object to an array for the heatmap
+        let maxCount = 0;
         for (const key in window.heatPoints) {
             const point = window.heatPoints[key];
-            points.push([point.lat, point.lng, point.count / maxFreq]);
+            // Track the highest count to use for the max heat value
+            if (point.count > maxCount) {
+                maxCount = point.count;
+            }
+            // Use the actual count for intensity
+            points.push([point.lat, point.lng, point.count]);
+        }
+        
+        // Calculate a dynamic max value based on the data
+        let maxValue = 10; // Default fallback
+        if (maxCount > 0) {
+            // Use max or a reasonable portion of max, avoiding extreme outliers
+            maxValue = Math.max(5, Math.ceil(maxCount * 0.8));
+            console.log(`Dynamic max heatmap value: ${maxValue} (highest count: ${maxCount})`);
         }
         
         // Create the heat layer with the points
@@ -1149,11 +1162,12 @@ function createNewHeatLayer(attempt) {
             
             // Create new heat layer with the points
             window.heatLayer = L.heatLayer(points, {
-                radius: 25,
-                blur: 15,
+                radius: 15,            // Smaller radius for more precision
+                blur: 20,              // Higher blur for smoother transitions
                 maxZoom: 10,
-                max: 1.0,
-                gradient: {0.4: 'blue', 0.6: 'cyan', 0.7: 'lime', 0.8: 'yellow', 1.0: 'red'}
+                max: maxValue,         // Dynamic max value based on the data
+                minOpacity: 0.4,       // Ensure low-density areas are still visible
+                gradient: {0.4: 'blue', 0.5: 'cyan', 0.6: 'lime', 0.8: 'yellow', 1.0: 'red'}
             });
             
             // Only add to map if enabled and map is loaded
