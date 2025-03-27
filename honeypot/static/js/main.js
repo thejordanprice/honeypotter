@@ -1662,7 +1662,8 @@ const websocketManager = (function() {
         
         // Add new ping/pong handler
         pong: function(data) {
-            console.log('Received pong response from server');
+            // Use debug level for less important connection health messages
+            console.debug('Received pong response from server');
             // If there's a ping timeout, clear it
             if (window.pingTimeout) {
                 clearTimeout(window.pingTimeout);
@@ -1681,13 +1682,12 @@ const websocketManager = (function() {
         },
         
         server_location: function(data) {
-            console.log('Received server location data:', data);
-            
             // Validate the received coordinates
             if (data && typeof data.latitude === 'number' && typeof data.longitude === 'number') {
                 // Update the global server coordinates
                 window.serverCoordinates = [data.latitude, data.longitude];
-                console.log('Updated server coordinates:', window.serverCoordinates);
+                // Use debug level for less important messages
+                console.debug('Server coordinates updated');
             } else {
                 console.warn('Received invalid server location data:', data);
             }
@@ -1828,31 +1828,23 @@ const websocketManager = (function() {
         },
         
         system_metrics: function(data) {
-            console.log('Received system metrics');
+            // No need for redundant logging as we already log in the onmessage handler
             if (typeof processSystemMetrics === 'function') {
                 processSystemMetrics(data);
             }
         },
         
         service_status: function(data) {
-            console.log('Received service status');
+            // No need for redundant logging as we already log in the onmessage handler
             if (typeof processServiceStatus === 'function') {
                 processServiceStatus(data);
             }
         },
         
         external_ip: function(data) {
-            console.log('Received external IP data', data);
+            // Single comment explaining what we're doing
             if (typeof processExternalIP === 'function') {
-                // Pass the entire data object to allow proper handling
                 processExternalIP(data);
-                
-                // Also log what we're receiving to help debug
-                console.log('External IP data details:', {
-                    dataType: typeof data,
-                    hasIpProperty: data && typeof data === 'object' ? 'ip' in data : 'N/A',
-                    raw: JSON.stringify(data)
-                });
             }
         }
     };
@@ -1931,13 +1923,10 @@ const websocketManager = (function() {
             
             // Explicitly request external IP data to make sure it's available
             if (socket.readyState === WebSocket.OPEN) {
-                console.log('Requesting external IP on connection');
-                socket.send(JSON.stringify({
-                    type: 'request_external_ip'
-                }));
-                
-                // Also request server location for attack animations
-                console.log('Requesting server location on connection');
+                // Only request server location - we don't need to request both
+                // because we removed the automatic sending of server location
+                // from the send_external_ip function on the server
+                console.debug('Requesting server location on connection');
                 socket.send(JSON.stringify({
                     type: 'request_server_location'
                 }));
@@ -1947,14 +1936,30 @@ const websocketManager = (function() {
         socket.onmessage = function(event) {
             try {
                 const message = JSON.parse(event.data);
-                console.log('Received WebSocket message:', message);
+                
+                // Only log important or infrequent message types to reduce console noise
+                // Skip common/frequent updates and background communications
+                const frequentMessageTypes = [
+                    'external_ip',
+                    'system_metrics', 
+                    'service_status',
+                    'pong',
+                    'heartbeat',
+                    'heartbeat_response',
+                    'server_heartbeat'
+                ];
+                
+                if (message.type && !frequentMessageTypes.includes(message.type)) {
+                    console.log('Received WebSocket message:', message);
+                }
                 
                 // Update active timestamp on any message received
                 window.lastActiveTimestamp = Date.now();
                 
                 // If we received a pong response, clear the ping timeout
                 if (message.type === 'pong' && window.pingTimeout) {
-                    console.log('Received pong response, connection is healthy');
+                    // Use debug level for less important connection health messages
+                    console.debug('Received pong response, connection is healthy');
                     clearTimeout(window.pingTimeout);
                     window.pingTimeout = null;
                 }

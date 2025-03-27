@@ -21,7 +21,7 @@ function openSystemStatusModal() {
     }
     
     // Debug the WebSocket state when opening modal
-    console.log('WebSocket state when opening modal:', {
+    console.debug('WebSocket state when opening modal:', {
         exists: typeof window.socket !== 'undefined',
         value: window.socket,
         readyState: window.socket ? window.socket.readyState : 'N/A',
@@ -40,8 +40,13 @@ function openSystemStatusModal() {
         window.socket.send(JSON.stringify({
             type: 'request_external_ip'
         }));
+        
+        // Also request server location data
+        window.socket.send(JSON.stringify({
+            type: 'request_server_location'
+        }));
     } else {
-        console.log('WebSocket not available when opening status modal, using HTTP fallback');
+        console.debug('WebSocket not available when opening status modal, using HTTP fallback');
         refreshExternalIP();  // Fall back to HTTP request for external IP
     }
 }
@@ -184,7 +189,6 @@ function processServiceStatus(data) {
 // Process external IP data received from WebSocket
 function processExternalIP(data) {
     try {
-        console.log('Received external IP data:', data);
         const ipElement = domUtils.getElement('externalIP');
         if (ipElement) {
             let ipValue;
@@ -199,7 +203,6 @@ function processExternalIP(data) {
                 ipValue = 'Unknown';
             }
             
-            console.log('Using IP value:', ipValue);
             ipElement.textContent = ipValue;
             domUtils.removeClass(ipElement, 'metric-update');
             domUtils.forceReflow(ipElement); // Trigger reflow
@@ -225,7 +228,7 @@ function refreshExternalIP() {
             return response.json();
         })
         .then(data => {
-            console.log('HTTP response for external IP:', data);
+            // Removing redundant logging - only log errors, not the data itself
             processExternalIP(data);
         })
         .catch(error => {

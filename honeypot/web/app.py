@@ -485,8 +485,8 @@ async def send_external_ip(websocket: WebSocket):
         }
         logger.debug(f"External IP debug info: {debug_info}")
         
-        # Send server location
-        await send_server_location(websocket)
+        # Remove the automatic server location send to prevent duplicate data
+        # Do not send server location from here as it's requested separately
         
     except Exception as e:
         logger.error(f"Error sending external IP: {str(e)}")
