@@ -308,6 +308,7 @@ const AttackAnimator = {
         }
         
         console.log("Creating attack path from", attackerCoords, "to", serverCoords);
+        console.log(`Animation mode: ${window.animationMode} (${window.animationMode > 0 ? 'Using timeouts' : 'Using auto-completion'})`);
         
         // Calculate distance for scaling the curve
         const distance = this.getDistance(attackerCoords, serverCoords);
@@ -397,7 +398,13 @@ const AttackAnimator = {
             serverMarker: serverMarker,
             progress: 0,
             finished: false,
-            created: Date.now()
+            created: Date.now(),
+            // Store whether this animation uses timeouts or auto-completion
+            usesTimeouts: window.animationMode > 0,
+            // Store the configured timeout value at creation time
+            timeoutDuration: window.animationMode === 1 ? 5000 : 
+                           window.animationMode === 2 ? 15000 : 
+                           window.animationMode === 3 ? 30000 : null
         };
         
         // Add to active animations array
@@ -409,9 +416,7 @@ const AttackAnimator = {
         // Set timeout for removal based on animation mode
         // Mode 1: 5s, Mode 2: 15s, Mode 3: 30s
         if (window.animationMode > 0) {
-            const timeout = window.animationMode === 1 ? 5000 : 
-                          window.animationMode === 2 ? 15000 : 
-                          30000; // Mode 3
+            const timeout = animation.timeoutDuration;
             
             console.log(`Setting animation timeout: ${timeout}ms (Mode: ${window.animationMode})`);
             
@@ -469,7 +474,7 @@ const AttackAnimator = {
                 }, 400);
             }, timeout);
         } else {
-            console.log("No timeout set: animation mode is off or invalid");
+            console.log("No timeout set: using automatic animation lifecycle");
         }
         
         return animation;
@@ -517,20 +522,36 @@ const AttackAnimator = {
         // If already finished, don't continue
         if (animation.finished) return;
         
-        // Update progress - even slower for longer animation duration
-        animation.progress += 0.005;  // Reduced from 0.007 for longer animation
+        // Update progress - for pulsing effect only when using timeouts
+        // When we're using timeouts, we'll use a much smaller increment to keep the animation alive longer
+        const progressIncrement = animation.usesTimeouts ? 0.001 : 0.005;
+        animation.progress += progressIncrement;
         
         // Calculate opacity based on progress
         let opacity;
-        if (animation.progress < 0.2) {
-            // Fade in
-            opacity = animation.progress * 5;
-        } else if (animation.progress > 0.8) {
-            // Fade out 
-            opacity = (1 - animation.progress) * 5;
+        
+        // When using timeouts, we keep the opacity fully visible throughout (except for initial fade-in)
+        if (animation.usesTimeouts) {
+            // When using timeouts, just handle fade-in and then stay at full opacity
+            if (animation.progress < 0.2) {
+                // Fade in
+                opacity = animation.progress * 5;
+            } else {
+                // Stay at full opacity until timeout removes it
+                opacity = 1;
+            }
         } else {
-            // Full opacity during middle of animation
-            opacity = 1;
+            // Original behavior when not using timeouts - full animation lifecycle
+            if (animation.progress < 0.2) {
+                // Fade in
+                opacity = animation.progress * 5;
+            } else if (animation.progress > 0.8) {
+                // Fade out 
+                opacity = (1 - animation.progress) * 5;
+            } else {
+                // Full opacity during middle of animation
+                opacity = 1;
+            }
         }
         
         // Apply opacity
@@ -545,10 +566,12 @@ const AttackAnimator = {
         animation.serverMarker.setRadius(serverMarkerRadius);
         
         // Continue animation until complete
-        if (animation.progress < 1) {
+        // When using timeouts, we'll let the timeout handle the removal
+        if (animation.usesTimeouts || animation.progress < 1) {
             requestAnimationFrame(() => this.animateAttack(animation));
         } else {
             // Mark as finished and remove from map after a delay
+            // This only happens when NOT using timeouts
             animation.finished = true;
             setTimeout(() => {
                 window.map.removeLayer(animation.path);
@@ -682,6 +705,12 @@ const AttackAnimator = {
                 animation.timeoutId = null;
             }
             
+            // Update the animation's settings to match the new mode
+            animation.usesTimeouts = window.animationMode > 0;
+            animation.timeoutDuration = window.animationMode === 1 ? 5000 : 
+                                       window.animationMode === 2 ? 15000 : 
+                                       window.animationMode === 3 ? 30000 : null;
+            
             // If mode is off, fade out this animation
             if (window.animationMode === 0) {
                 console.log(`Mode is off, fading out animation ${index}`);
@@ -697,9 +726,7 @@ const AttackAnimator = {
             
             // For timed modes (1, 2, 3), set a new timeout based on creation time
             if (window.animationMode > 0) {
-                const timeout = window.animationMode === 1 ? 5000 : 
-                              window.animationMode === 2 ? 15000 : 
-                              30000; // Mode 3
+                const timeout = animation.timeoutDuration;
                 
                 // Calculate time elapsed since creation
                 const elapsed = currentTime - animation.created;
