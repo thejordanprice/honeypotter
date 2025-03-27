@@ -105,6 +105,86 @@ class SystemMonitor:
         logger.warning("Failed to get external IP from any service")
         return "Could not determine IP"
 
+    def get_server_location(self) -> dict:
+        """Get the server location based on external IP with caching.
+        
+        Returns:
+            dict: Dictionary containing latitude and longitude coordinates,
+                 or default coordinates if geolocation fails
+        """
+        # Default coordinates (San Francisco)
+        default_location = {"latitude": 37.7749, "longitude": -122.4194}
+        
+        # Cache for geolocation data
+        if not hasattr(self, '_server_location'):
+            self._server_location = None
+            self._last_location_check = 0
+            self._location_cache_duration = 3600  # Cache location for 1 hour (longer than IP)
+        
+        current_time = time.time()
+        
+        # Return cached location if it's still valid
+        if self._server_location and (current_time - self._last_location_check) < self._location_cache_duration:
+            logger.debug(f"Returning cached server location: {self._server_location}")
+            return self._server_location
+        
+        # First, get the current external IP
+        ip = self.get_external_ip()
+        
+        # If we couldn't get a valid IP, return the default location
+        if not ip or ip == "Could not determine IP" or not self._is_valid_ip(ip):
+            logger.warning("Using default server location due to invalid IP")
+            return default_location
+        
+        # Try to get the geolocation data from ipapi.co (same service used by client)
+        try:
+            logger.debug(f"Fetching geolocation data for IP: {ip}")
+            timeout = 5 if not self._is_high_load else 3
+            response = requests.get(f"https://ipapi.co/{ip}/json/", timeout=timeout)
+            
+            if response.status_code == 200:
+                data = response.json()
+                if data and 'latitude' in data and 'longitude' in data:
+                    location = {
+                        "latitude": data['latitude'],
+                        "longitude": data['longitude']
+                    }
+                    logger.info(f"Successfully retrieved server location: {location}")
+                    self._server_location = location
+                    self._last_location_check = current_time
+                    return location
+                else:
+                    logger.warning(f"Invalid geolocation data format: {data}")
+            else:
+                logger.warning(f"Geolocation service returned status code {response.status_code}")
+        
+        except Exception as e:
+            logger.error(f"Error getting server geolocation: {str(e)}")
+        
+        # If we failed to get geolocation, return default and try alternate services
+        try:
+            # Try ipinfo.io as backup
+            response = requests.get("https://ipinfo.io/json", timeout=timeout)
+            if response.status_code == 200:
+                data = response.json()
+                if data and 'loc' in data:
+                    # ipinfo returns "latitude,longitude" format
+                    lat, lng = data['loc'].split(',')
+                    location = {
+                        "latitude": float(lat),
+                        "longitude": float(lng)
+                    }
+                    logger.info(f"Successfully retrieved server location from backup service: {location}")
+                    self._server_location = location
+                    self._last_location_check = current_time
+                    return location
+        except Exception as e:
+            logger.error(f"Error getting server geolocation from backup service: {str(e)}")
+        
+        logger.warning("Failed to get server location, using default")
+        # Return default coordinates
+        return default_location
+
     def _is_valid_ip(self, ip: str) -> bool:
         """Check if a string is a valid IPv4 address.
         

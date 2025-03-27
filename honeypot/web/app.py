@@ -281,6 +281,12 @@ async def get_external_ip():
     ip = system_monitor.get_external_ip()
     return JSONResponse({"ip": ip})
 
+@app.get("/api/system/server-location")
+async def get_server_location():
+    """Get the server geolocation coordinates (used for attack animations)."""
+    location = system_monitor.get_server_location()
+    return JSONResponse(location)
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)):
     """Handle WebSocket connections."""
@@ -319,6 +325,9 @@ async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)
                         elif message_type == 'request_external_ip':
                             # Send external IP on request
                             await send_external_ip(websocket)
+                        elif message_type == 'request_server_location':
+                            # Send server location on request
+                            await send_server_location(websocket)
                         elif message_type == 'request_attempts':
                             # Send attempts data on request (legacy method)
                             logger.info(f"Client {client_info} requested data via legacy method")
@@ -476,6 +485,9 @@ async def send_external_ip(websocket: WebSocket):
         }
         logger.debug(f"External IP debug info: {debug_info}")
         
+        # Send server location
+        await send_server_location(websocket)
+        
     except Exception as e:
         logger.error(f"Error sending external IP: {str(e)}")
         # Try to send a fallback message
@@ -487,6 +499,21 @@ async def send_external_ip(websocket: WebSocket):
             await connection_manager.send_text(websocket, json.dumps(message))
         except:
             pass
+
+async def send_server_location(websocket: WebSocket):
+    """Send server geolocation coordinates to a specific client."""
+    try:
+        location = system_monitor.get_server_location()
+        logger.info(f"Retrieved server location: {location}")
+        message = {
+            'type': 'server_location',
+            'data': location
+        }
+        logger.debug(f"Sending server location message: {message}")
+        await connection_manager.send_text(websocket, json.dumps(message))
+        logger.info("Server location message sent successfully")
+    except Exception as e:
+        logger.error(f"Error sending server location: {str(e)}")
 
 async def send_periodic_updates(websocket: WebSocket):
     """Send periodic system metrics updates to a client."""
@@ -537,6 +564,11 @@ async def send_periodic_updates(websocket: WebSocket):
                 service_status_interval = 30 if high_load else 10
                 if websocket in connection_manager.active_connections and (asyncio.get_event_loop().time() % service_status_interval) < update_interval:
                     await send_service_status(websocket)
+                    
+                # Send server location updates occasionally (every few minutes to handle IP changes)
+                location_interval = 300  # Send location every 5 minutes
+                if websocket in connection_manager.active_connections and (asyncio.get_event_loop().time() % location_interval) < update_interval:
+                    await send_server_location(websocket)
                     
                 # Send a heartbeat to keep track of activity (scaled back during high load)
                 heartbeat_interval = 60 if high_load else 30

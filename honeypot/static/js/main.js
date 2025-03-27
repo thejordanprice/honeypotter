@@ -691,16 +691,11 @@ const AttackAnimator = {
     },
     
     // Function to fetch server coordinates using IP
-    fetchServerCoordinates: function(serverIP) {
-        if (!serverIP || serverIP === '-' || serverIP === 'Unknown' || serverIP === 'Error fetching IP') {
-            // Use a default location if no IP available
-            console.log('Using default server coordinates (San Francisco)');
-            return Promise.resolve([37.7749, -122.4194]); // San Francisco
-        }
+    fetchServerCoordinates: function() {
+        console.log(`Fetching server coordinates from backend API`);
         
-        console.log(`Fetching coordinates for IP: ${serverIP}`);
-        
-        return fetch(`https://ipapi.co/${serverIP}/json/`)
+        // Use the new server-side API endpoint instead of the external service
+        return fetch('/api/system/server-location')
             .then(response => {
                 if (!response.ok) {
                     throw new Error('Network response was not ok');
@@ -739,8 +734,10 @@ const AttackAnimator = {
     
     // Create a test animation to verify functionality
     createTestAnimation: function() {
-        if (!window.serverCoordinates) {
-            window.serverCoordinates = [37.7749, -122.4194]; // San Francisco
+        // Default to San Francisco if we don't have server coordinates yet
+        if (!window.serverCoordinates || !this.validateCoordinates(window.serverCoordinates)) {
+            console.log("No server coordinates available, using default for test animation");
+            window.serverCoordinates = [37.7749, -122.4194]; // San Francisco default
         }
         
         // Create a random point somewhere in the world
@@ -1034,40 +1031,49 @@ function processNewAttackAnimation(attempt) {
         if (!window.serverCoordinates || !AttackAnimator.validateCoordinates(window.serverCoordinates)) {
             console.log("No server coordinates available for animation, fetching now");
             
-            // Get the external IP element
-            const ipElement = document.getElementById('externalIP');
-            const serverIP = ipElement ? ipElement.textContent : null;
-            
-            // Use default coordinates if no IP available
-            if (!serverIP || serverIP === '-' || serverIP === 'Unknown') {
-                window.serverCoordinates = [37.7749, -122.4194]; // San Francisco default
-                console.log("Using default server coordinates for animation");
-                AttackAnimator.createAttackPath(attackerCoords, window.serverCoordinates);
-                return;
-            }
-            
-            // Fetch server coordinates if we have a valid IP
-            console.log(`Fetching server coordinates for attack animation. Current IP: ${serverIP}`);
-            AttackAnimator.fetchServerCoordinates(serverIP)
-                .then(coords => {
-                    if (AttackAnimator.validateCoordinates(coords)) {
-                        window.serverCoordinates = coords;
-                        // Now create the attack animation
-                        console.log("Creating attack animation with newly fetched server coordinates");
-                        AttackAnimator.createAttackPath(attackerCoords, window.serverCoordinates);
+            // Request server coordinates via WebSocket if possible
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                console.log("Requesting server location via WebSocket");
+                sendMessage('request_server_location');
+                
+                // Wait a short time for WebSocket response, then use API endpoint if needed
+                setTimeout(() => {
+                    if (!window.serverCoordinates || !AttackAnimator.validateCoordinates(window.serverCoordinates)) {
+                        console.log("No response from WebSocket, using API endpoint");
+                        // Use the API endpoint as fallback
+                        AttackAnimator.fetchServerCoordinates()
+                            .then(coords => {
+                                if (AttackAnimator.validateCoordinates(coords)) {
+                                    window.serverCoordinates = coords;
+                                    console.log("Creating attack animation with API-fetched server coordinates");
+                                    AttackAnimator.createAttackPath(attackerCoords, window.serverCoordinates);
+                                } else {
+                                    console.warn("Invalid server coordinates returned from API:", coords);
+                                    window.serverCoordinates = [37.7749, -122.4194]; // Default to San Francisco
+                                    AttackAnimator.createAttackPath(attackerCoords, window.serverCoordinates);
+                                }
+                            });
                     } else {
-                        console.warn("Invalid server coordinates returned:", coords);
-                        // Use default coordinates as fallback
-                        window.serverCoordinates = [37.7749, -122.4194];
+                        console.log("Using WebSocket-provided server coordinates");
                         AttackAnimator.createAttackPath(attackerCoords, window.serverCoordinates);
                     }
-                })
-                .catch(err => {
-                    console.error("Error fetching server coordinates:", err);
-                    // Use default coordinates on error
-                    window.serverCoordinates = [37.7749, -122.4194];
-                    AttackAnimator.createAttackPath(attackerCoords, window.serverCoordinates);
-                });
+                }, 500); // Wait 500ms for WebSocket response
+            } else {
+                // WebSocket not available, use API endpoint directly
+                console.log("WebSocket not available, using API endpoint");
+                AttackAnimator.fetchServerCoordinates()
+                    .then(coords => {
+                        if (AttackAnimator.validateCoordinates(coords)) {
+                            window.serverCoordinates = coords;
+                            console.log("Creating attack animation with API-fetched server coordinates");
+                            AttackAnimator.createAttackPath(attackerCoords, window.serverCoordinates);
+                        } else {
+                            console.warn("Invalid server coordinates returned from API:", coords);
+                            window.serverCoordinates = [37.7749, -122.4194]; // Default to San Francisco
+                            AttackAnimator.createAttackPath(attackerCoords, window.serverCoordinates);
+                        }
+                    });
+            }
         } else {
             // Create attack animation directly if we already have server coordinates
             console.log(`Creating attack path from ${attackerCoords} to ${window.serverCoordinates}`);
@@ -1674,6 +1680,19 @@ const websocketManager = (function() {
             }
         },
         
+        server_location: function(data) {
+            console.log('Received server location data:', data);
+            
+            // Validate the received coordinates
+            if (data && typeof data.latitude === 'number' && typeof data.longitude === 'number') {
+                // Update the global server coordinates
+                window.serverCoordinates = [data.latitude, data.longitude];
+                console.log('Updated server coordinates:', window.serverCoordinates);
+            } else {
+                console.warn('Received invalid server location data:', data);
+            }
+        },
+        
         batch_data: function(data) {
             console.log(`Received batch ${data.batch_number}/${totalBatches}`);
             
@@ -1915,6 +1934,12 @@ const websocketManager = (function() {
                 console.log('Requesting external IP on connection');
                 socket.send(JSON.stringify({
                     type: 'request_external_ip'
+                }));
+                
+                // Also request server location for attack animations
+                console.log('Requesting server location on connection');
+                socket.send(JSON.stringify({
+                    type: 'request_server_location'
                 }));
             }
         };
