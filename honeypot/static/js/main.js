@@ -413,7 +413,10 @@ const AttackAnimator = {
                           window.animationMode === 2 ? 15000 : 
                           30000; // Mode 3
             
+            console.log(`Setting animation timeout: ${timeout}ms (Mode: ${window.animationMode})`);
+            
             animation.timeoutId = setTimeout(() => {
+                console.log(`Animation timeout triggered after ${timeout}ms`);
                 // Mark as finished to stop animation cycle
                 animation.finished = true;
                 
@@ -465,6 +468,8 @@ const AttackAnimator = {
                     }
                 }, 400);
             }, timeout);
+        } else {
+            console.log("No timeout set: animation mode is off or invalid");
         }
         
         return animation;
@@ -669,15 +674,17 @@ const AttackAnimator = {
         
         const currentTime = Date.now();
         
-        window.attackAnimations.forEach(animation => {
+        window.attackAnimations.forEach((animation, index) => {
             // Clear any existing timeouts
             if (animation.timeoutId) {
+                console.log(`Clearing existing timeout for animation ${index}`);
                 clearTimeout(animation.timeoutId);
                 animation.timeoutId = null;
             }
             
             // If mode is off, fade out this animation
             if (window.animationMode === 0) {
+                console.log(`Mode is off, fading out animation ${index}`);
                 // Mark as finished to stop animation cycle
                 animation.finished = true;
                 
@@ -696,9 +703,11 @@ const AttackAnimator = {
                 
                 // Calculate time elapsed since creation
                 const elapsed = currentTime - animation.created;
+                console.log(`Animation ${index} has been active for ${elapsed}ms, timeout is ${timeout}ms`);
                 
                 // If the animation should already be removed, remove it immediately
                 if (elapsed >= timeout) {
+                    console.log(`Animation ${index} has exceeded timeout, removing immediately`);
                     animation.finished = true;
                     this.fadeOutAnimation(animation);
                     return;
@@ -706,7 +715,10 @@ const AttackAnimator = {
                 
                 // Otherwise, set a new timeout for the remaining time
                 const remainingTime = timeout - elapsed;
+                console.log(`Setting new timeout for animation ${index}: ${remainingTime}ms remaining`);
+                
                 animation.timeoutId = setTimeout(() => {
+                    console.log(`Timeout triggered for animation ${index} after ${remainingTime}ms`);
                     animation.finished = true;
                     this.fadeOutAnimation(animation);
                 }, remainingTime);
@@ -837,6 +849,7 @@ function processNewAttackAnimation(attempt) {
     // If this is a new attempt with valid coordinates, animate it
     if (attempt && attempt.latitude && attempt.longitude && window.animationsEnabled) {
         console.log("Processing new attack for animation:", attempt);
+        console.log("Current animation mode:", window.animationMode);
         
         // Ensure the coordinate values are properly parsed as numbers
         let attackerLat = parseFloat(attempt.latitude);
@@ -2803,8 +2816,13 @@ L.Control.AnimationToggle = L.Control.extend({
         L.DomEvent.stopPropagation(e);
         L.DomEvent.preventDefault(e);
         
+        // Get previous mode for logging
+        const prevMode = window.animationMode;
+        
         // Cycle through animation modes (0-3)
         window.animationMode = (window.animationMode + 1) % 4;
+        
+        console.log(`Animation mode changed from ${prevMode} to ${window.animationMode}`);
         
         // Update animations enabled state based on mode
         window.animationsEnabled = window.animationMode > 0;
@@ -3109,3 +3127,95 @@ window.testHeatmapToggle = function() {
         console.log('Could not find heatmapToggleControl._updateHeatmapState');
     }
 };
+
+// After AttackAnimator definition
+window.debugAnimations = function() {
+    console.log("=== Animation Debug Information ===");
+    console.log(`Current Animation Mode: ${window.animationMode}`);
+    console.log(`Animations Enabled: ${window.animationsEnabled}`);
+    
+    if (!window.attackAnimations || !Array.isArray(window.attackAnimations)) {
+        console.log("No active animations found");
+        return;
+    }
+    
+    console.log(`Active animations: ${window.attackAnimations.length}`);
+    
+    window.attackAnimations.forEach((animation, index) => {
+        const now = Date.now();
+        const ageMs = now - animation.created;
+        const timeout = window.animationMode === 1 ? 5000 : 
+                       window.animationMode === 2 ? 15000 : 
+                       window.animationMode === 3 ? 30000 : 0;
+        
+        console.log(`Animation ${index}:`);
+        console.log(`  - Created: ${new Date(animation.created).toISOString()} (${ageMs}ms ago)`);
+        console.log(`  - Has timeout: ${animation.timeoutId ? "Yes" : "No"}`);
+        console.log(`  - Current timeout setting: ${timeout}ms`);
+        console.log(`  - Remaining time: ${timeout > 0 ? Math.max(0, timeout - ageMs) : "N/A"}ms`);
+        console.log(`  - Finished: ${animation.finished}`);
+    });
+    
+    return {
+        mode: window.animationMode,
+        enabled: window.animationsEnabled,
+        count: window.attackAnimations.length,
+        animations: window.attackAnimations
+    };
+};
+
+// Add a function to manually force a new timeout for all animations
+window.resetAnimationTimeouts = function() {
+    console.log("Manually resetting all animation timeouts");
+    
+    if (!window.attackAnimations || !Array.isArray(window.attackAnimations) || window.attackAnimations.length === 0) {
+        console.log("No active animations to reset");
+        return;
+    }
+    
+    if (window.animationMode === 0) {
+        console.log("Animations are disabled, cannot set timeouts");
+        return;
+    }
+    
+    const timeout = window.animationMode === 1 ? 5000 : 
+                   window.animationMode === 2 ? 15000 : 
+                   30000; // Mode 3
+    
+    window.attackAnimations.forEach((animation, index) => {
+        // Clear any existing timeout
+        if (animation.timeoutId) {
+            clearTimeout(animation.timeoutId);
+            animation.timeoutId = null;
+        }
+        
+        // Set a fresh timeout
+        console.log(`Setting fresh ${timeout}ms timeout for animation ${index}`);
+        animation.timeoutId = setTimeout(() => {
+            console.log(`Manual timeout triggered for animation ${index}`);
+            animation.finished = true;
+            AttackAnimator.fadeOutAnimation(animation);
+        }, timeout);
+    });
+    
+    return `Reset ${window.attackAnimations.length} animation timeouts with ${timeout}ms duration`;
+};
+
+// Update the initializeMap function to ensure animation mode is properly set up
+function initializeMap() {
+    // Existing initialization code...
+    
+    // Make sure animation settings are properly initialized
+    console.log("Initializing animation mode:", window.animationMode);
+    window.animationsEnabled = window.animationMode > 0;
+    
+    // After the map is initialized and animation toggle control is added, make sure to update its appearance
+    if (window.animationToggleControl) {
+        window.animationToggleControl._updateAnimationState();
+    }
+}
+
+// Add a function to check if an animation should be using timeouts based on mode
+function shouldUseAnimationTimeouts() {
+    return window.animationMode > 0 && window.animationsEnabled;
+}
