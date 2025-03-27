@@ -260,9 +260,12 @@ window.map.whenReady(function() {
         if (!window.heatLayer) {
             console.log("Creating initial empty heat layer");
             window.heatLayer = L.heatLayer([], {
-                radius: 20,
-                blur: 15,
-                maxZoom: 10
+                radius: 10,           // Smaller radius for better precision
+                blur: 15,             // Consistent blur setting
+                maxZoom: 10,
+                max: 10,               // Default max value
+                minOpacity: 0.4,       // Ensure low-density areas are visible
+                gradient: {0.4: 'blue', 0.5: 'cyan', 0.6: 'lime', 0.8: 'yellow', 1.0: 'red'}
             }).addTo(window.map);
         }
     }, 200);
@@ -873,11 +876,9 @@ function updateHeatmapData(attempt) {
             return;
         }
         
-        // Initialize heatPoints if not already done
-        if (!window.heatPoints) {
-            window.heatPoints = {};
-            console.log("Initialized heatPoints data structure");
-        }
+        // Always create a fresh heatPoints object to prevent accumulation
+        window.heatPoints = {};
+        console.log("Created fresh heatPoints data structure");
         
         // Get all attempts with valid coordinates
         let validAttempts = [];
@@ -891,49 +892,33 @@ function updateHeatmapData(attempt) {
             // Continue with any existing data we might have
         }
         
-        if (validAttempts.length > 0 || Object.keys(window.heatPoints).length > 0) {
-            // Create heatmap data points with intensity based on frequency
+        if (validAttempts.length > 0) {
+            // Create frequency map from valid attempts
             const locationFrequency = {};
             
-            // Add existing heat points data
-            for (const key in window.heatPoints) {
-                const point = window.heatPoints[key];
-                const keyStr = `${point.lat},${point.lng}`;
-                locationFrequency[keyStr] = point.count;
-            }
-            
-            // Add new attempts
+            // Process all valid attempts
             validAttempts.forEach(a => {
                 const key = `${a.latitude},${a.longitude}`;
                 locationFrequency[key] = (locationFrequency[key] || 0) + 1;
                 
-                // Update or create the heat point
-                if (!window.heatPoints[key]) {
-                    window.heatPoints[key] = {
-                        lat: a.latitude,
-                        lng: a.longitude,
-                        count: 1
-                    };
-                } else {
-                    window.heatPoints[key].count++;
-                }
+                // Set the heat point (not incrementing, setting directly)
+                window.heatPoints[key] = {
+                    lat: a.latitude,
+                    lng: a.longitude,
+                    count: locationFrequency[key]  // Set to the current frequency count
+                };
             });
             
-            // Add the new attempt if it has valid coordinates
+            // Add the new attempt if it has valid coordinates and isn't already in the validAttempts
             if (attempt && attempt.latitude && attempt.longitude) {
                 const key = `${attempt.latitude},${attempt.longitude}`;
                 locationFrequency[key] = (locationFrequency[key] || 0) + 1;
                 
-                // Update or create the heat point
-                if (!window.heatPoints[key]) {
-                    window.heatPoints[key] = {
-                        lat: attempt.latitude,
-                        lng: attempt.longitude,
-                        count: 1
-                    };
-                } else {
-                    window.heatPoints[key].count++;
-                }
+                window.heatPoints[key] = {
+                    lat: attempt.latitude,
+                    lng: attempt.longitude,
+                    count: locationFrequency[key]  // Set directly to avoid double counting
+                };
             }
 
             // Create heatmap data points from frequency
@@ -971,7 +956,38 @@ function updateHeatmapData(attempt) {
                 
                 try {
                     window.heatLayer.setLatLngs(heatData);
+                    
+                    // Dynamically update the max value based on current data
+                    if (maxFreq > 0) {
+                        const newMaxValue = Math.max(5, Math.ceil(maxFreq * 0.8));
+                        
+                        // Initialize options object if it doesn't exist
+                        if (!window.heatLayer.options) {
+                            window.heatLayer.options = {};
+                            console.log("Created missing options object for heatLayer");
+                        }
+                        
+                        // Only update if it's a significant change to avoid flickering
+                        if (!window.heatLayer.options.max || Math.abs((window.heatLayer.options.max || 0) - newMaxValue) > 1) {
+                            console.log(`Setting heatmap max intensity from ${window.heatLayer.options.max || "undefined"} to ${newMaxValue}`);
+                            window.heatLayer.options.max = newMaxValue;
+                            
+                            // Also make sure minOpacity is set
+                            if (window.heatLayer.options.minOpacity === undefined) {
+                                window.heatLayer.options.minOpacity = 0.4;
+                            }
+                        }
+                    }
+                    
                     console.log(`Heatmap data updated successfully with ${heatData.length} points`);
+                    // Ensure we're logging the actual current values
+                    console.log(`Current heatmap configuration:`, {
+                        radius: window.heatLayer.options.radius || "undefined", 
+                        blur: window.heatLayer.options.blur || "undefined",
+                        max: window.heatLayer.options.max || "undefined", 
+                        minOpacity: window.heatLayer.options.minOpacity || "undefined",
+                        gradient: window.heatLayer.options.gradient || "undefined"
+                    });
                 } catch (e) {
                     console.error("Error updating heat layer data:", e);
                     // If updating fails, try recreating the layer
@@ -1092,11 +1108,9 @@ function createNewHeatLayer(attempt) {
     try {
         console.log("Creating new heat layer...");
         
-        // Initialize heatPoints if not already done
-        if (!window.heatPoints) {
-            window.heatPoints = {};
-            console.log("Initialized heatPoints data structure");
-        }
+        // Always create a fresh heatPoints object
+        window.heatPoints = {};
+        console.log("Created fresh heatPoints data structure");
         
         // Ensure map is initialized before proceeding
         if (!window.map || !window.map._loaded) {
@@ -1112,22 +1126,24 @@ function createNewHeatLayer(attempt) {
         
         console.log("Processing attack data for heatmap...");
         
+        // Create frequency map for attack locations
+        const locationFrequency = {};
+        
         // Add all existing attack attempts
         for (const key in dataModel.attackData) {
             const coords = dataModel.attackData[key];
             if (coords && coords.lat && coords.lon) {
                 validAttempts++;
-                // Increment the frequency counter for this location
+                // Count this location
                 const keyStr = `${coords.lat},${coords.lon}`;
-                if (!window.heatPoints[keyStr]) {
-                    window.heatPoints[keyStr] = {
-                        lat: coords.lat,
-                        lng: coords.lon,
-                        count: 1
-                    };
-                } else {
-                    window.heatPoints[keyStr].count++;
-                }
+                locationFrequency[keyStr] = (locationFrequency[keyStr] || 0) + 1;
+                
+                // Set the heat point directly to the current count
+                window.heatPoints[keyStr] = {
+                    lat: coords.lat,
+                    lng: coords.lon,
+                    count: locationFrequency[keyStr]
+                };
             }
         }
         
@@ -1162,8 +1178,8 @@ function createNewHeatLayer(attempt) {
             
             // Create new heat layer with the points
             window.heatLayer = L.heatLayer(points, {
-                radius: 15,            // Smaller radius for more precision
-                blur: 20,              // Higher blur for smoother transitions
+                radius: 10,            // Smaller radius for better precision
+                blur: 15,              // Consistent blur setting (was 20)
                 maxZoom: 10,
                 max: maxValue,         // Dynamic max value based on the data
                 minOpacity: 0.4,       // Ensure low-density areas are still visible
