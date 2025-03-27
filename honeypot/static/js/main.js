@@ -19,6 +19,8 @@ let currentTileLayer;
 let heatLayer;
 let heatmapEnabled = true; // Track if heatmap is enabled
 let animationsEnabled = true; // Track if attack animations are enabled
+// Define animation modes: 0=off, 1=fade after 5s, 2=fade after 15s, 3=fade after 30s
+window.animationMode = 1; // Default to 5s timeout
 
 // Make map variables accessible globally
 window.map = map;
@@ -404,6 +406,67 @@ const AttackAnimator = {
         // Start the animation
         this.animateAttack(animation);
         
+        // Set timeout for removal based on animation mode
+        // Mode 1: 5s, Mode 2: 15s, Mode 3: 30s
+        if (window.animationMode > 0) {
+            const timeout = window.animationMode === 1 ? 5000 : 
+                          window.animationMode === 2 ? 15000 : 
+                          30000; // Mode 3
+            
+            animation.timeoutId = setTimeout(() => {
+                // Mark as finished to stop animation cycle
+                animation.finished = true;
+                
+                // Add fade-out animation to path
+                if (animation.path) {
+                    const pathElement = animation.path._path || 
+                                    (animation.path._renderer && animation.path._renderer._rootGroup) ||
+                                    animation.path._container;
+                    
+                    if (pathElement && pathElement.style) {
+                        pathElement.style.transition = 'opacity 0.4s ease-out';
+                        pathElement.style.opacity = '0';
+                    }
+                }
+                
+                // Add fade-out animation to markers
+                if (animation.attackerMarker) {
+                    const attackerElement = animation.attackerMarker._path || 
+                                          (animation.attackerMarker._renderer && animation.attackerMarker._renderer._rootGroup) ||
+                                          animation.attackerMarker._container;
+                    
+                    if (attackerElement && attackerElement.style) {
+                        attackerElement.style.transition = 'opacity 0.4s ease-out';
+                        attackerElement.style.opacity = '0';
+                    }
+                }
+                
+                if (animation.serverMarker) {
+                    const serverElement = animation.serverMarker._path || 
+                                        (animation.serverMarker._renderer && animation.serverMarker._renderer._rootGroup) ||
+                                        animation.serverMarker._container;
+                    
+                    if (serverElement && serverElement.style) {
+                        serverElement.style.transition = 'opacity 0.4s ease-out';
+                        serverElement.style.opacity = '0';
+                    }
+                }
+                
+                // Remove from map after fade completes
+                setTimeout(() => {
+                    if (animation.path) window.map.removeLayer(animation.path);
+                    if (animation.attackerMarker) window.map.removeLayer(animation.attackerMarker);
+                    if (animation.serverMarker) window.map.removeLayer(animation.serverMarker);
+                    
+                    // Remove from animations array
+                    const index = window.attackAnimations.indexOf(animation);
+                    if (index > -1) {
+                        window.attackAnimations.splice(index, 1);
+                    }
+                }, 400);
+            }, timeout);
+        }
+        
         return animation;
     },
     
@@ -594,6 +657,112 @@ const AttackAnimator = {
         console.log("Creating test animation from", [randomLat, randomLng], "to", window.serverCoordinates);
         
         return this.createAttackPath([randomLat, randomLng], window.serverCoordinates);
+    },
+    
+    // Handle animation mode changes - clear existing timeouts or set new ones based on mode
+    handleAnimationModeChange: function() {
+        if (!window.attackAnimations || !Array.isArray(window.attackAnimations)) {
+            return;
+        }
+        
+        console.log(`Animation mode changed to: ${window.animationMode}`);
+        
+        const currentTime = Date.now();
+        
+        window.attackAnimations.forEach(animation => {
+            // Clear any existing timeouts
+            if (animation.timeoutId) {
+                clearTimeout(animation.timeoutId);
+                animation.timeoutId = null;
+            }
+            
+            // If mode is off, fade out this animation
+            if (window.animationMode === 0) {
+                // Mark as finished to stop animation cycle
+                animation.finished = true;
+                
+                // Add fade-out animation
+                this.fadeOutAnimation(animation);
+                
+                // No need to proceed further for this animation
+                return;
+            }
+            
+            // For timed modes (1, 2, 3), set a new timeout based on creation time
+            if (window.animationMode > 0) {
+                const timeout = window.animationMode === 1 ? 5000 : 
+                              window.animationMode === 2 ? 15000 : 
+                              30000; // Mode 3
+                
+                // Calculate time elapsed since creation
+                const elapsed = currentTime - animation.created;
+                
+                // If the animation should already be removed, remove it immediately
+                if (elapsed >= timeout) {
+                    animation.finished = true;
+                    this.fadeOutAnimation(animation);
+                    return;
+                }
+                
+                // Otherwise, set a new timeout for the remaining time
+                const remainingTime = timeout - elapsed;
+                animation.timeoutId = setTimeout(() => {
+                    animation.finished = true;
+                    this.fadeOutAnimation(animation);
+                }, remainingTime);
+            }
+        });
+    },
+    
+    // Helper function to fade out and remove an animation
+    fadeOutAnimation: function(animation) {
+        // Add fade-out animation to path
+        if (animation.path) {
+            const pathElement = animation.path._path || 
+                            (animation.path._renderer && animation.path._renderer._rootGroup) ||
+                            animation.path._container;
+            
+            if (pathElement && pathElement.style) {
+                pathElement.style.transition = 'opacity 0.4s ease-out';
+                pathElement.style.opacity = '0';
+            }
+        }
+        
+        // Add fade-out animation to markers
+        if (animation.attackerMarker) {
+            const attackerElement = animation.attackerMarker._path || 
+                                  (animation.attackerMarker._renderer && animation.attackerMarker._renderer._rootGroup) ||
+                                  animation.attackerMarker._container;
+            
+            if (attackerElement && attackerElement.style) {
+                attackerElement.style.transition = 'opacity 0.4s ease-out';
+                attackerElement.style.opacity = '0';
+            }
+        }
+        
+        if (animation.serverMarker) {
+            const serverElement = animation.serverMarker._path || 
+                                (animation.serverMarker._renderer && animation.serverMarker._renderer._rootGroup) ||
+                                animation.serverMarker._container;
+            
+            if (serverElement && serverElement.style) {
+                serverElement.style.transition = 'opacity 0.4s ease-out';
+                serverElement.style.opacity = '0';
+            }
+        }
+        
+        // Remove from map after fade completes
+        setTimeout(() => {
+            if (animation.path) window.map.removeLayer(animation.path);
+            if (animation.attackerMarker) window.map.removeLayer(animation.attackerMarker);
+            if (animation.serverMarker) window.map.removeLayer(animation.serverMarker);
+            
+            // Remove from animations array
+            const index = window.attackAnimations.indexOf(animation);
+            if (index > -1) {
+                window.attackAnimations.splice(index, 1);
+            }
+        }, 400);
     }
 };
 
@@ -2573,14 +2742,25 @@ L.Control.AnimationToggle = L.Control.extend({
         position: 'topleft'
     },
 
+    // Animation mode labels for tooltip
+    _modeLabels: [
+        'Animations Off',
+        'Animations with 5s Timeout',
+        'Animations with 15s Timeout',
+        'Animations with 30s Timeout'
+    ],
+
     onAdd: function(map) {
         const container = L.DomUtil.create('div', 'leaflet-control-animation leaflet-bar leaflet-control');
         this._link = L.DomUtil.create('a', window.animationsEnabled ? 'leaflet-control-animation-active' : '', container);
         this._link.href = '#';
-        this._link.title = 'Toggle Attack Animations';
+        this._link.title = this._modeLabels[window.animationMode];
         this._link.innerHTML = `<svg width="16" height="16" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3V7M12 17V21M3 12H7M17 12H21M12 12H12.01M19 12C19 15.866 15.866 19 12 19C8.13401 19 5 15.866 5 12C5 8.13401 8.13401 5 12 5C15.866 5 19 8.13401 19 12Z"/>
         </svg>`;
+
+        // Add badge to indicate timeout if needed
+        this._updateBadge();
 
         // Add strike-through line initially if disabled
         if (!window.animationsEnabled) {
@@ -2623,11 +2803,80 @@ L.Control.AnimationToggle = L.Control.extend({
         L.DomEvent.stopPropagation(e);
         L.DomEvent.preventDefault(e);
         
-        window.animationsEnabled = !window.animationsEnabled;
+        // Cycle through animation modes (0-3)
+        window.animationMode = (window.animationMode + 1) % 4;
+        
+        // Update animations enabled state based on mode
+        window.animationsEnabled = window.animationMode > 0;
+        
+        // Update the animation state
         this._updateAnimationState();
+        
+        // Apply the mode change to existing animations
+        AttackAnimator.handleAnimationModeChange();
+    },
+    
+    _updateBadge: function() {
+        // Remove any existing badge with a fade-out animation
+        const existingBadge = this._link.querySelector('.animation-badge');
+        if (existingBadge) {
+            existingBadge.classList.add('animate-out');
+            setTimeout(() => {
+                if (existingBadge.parentNode) {
+                    existingBadge.remove();
+                }
+            }, 250); // Match the transition duration
+        }
+        
+        // Get the existing SVG
+        const svg = this._link.querySelector('svg');
+        if (!svg) return;
+        
+        // Remove any existing text badge with a transition
+        const existingTextBadge = this._link.querySelector('.animation-text-badge');
+        if (existingTextBadge) {
+            existingTextBadge.style.opacity = '0';
+            existingTextBadge.style.transform = 'scale(0.5)';
+            setTimeout(() => {
+                if (existingTextBadge.parentNode) {
+                    existingTextBadge.remove();
+                }
+            }, 250); // Match the transition duration
+        }
+        
+        // Add text badge for timed modes (1, 2, 3)
+        if (window.animationMode > 0) {
+            // Get timeout text
+            let timeoutText = '';
+            switch(window.animationMode) {
+                case 1: timeoutText = '5s'; break;
+                case 2: timeoutText = '15s'; break;
+                case 3: timeoutText = '30s'; break;
+            }
+            
+            // Create span for the text badge
+            const textBadge = document.createElement('span');
+            textBadge.className = 'animation-text-badge animate-in';
+            textBadge.textContent = timeoutText;
+            
+            // Ensure the link position is relative for absolute positioning of the badge
+            this._link.style.position = 'relative';
+            this._link.appendChild(textBadge);
+            
+            // Trigger the animation after a small delay (allows the DOM to update)
+            setTimeout(() => {
+                textBadge.classList.remove('animate-in');
+            }, 10);
+        }
+        
+        // Update the tooltip
+        this._link.title = this._modeLabels[window.animationMode];
     },
     
     _updateAnimationState: function() {
+        // Update badge
+        this._updateBadge();
+        
         if (window.animationsEnabled) {
             L.DomUtil.addClass(this._link, 'leaflet-control-animation-active');
             
@@ -2635,8 +2884,8 @@ L.Control.AnimationToggle = L.Control.extend({
             const svg = this._link.querySelector('svg');
             const strikeLine = svg.querySelector('.strike-through-line');
             if (strikeLine) {
-                // Animate out
-                strikeLine.style.transition = 'opacity 0.3s ease, stroke-dashoffset 0.3s ease';
+                // Animate out with a smooth transition
+                strikeLine.style.transition = 'opacity 0.3s ease-in-out, stroke-dashoffset 0.3s ease-in-out';
                 strikeLine.style.opacity = '0';
                 strikeLine.style.strokeDasharray = '24';
                 strikeLine.style.strokeDashoffset = '24';
@@ -2719,7 +2968,7 @@ L.Control.AnimationToggle = L.Control.extend({
                 line.style.opacity = '0';
                 line.style.strokeDasharray = '24';
                 line.style.strokeDashoffset = '24';
-                line.style.transition = 'opacity 0.3s ease, stroke-dashoffset 0.3s ease';
+                line.style.transition = 'opacity 0.3s ease-in-out, stroke-dashoffset 0.3s ease-in-out';
                 
                 svg.appendChild(line);
                 
