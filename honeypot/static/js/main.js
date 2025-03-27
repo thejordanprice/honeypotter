@@ -616,25 +616,115 @@ function updateMap(attempt) {
     // Make sure map is properly initialized
     dataModel.ensureMapInitialized();
 
-    // Prepare to remove existing heat layer with fade out if it exists
+    // If the heatLayer exists, update its data instead of removing and recreating it
     if (window.heatLayer) {
-        if (window.heatLayer._heat && window.heatLayer._heat.style) {
-            // Add fade-out transition
-            window.heatLayer._heat.style.transition = 'opacity 0.4s ease-out';
-            window.heatLayer._heat.style.opacity = '0';
-            
-            // Remove after animation completes
-            setTimeout(() => {
-                window.map.removeLayer(window.heatLayer);
-                createNewHeatLayer(attempt);
-            }, 400);
-        } else {
-            // Fallback if we can't access the style
-            window.map.removeLayer(window.heatLayer);
-            createNewHeatLayer(attempt);
-        }
+        // Only update the data without recreating the layer
+        updateHeatmapData(attempt);
     } else {
+        // Create new heat layer if it doesn't exist yet
         createNewHeatLayer(attempt);
+    }
+}
+
+// New function to update heatmap data without recreating the layer
+function updateHeatmapData(attempt) {
+    // Get all attempts with valid coordinates
+    const attempts = websocketManager.getAttempts();
+    const filteredAttempts = dataModel.filterAttempts(attempts);
+    const validAttempts = filteredAttempts.filter(a => a.latitude && a.longitude);
+    
+    if (validAttempts.length > 0) {
+        // Create heatmap data points with intensity based on frequency
+        const locationFrequency = {};
+        validAttempts.forEach(a => {
+            const key = `${a.latitude},${a.longitude}`;
+            locationFrequency[key] = (locationFrequency[key] || 0) + 1;
+        });
+
+        // Find max frequency for better normalization
+        const maxFrequency = Math.max(...Object.values(locationFrequency));
+        
+        const heatData = validAttempts.map(a => {
+            const key = `${a.latitude},${a.longitude}`;
+            // Scale intensity based on relative frequency, with minimum value of 0.3
+            const intensity = Math.max(0.3, (locationFrequency[key] / (maxFrequency || 1)));
+            return [a.latitude, a.longitude, intensity];
+        });
+
+        // Update the existing heat layer data
+        if (window.heatLayer && typeof window.heatLayer.setLatLngs === 'function') {
+            window.heatLayer.setLatLngs(heatData);
+        }
+        
+        console.log("Heatmap data updated successfully");
+    }
+    
+    // Process new attack animation if needed
+    processNewAttackAnimation(attempt);
+}
+
+// Helper function to process new attack animation
+function processNewAttackAnimation(attempt) {
+    // If this is a new attempt with valid coordinates, animate it
+    if (attempt && attempt.latitude && attempt.longitude && window.animationsEnabled) {
+        console.log("Processing new attack for animation:", attempt);
+        
+        // Ensure the coordinate values are properly parsed as numbers
+        let attackerLat = parseFloat(attempt.latitude);
+        let attackerLng = parseFloat(attempt.longitude);
+        
+        console.log("Parsed coordinates:", attackerLat, attackerLng);
+        
+        if (isNaN(attackerLat) || isNaN(attackerLng)) {
+            console.warn("Invalid coordinates in attack data:", attempt);
+            return;
+        }
+        
+        const attackerCoords = [attackerLat, attackerLng];
+        
+        // Ensure we have server coordinates
+        if (!window.serverCoordinates || !AttackAnimator.validateCoordinates(window.serverCoordinates)) {
+            console.log("No server coordinates available for animation, fetching now");
+            
+            // Get the external IP element
+            const ipElement = document.getElementById('externalIP');
+            const serverIP = ipElement ? ipElement.textContent : null;
+            
+            // Use default coordinates if no IP available
+            if (!serverIP || serverIP === '-' || serverIP === 'Unknown') {
+                window.serverCoordinates = [37.7749, -122.4194]; // San Francisco default
+                console.log("Using default server coordinates for animation");
+                AttackAnimator.createAttackPath(attackerCoords, window.serverCoordinates);
+                return;
+            }
+            
+            // Fetch server coordinates if we have a valid IP
+            console.log(`Fetching server coordinates for attack animation. Current IP: ${serverIP}`);
+            AttackAnimator.fetchServerCoordinates(serverIP)
+                .then(coords => {
+                    if (AttackAnimator.validateCoordinates(coords)) {
+                        window.serverCoordinates = coords;
+                        // Now create the attack animation
+                        console.log("Creating attack animation with newly fetched server coordinates");
+                        AttackAnimator.createAttackPath(attackerCoords, window.serverCoordinates);
+                    } else {
+                        console.warn("Invalid server coordinates returned:", coords);
+                        // Use default coordinates as fallback
+                        window.serverCoordinates = [37.7749, -122.4194];
+                        AttackAnimator.createAttackPath(attackerCoords, window.serverCoordinates);
+                    }
+                })
+                .catch(err => {
+                    console.error("Error fetching server coordinates:", err);
+                    // Use default coordinates on error
+                    window.serverCoordinates = [37.7749, -122.4194];
+                    AttackAnimator.createAttackPath(attackerCoords, window.serverCoordinates);
+                });
+        } else {
+            // Create attack animation directly if we already have server coordinates
+            console.log(`Creating attack path from ${attackerCoords} to ${window.serverCoordinates}`);
+            AttackAnimator.createAttackPath(attackerCoords, window.serverCoordinates);
+        }
     }
 }
 
@@ -723,7 +813,7 @@ function createNewHeatLayer(attempt) {
             console.log("Heatmap updated but not displayed (disabled by user)");
         }
         
-        console.log("Heatmap updated successfully");
+        console.log("Heatmap created successfully");
     } else {
         console.log("No valid coordinates found for heatmap");
         
@@ -740,67 +830,8 @@ function createNewHeatLayer(attempt) {
         }
     }
     
-    // If this is a new attempt with valid coordinates, animate it
-    if (attempt && attempt.latitude && attempt.longitude && window.animationsEnabled) {
-        console.log("Processing new attack for animation:", attempt);
-        
-        // Ensure the coordinate values are properly parsed as numbers
-        let attackerLat = parseFloat(attempt.latitude);
-        let attackerLng = parseFloat(attempt.longitude);
-        
-        console.log("Parsed coordinates:", attackerLat, attackerLng);
-        
-        if (isNaN(attackerLat) || isNaN(attackerLng)) {
-            console.warn("Invalid coordinates in attack data:", attempt);
-            return;
-        }
-        
-        const attackerCoords = [attackerLat, attackerLng];
-        
-        // Ensure we have server coordinates
-        if (!window.serverCoordinates || !AttackAnimator.validateCoordinates(window.serverCoordinates)) {
-            console.log("No server coordinates available for animation, fetching now");
-            
-            // Get the external IP element
-            const ipElement = document.getElementById('externalIP');
-            const serverIP = ipElement ? ipElement.textContent : null;
-            
-            // Use default coordinates if no IP available
-            if (!serverIP || serverIP === '-' || serverIP === 'Unknown') {
-                window.serverCoordinates = [37.7749, -122.4194]; // San Francisco default
-                console.log("Using default server coordinates for animation");
-                AttackAnimator.createAttackPath(attackerCoords, window.serverCoordinates);
-                return;
-            }
-            
-            // Fetch server coordinates if we have a valid IP
-            console.log(`Fetching server coordinates for attack animation. Current IP: ${serverIP}`);
-            AttackAnimator.fetchServerCoordinates(serverIP)
-                .then(coords => {
-                    if (AttackAnimator.validateCoordinates(coords)) {
-                        window.serverCoordinates = coords;
-                        // Now create the attack animation
-                        console.log("Creating attack animation with newly fetched server coordinates");
-                        AttackAnimator.createAttackPath(attackerCoords, window.serverCoordinates);
-                    } else {
-                        console.warn("Invalid server coordinates returned:", coords);
-                        // Use default coordinates as fallback
-                        window.serverCoordinates = [37.7749, -122.4194];
-                        AttackAnimator.createAttackPath(attackerCoords, window.serverCoordinates);
-                    }
-                })
-                .catch(err => {
-                    console.error("Error fetching server coordinates:", err);
-                    // Use default coordinates on error
-                    window.serverCoordinates = [37.7749, -122.4194];
-                    AttackAnimator.createAttackPath(attackerCoords, window.serverCoordinates);
-                });
-        } else {
-            // Create attack animation directly if we already have server coordinates
-            console.log(`Creating attack path from ${attackerCoords} to ${window.serverCoordinates}`);
-            AttackAnimator.createAttackPath(attackerCoords, window.serverCoordinates);
-        }
-    }
+    // Process new attack animation if needed
+    processNewAttackAnimation(attempt);
 }
 
 const attemptsDiv = document.getElementById("attempts");
