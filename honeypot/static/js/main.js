@@ -104,8 +104,49 @@ L.Control.HeatmapToggle = L.Control.extend({
     _updateHeatmapState: function() {
         if (window.heatmapEnabled) {
             L.DomUtil.addClass(this._link, 'leaflet-control-heatmap-active');
+            
+            // Animate heatmap layer in if it exists
             if (window.heatLayer) {
-                window.map.addLayer(window.heatLayer);
+                // Create a fade-in effect by manipulating the opacity
+                // First check if _canvas exists (which is the correct property for leaflet.heat)
+                if (window.heatLayer._canvas && window.heatLayer._canvas.style) {
+                    // First add the layer with opacity 0
+                    window.heatLayer._canvas.style.opacity = '0';
+                    window.map.addLayer(window.heatLayer);
+                    
+                    // Then animate to full opacity
+                    setTimeout(() => {
+                        window.heatLayer._canvas.style.transition = 'opacity 0.4s ease-in';
+                        window.heatLayer._canvas.style.opacity = '1';
+                    }, 10);
+                } 
+                // Fallback to _heat property
+                else if (window.heatLayer._heat && window.heatLayer._heat.style) {
+                    // First add the layer with opacity 0
+                    window.heatLayer._heat.style.opacity = '0';
+                    window.map.addLayer(window.heatLayer);
+                    
+                    // Then animate to full opacity
+                    setTimeout(() => {
+                        window.heatLayer._heat.style.transition = 'opacity 0.4s ease-in';
+                        window.heatLayer._heat.style.opacity = '1';
+                    }, 10);
+                } 
+                // Fallback to general container
+                else if (window.heatLayer._container && window.heatLayer._container.style) {
+                    // First add the layer with opacity 0
+                    window.heatLayer._container.style.opacity = '0';
+                    window.map.addLayer(window.heatLayer);
+                    
+                    // Then animate to full opacity
+                    setTimeout(() => {
+                        window.heatLayer._container.style.transition = 'opacity 0.4s ease-in';
+                        window.heatLayer._container.style.opacity = '1';
+                    }, 10);
+                } else {
+                    // Fallback if we can't access the style directly
+                    window.map.addLayer(window.heatLayer);
+                }
             }
             
             // Animate strike-through line removal if it exists
@@ -127,8 +168,45 @@ L.Control.HeatmapToggle = L.Control.extend({
             }
         } else {
             L.DomUtil.removeClass(this._link, 'leaflet-control-heatmap-active');
+            
+            // Animate heatmap layer out if it exists
             if (window.heatLayer) {
-                window.map.removeLayer(window.heatLayer);
+                // First check if _canvas exists
+                if (window.heatLayer._canvas && window.heatLayer._canvas.style) {
+                    // Animate to zero opacity
+                    window.heatLayer._canvas.style.transition = 'opacity 0.4s ease-out';
+                    window.heatLayer._canvas.style.opacity = '0';
+                    
+                    // Remove the layer after animation completes
+                    setTimeout(() => {
+                        window.map.removeLayer(window.heatLayer);
+                    }, 400);
+                }
+                // Fallback to _heat property
+                else if (window.heatLayer._heat && window.heatLayer._heat.style) {
+                    // Animate to zero opacity
+                    window.heatLayer._heat.style.transition = 'opacity 0.4s ease-out';
+                    window.heatLayer._heat.style.opacity = '0';
+                    
+                    // Remove the layer after animation completes
+                    setTimeout(() => {
+                        window.map.removeLayer(window.heatLayer);
+                    }, 400);
+                }
+                // Fallback to general container
+                else if (window.heatLayer._container && window.heatLayer._container.style) {
+                    // Animate to zero opacity
+                    window.heatLayer._container.style.transition = 'opacity 0.4s ease-out';
+                    window.heatLayer._container.style.opacity = '0';
+                    
+                    // Remove the layer after animation completes
+                    setTimeout(() => {
+                        window.map.removeLayer(window.heatLayer);
+                    }, 400);
+                } else {
+                    // Fallback if we can't access the style directly
+                    window.map.removeLayer(window.heatLayer);
+                }
             }
             
             // Add and animate strike-through line if it doesn't exist
@@ -241,32 +319,74 @@ const AttackAnimator = {
         // Choose color based on theme - keep line color the same
         const lineColor = isDarkMode ? '#ffffff' : '#3b82f6'; // White for dark mode, blue for light mode
         
-        // Create a curved polyline with animation
+        // Create a curved polyline with animation - start with opacity 0 for fade-in
         const path = L.polyline(curvePoints, {
             color: lineColor,
             weight: 2.5,
-            opacity: 0,
+            opacity: 0, // Start with opacity 0, will be animated in
             smoothFactor: 1,
             className: 'attack-path'
         }).addTo(window.map);
+        
+        // Add CSS fade-in transition to the path element
+        if (path) {
+            const pathElement = path._path || 
+                              (path._renderer && path._renderer._rootGroup) || 
+                              path._container;
+                              
+            if (pathElement && pathElement.style) {
+                pathElement.style.transition = 'opacity 0.4s ease-in';
+                setTimeout(() => {
+                    pathElement.style.opacity = '1';
+                }, 10);
+            }
+        }
         
         // Add a pulsing marker at the attacker location - ALWAYS red regardless of theme
         const attackerMarker = L.circleMarker(attackerCoords, {
             radius: 3,
             color: '#ef4444', // Always red for attacker
             fillColor: '#ef4444',
-            fillOpacity: 0.8,
+            fillOpacity: 0, // Start with opacity 0, will be animated in
             weight: 1.5
         }).addTo(window.map);
+        
+        // Add fade-in transition to the attacker marker
+        if (attackerMarker) {
+            const attackerElement = attackerMarker._path || 
+                                  (attackerMarker._renderer && attackerMarker._renderer._rootGroup) || 
+                                  attackerMarker._container;
+                                  
+            if (attackerElement && attackerElement.style) {
+                attackerElement.style.transition = 'opacity 0.4s ease-in';
+                setTimeout(() => {
+                    attackerElement.style.opacity = '1';
+                }, 10);
+            }
+        }
         
         // Add a pulsing marker at the server location - ALWAYS blue regardless of theme
         const serverMarker = L.circleMarker(serverCoords, {
             radius: 3,
             color: '#3b82f6', // Always blue for server
             fillColor: '#3b82f6',
-            fillOpacity: 0.8,
+            fillOpacity: 0, // Start with opacity 0, will be animated in
             weight: 1.5
         }).addTo(window.map);
+        
+        // Add fade-in transition to the server marker
+        if (serverMarker) {
+            const serverElement = serverMarker._path || 
+                                (serverMarker._renderer && serverMarker._renderer._rootGroup) || 
+                                serverMarker._container;
+                                
+            if (serverElement && serverElement.style) {
+                serverElement.style.transition = 'opacity 0.4s ease-in';
+                setTimeout(() => {
+                    serverElement.style.opacity = '1';
+                }, 10);
+            }
+        }
         
         // Create an object to track this animation
         const animation = {
@@ -496,11 +616,30 @@ function updateMap(attempt) {
     // Make sure map is properly initialized
     dataModel.ensureMapInitialized();
 
-    // Remove existing heat layer if it exists
+    // Prepare to remove existing heat layer with fade out if it exists
     if (window.heatLayer) {
-        window.map.removeLayer(window.heatLayer);
+        if (window.heatLayer._heat && window.heatLayer._heat.style) {
+            // Add fade-out transition
+            window.heatLayer._heat.style.transition = 'opacity 0.4s ease-out';
+            window.heatLayer._heat.style.opacity = '0';
+            
+            // Remove after animation completes
+            setTimeout(() => {
+                window.map.removeLayer(window.heatLayer);
+                createNewHeatLayer(attempt);
+            }, 400);
+        } else {
+            // Fallback if we can't access the style
+            window.map.removeLayer(window.heatLayer);
+            createNewHeatLayer(attempt);
+        }
+    } else {
+        createNewHeatLayer(attempt);
     }
+}
 
+// Helper function to create a new heat layer with fade-in effect
+function createNewHeatLayer(attempt) {
     // Get all attempts with valid coordinates
     const attempts = websocketManager.getAttempts();
     const filteredAttempts = dataModel.filterAttempts(attempts);
@@ -545,75 +684,46 @@ function updateMap(attempt) {
         
         // Only add the heat layer to the map if heatmap is enabled
         if (window.heatmapEnabled) {
-            window.heatLayer.addTo(window.map);
-            console.log("Heatmap added to map");
+            window.map.addLayer(window.heatLayer);
+            
+            // Add fade-in effect
+            if (window.heatLayer._canvas && window.heatLayer._canvas.style) {
+                // Start with opacity 0
+                window.heatLayer._canvas.style.opacity = '0';
+                
+                // Fade in
+                setTimeout(() => {
+                    window.heatLayer._canvas.style.transition = 'opacity 0.4s ease-in';
+                    window.heatLayer._canvas.style.opacity = '1';
+                }, 10);
+            }
+            else if (window.heatLayer._heat && window.heatLayer._heat.style) {
+                // Start with opacity 0
+                window.heatLayer._heat.style.opacity = '0';
+                
+                // Fade in
+                setTimeout(() => {
+                    window.heatLayer._heat.style.transition = 'opacity 0.4s ease-in';
+                    window.heatLayer._heat.style.opacity = '1';
+                }, 10);
+            }
+            else if (window.heatLayer._container && window.heatLayer._container.style) {
+                // Start with opacity 0
+                window.heatLayer._container.style.opacity = '0';
+                
+                // Fade in
+                setTimeout(() => {
+                    window.heatLayer._container.style.transition = 'opacity 0.4s ease-in';
+                    window.heatLayer._container.style.opacity = '1';
+                }, 10);
+            }
+            
+            console.log("Heatmap added to map with fade-in effect");
         } else {
             console.log("Heatmap updated but not displayed (disabled by user)");
         }
         
         console.log("Heatmap updated successfully");
-        
-        // If this is a new attempt with valid coordinates, animate it
-        if (attempt && attempt.latitude && attempt.longitude && window.animationsEnabled) {
-            console.log("Processing new attack for animation:", attempt);
-            
-            // Ensure the coordinate values are properly parsed as numbers
-            let attackerLat = parseFloat(attempt.latitude);
-            let attackerLng = parseFloat(attempt.longitude);
-            
-            console.log("Parsed coordinates:", attackerLat, attackerLng);
-            
-            if (isNaN(attackerLat) || isNaN(attackerLng)) {
-                console.warn("Invalid coordinates in attack data:", attempt);
-                return;
-            }
-            
-            const attackerCoords = [attackerLat, attackerLng];
-            
-            // Ensure we have server coordinates
-            if (!window.serverCoordinates || !AttackAnimator.validateCoordinates(window.serverCoordinates)) {
-                console.log("No server coordinates available for animation, fetching now");
-                
-                // Get the external IP element
-                const ipElement = document.getElementById('externalIP');
-                const serverIP = ipElement ? ipElement.textContent : null;
-                
-                // Use default coordinates if no IP available
-                if (!serverIP || serverIP === '-' || serverIP === 'Unknown') {
-                    window.serverCoordinates = [37.7749, -122.4194]; // San Francisco default
-                    console.log("Using default server coordinates for animation");
-                    AttackAnimator.createAttackPath(attackerCoords, window.serverCoordinates);
-                    return;
-                }
-                
-                // Fetch server coordinates if we have a valid IP
-                console.log(`Fetching server coordinates for attack animation. Current IP: ${serverIP}`);
-                AttackAnimator.fetchServerCoordinates(serverIP)
-                    .then(coords => {
-                        if (AttackAnimator.validateCoordinates(coords)) {
-                            window.serverCoordinates = coords;
-                            // Now create the attack animation
-                            console.log("Creating attack animation with newly fetched server coordinates");
-                            AttackAnimator.createAttackPath(attackerCoords, window.serverCoordinates);
-                        } else {
-                            console.warn("Invalid server coordinates returned:", coords);
-                            // Use default coordinates as fallback
-                            window.serverCoordinates = [37.7749, -122.4194];
-                            AttackAnimator.createAttackPath(attackerCoords, window.serverCoordinates);
-                        }
-                    })
-                    .catch(err => {
-                        console.error("Error fetching server coordinates:", err);
-                        // Use default coordinates on error
-                        window.serverCoordinates = [37.7749, -122.4194];
-                        AttackAnimator.createAttackPath(attackerCoords, window.serverCoordinates);
-                    });
-            } else {
-                // Create attack animation directly if we already have server coordinates
-                console.log(`Creating attack path from ${attackerCoords} to ${window.serverCoordinates}`);
-                AttackAnimator.createAttackPath(attackerCoords, window.serverCoordinates);
-            }
-        }
     } else {
         console.log("No valid coordinates found for heatmap");
         
@@ -626,7 +736,69 @@ function updateMap(attempt) {
         
         // Only add to map if enabled
         if (window.heatmapEnabled) {
-            window.heatLayer.addTo(window.map);
+            window.map.addLayer(window.heatLayer);
+        }
+    }
+    
+    // If this is a new attempt with valid coordinates, animate it
+    if (attempt && attempt.latitude && attempt.longitude && window.animationsEnabled) {
+        console.log("Processing new attack for animation:", attempt);
+        
+        // Ensure the coordinate values are properly parsed as numbers
+        let attackerLat = parseFloat(attempt.latitude);
+        let attackerLng = parseFloat(attempt.longitude);
+        
+        console.log("Parsed coordinates:", attackerLat, attackerLng);
+        
+        if (isNaN(attackerLat) || isNaN(attackerLng)) {
+            console.warn("Invalid coordinates in attack data:", attempt);
+            return;
+        }
+        
+        const attackerCoords = [attackerLat, attackerLng];
+        
+        // Ensure we have server coordinates
+        if (!window.serverCoordinates || !AttackAnimator.validateCoordinates(window.serverCoordinates)) {
+            console.log("No server coordinates available for animation, fetching now");
+            
+            // Get the external IP element
+            const ipElement = document.getElementById('externalIP');
+            const serverIP = ipElement ? ipElement.textContent : null;
+            
+            // Use default coordinates if no IP available
+            if (!serverIP || serverIP === '-' || serverIP === 'Unknown') {
+                window.serverCoordinates = [37.7749, -122.4194]; // San Francisco default
+                console.log("Using default server coordinates for animation");
+                AttackAnimator.createAttackPath(attackerCoords, window.serverCoordinates);
+                return;
+            }
+            
+            // Fetch server coordinates if we have a valid IP
+            console.log(`Fetching server coordinates for attack animation. Current IP: ${serverIP}`);
+            AttackAnimator.fetchServerCoordinates(serverIP)
+                .then(coords => {
+                    if (AttackAnimator.validateCoordinates(coords)) {
+                        window.serverCoordinates = coords;
+                        // Now create the attack animation
+                        console.log("Creating attack animation with newly fetched server coordinates");
+                        AttackAnimator.createAttackPath(attackerCoords, window.serverCoordinates);
+                    } else {
+                        console.warn("Invalid server coordinates returned:", coords);
+                        // Use default coordinates as fallback
+                        window.serverCoordinates = [37.7749, -122.4194];
+                        AttackAnimator.createAttackPath(attackerCoords, window.serverCoordinates);
+                    }
+                })
+                .catch(err => {
+                    console.error("Error fetching server coordinates:", err);
+                    // Use default coordinates on error
+                    window.serverCoordinates = [37.7749, -122.4194];
+                    AttackAnimator.createAttackPath(attackerCoords, window.serverCoordinates);
+                });
+        } else {
+            // Create attack animation directly if we already have server coordinates
+            console.log(`Creating attack path from ${attackerCoords} to ${window.serverCoordinates}`);
+            AttackAnimator.createAttackPath(attackerCoords, window.serverCoordinates);
         }
     }
 }
@@ -2448,14 +2620,56 @@ L.Control.AnimationToggle = L.Control.extend({
         } else {
             L.DomUtil.removeClass(this._link, 'leaflet-control-animation-active');
             
-            // Remove any ongoing animations
+            // Fade out any ongoing animations
             if (window.attackAnimations && window.attackAnimations.length > 0) {
+                // Add transition to all animation elements
                 window.attackAnimations.forEach(animation => {
-                    if (animation.path) window.map.removeLayer(animation.path);
-                    if (animation.attackerMarker) window.map.removeLayer(animation.attackerMarker);
-                    if (animation.serverMarker) window.map.removeLayer(animation.serverMarker);
+                    // Add fade-out animation to path
+                    if (animation.path) {
+                        // Try different ways to access the SVG element
+                        const pathElement = animation.path._path || 
+                                          (animation.path._renderer && animation.path._renderer._rootGroup) ||
+                                          animation.path._container;
+                        
+                        if (pathElement && pathElement.style) {
+                            pathElement.style.transition = 'opacity 0.4s ease-out';
+                            pathElement.style.opacity = '0';
+                        }
+                    }
+                    
+                    // Add fade-out animation to markers
+                    if (animation.attackerMarker) {
+                        const attackerElement = animation.attackerMarker._path || 
+                                              (animation.attackerMarker._renderer && animation.attackerMarker._renderer._rootGroup) ||
+                                              animation.attackerMarker._container;
+                        
+                        if (attackerElement && attackerElement.style) {
+                            attackerElement.style.transition = 'opacity 0.4s ease-out';
+                            attackerElement.style.opacity = '0';
+                        }
+                    }
+                    
+                    if (animation.serverMarker) {
+                        const serverElement = animation.serverMarker._path || 
+                                            (animation.serverMarker._renderer && animation.serverMarker._renderer._rootGroup) ||
+                                            animation.serverMarker._container;
+                        
+                        if (serverElement && serverElement.style) {
+                            serverElement.style.transition = 'opacity 0.4s ease-out';
+                            serverElement.style.opacity = '0';
+                        }
+                    }
                 });
-                window.attackAnimations = [];
+                
+                // Remove animations after fade completes
+                setTimeout(() => {
+                    window.attackAnimations.forEach(animation => {
+                        if (animation.path) window.map.removeLayer(animation.path);
+                        if (animation.attackerMarker) window.map.removeLayer(animation.attackerMarker);
+                        if (animation.serverMarker) window.map.removeLayer(animation.serverMarker);
+                    });
+                    window.attackAnimations = [];
+                }, 400);
             }
             
             // Add and animate strike-through line if it doesn't exist
@@ -2495,3 +2709,123 @@ L.control.animationToggle = function(options) {
 // Add the animation toggle control to the map
 window.animationToggleControl = L.control.animationToggle();
 window.animationToggleControl.addTo(map);
+
+// Add this function to inspect the heatmap object structure
+function inspectHeatLayer() {
+    console.log('Inspecting heatmap layer...');
+    if (!window.heatLayer) {
+        console.log('No heatLayer found in window object');
+        return;
+    }
+    
+    console.log('HeatLayer object keys:', Object.keys(window.heatLayer));
+    
+    // Try to find the actual DOM element
+    for (const key in window.heatLayer) {
+        if (key.startsWith('_')) {
+            console.log(`Property ${key}:`, typeof window.heatLayer[key]);
+            if (window.heatLayer[key] instanceof HTMLElement) {
+                console.log(`Found HTMLElement: ${key}`);
+            } else if (window.heatLayer[key] instanceof SVGElement) {
+                console.log(`Found SVGElement: ${key}`);
+            }
+        }
+    }
+    
+    // Check common properties used in Leaflet
+    console.log('._container exists:', !!window.heatLayer._container);
+    console.log('._heat exists:', !!window.heatLayer._heat);
+    console.log('._el exists:', !!window.heatLayer._el);
+    console.log('._canvas exists:', !!window.heatLayer._canvas);
+    
+    // If _heat exists, try to log its properties
+    if (window.heatLayer._heat) {
+        console.log('_heat type:', window.heatLayer._heat.constructor.name);
+        console.log('_heat has style:', !!window.heatLayer._heat.style);
+    }
+    
+    // If _canvas exists, try to log its properties
+    if (window.heatLayer._canvas) {
+        console.log('_canvas type:', window.heatLayer._canvas.constructor.name);
+        console.log('_canvas has style:', !!window.heatLayer._canvas.style);
+    }
+}
+
+// Call this function after the heatmap is created
+const originalUpdateMap = updateMap;
+// Remove the updateMap wrapper to restore original functionality
+/*updateMap = function(attempt) {
+    originalUpdateMap(attempt);
+    // Add a delay to ensure the heatmap is fully created
+    setTimeout(inspectHeatLayer, 500);
+};*/
+
+// Add this function to inspect the animation path elements
+function inspectAnimationPaths() {
+    console.log('Inspecting animation paths...');
+    if (!window.attackAnimations || window.attackAnimations.length === 0) {
+        console.log('No attackAnimations found or array is empty');
+        return;
+    }
+    
+    console.log('Number of attack animations:', window.attackAnimations.length);
+    
+    // Check the first animation
+    const animation = window.attackAnimations[0];
+    console.log('Animation object keys:', Object.keys(animation));
+    
+    // Check the path
+    if (animation.path) {
+        console.log('Path object keys:', Object.keys(animation.path));
+        console.log('._path exists:', !!animation.path._path);
+        
+        if (animation.path._path) {
+            console.log('_path type:', animation.path._path.constructor.name);
+            console.log('_path has style:', !!animation.path._path.style);
+        }
+    }
+    
+    // Check the markers
+    if (animation.attackerMarker) {
+        console.log('attackerMarker object keys:', Object.keys(animation.attackerMarker));
+        console.log('attackerMarker._path exists:', !!animation.attackerMarker._path);
+        
+        if (animation.attackerMarker._path) {
+            console.log('attackerMarker._path type:', animation.attackerMarker._path.constructor.name);
+            console.log('attackerMarker._path has style:', !!animation.attackerMarker._path.style);
+        }
+    }
+}
+
+// Test attack animations
+window.testAnimationToggle = function() {
+    // Create a test animation
+    if (!window.animationsEnabled && window.attackAnimations.length === 0) {
+        console.log('Creating test animation for debugging...');
+        window.animationsEnabled = true;
+        window.animationToggleControl._updateAnimationState();
+        AttackAnimator.createTestAnimation();
+        setTimeout(inspectAnimationPaths, 500);
+    } else {
+        console.log('Toggling animations off...');
+        window.animationsEnabled = false;
+        window.animationToggleControl._updateAnimationState();
+    }
+};
+
+// Add a debug function to test the heatmap toggle
+window.testHeatmapToggle = function() {
+    console.log('Testing heatmap toggle...');
+    console.log('Current heatmapEnabled state:', window.heatmapEnabled);
+    
+    // Toggle the heatmap
+    window.heatmapEnabled = !window.heatmapEnabled;
+    
+    // Update the toggle button state
+    if (window.heatmapToggleControl && window.heatmapToggleControl._updateHeatmapState) {
+        window.heatmapToggleControl._updateHeatmapState();
+        console.log('Toggled heatmap to:', window.heatmapEnabled);
+    } else {
+        console.log('Could not find heatmapToggleControl._updateHeatmapState');
+    }
+};
