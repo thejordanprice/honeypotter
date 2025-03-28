@@ -384,7 +384,7 @@ const AttackAnimator = {
         // Choose color based on theme - keep line color the same
         const lineColor = isDarkMode ? '#ffffff' : '#3b82f6'; // White for dark mode, blue for light mode
         
-        // For permanent animations in single attack view, create a more prominent path
+        // Create path options - same for all animations
         let pathOptions = {
             color: lineColor,
             weight: 2.5,
@@ -393,16 +393,8 @@ const AttackAnimator = {
             className: 'attack-path'
         };
         
-        // Enhanced styling for permanent animations
-        if (window.permanentAnimation) {
-            pathOptions = {
-                ...pathOptions,
-                color: '#ff3333', // Bright red for permanent animations
-                weight: 3.5,
-                dashArray: '7, 10', // Different dash pattern
-                className: 'attack-path attack-path-permanent'
-            };
-        }
+        // We're no longer using different styling for permanent animations
+        // This ensures both normal and single attack views use the same line style
         
         // Create a curved polyline with animation - start with opacity 0 for fade-in
         const path = L.polyline(curvePoints, pathOptions).addTo(window.map);
@@ -675,8 +667,8 @@ const AttackAnimator = {
         // Apply opacity
         animation.path.setStyle({ opacity: opacity });
         
-        // Pulse the attacker marker - increase amplitude for permanent animations
-        const pulseMultiplier = animation.isPermanent ? 3 : 2; // Larger pulse when in permanent mode
+        // Use the same pulse effect for both normal and permanent animations
+        const pulseMultiplier = 2;
         const markerRadius = 3 + (Math.sin(animation.progress * 10) + 1) * pulseMultiplier;
         animation.attackerMarker.setRadius(markerRadius);
         
@@ -684,24 +676,7 @@ const AttackAnimator = {
         const serverMarkerRadius = 3 + (Math.sin((animation.progress * 10) + Math.PI) + 1) * pulseMultiplier;
         animation.serverMarker.setRadius(serverMarkerRadius);
         
-        // In permanent mode, make the animation more visible
-        if (animation.isPermanent) {
-            // Apply a stroke color based on the progress for a "rainbow" effect
-            const hue = (animation.progress * 360) % 360;
-            animation.attackerMarker.setStyle({ 
-                color: `hsl(${hue}, 100%, 60%)`,
-                fillColor: `hsl(${hue}, 100%, 70%)`,
-                fillOpacity: 0.7,
-                weight: 2
-            });
-            
-            animation.serverMarker.setStyle({
-                color: `hsl(${(hue + 180) % 360}, 100%, 60%)`,
-                fillColor: `hsl(${(hue + 180) % 360}, 100%, 70%)`,
-                fillOpacity: 0.7,
-                weight: 2
-            });
-        }
+        // No special styling for permanent animations - they now match the normal animations
         
         // Continue animation until complete
         // When using timeouts or permanent mode, we'll let the timeout handle the removal
