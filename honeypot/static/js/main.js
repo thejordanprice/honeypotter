@@ -1857,6 +1857,19 @@ const uiManager = (function() {
         chartsGrid.style.marginBottom = '0';
         chartsGrid.style.overflow = 'hidden';
         
+        // Scroll the viewport to the map area with a smooth animation after a short delay
+        // This ensures other UI updates have started before scrolling
+        setTimeout(() => {
+            const mapContainer = document.querySelector('.bg-white.dark\\:bg-gray-800.rounded-lg.shadow.p-6.mb-8.overflow-hidden');
+            if (mapContainer) {
+                // Scroll to the map container with a smooth animation
+                mapContainer.scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'start'
+                });
+            }
+        }, 100); // Small delay to ensure UI updates have started
+        
         // Update UI to show only this attack - this is now handled by updating the class on specific elements
         const attemptsDiv = document.getElementById("attempts");
         
