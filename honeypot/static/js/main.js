@@ -1164,6 +1164,26 @@ function processNewAttackAnimation(attempt) {
         console.log("Current animation mode:", window.animationMode);
         console.log("Permanent animation mode:", window.permanentAnimation ? "Yes" : "No");
         
+        // Ensure the attempt has an ID
+        if (!attempt.id) {
+            attempt.id = generateAttemptId(attempt);
+        }
+        
+        // Skip animation processing for new attacks when in single attack view
+        // unless the attempt is the currently selected attack
+        if (window.singleAttackMode && window.currentSingleAttack) {
+            if (!window.currentSingleAttack.id) {
+                window.currentSingleAttack.id = generateAttemptId(window.currentSingleAttack);
+            }
+            
+            // Only process the animation if this is the attack we're currently viewing
+            if (attempt.id !== window.currentSingleAttack.id) {
+                console.log("Skipping animation for new attack while in single attack view");
+                return; // Skip processing this new attack animation
+            }
+            console.log("Processing animation for current single attack view");
+        }
+        
         // Ensure the coordinate values are properly parsed as numbers
         let attackerLat = parseFloat(attempt.latitude);
         let attackerLng = parseFloat(attempt.longitude);
