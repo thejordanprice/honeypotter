@@ -894,6 +894,21 @@ html, body {
     z-index: 10; /* Higher z-index to appear above others */
     box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
     border-left: 4px solid #3b82f6;
+    transition: border-left-color 0.5s ease-out;
+}
+
+/* Animation for when new attempt marker is removed */
+.attempt-item.fade-marker {
+    animation: fadeOutMarker 0.6s ease-out forwards;
+}
+
+@keyframes fadeOutMarker {
+    0% {
+        border-left-color: #3b82f6;
+    }
+    100% {
+        border-left-color: transparent;
+    }
 }
 
 /* Animation for elements moving between pages - more subtle than new attempts */
@@ -932,6 +947,21 @@ html, body {
     box-shadow: 0 0 15px rgba(0, 0, 0, 0.4);
     border-left: 4px solid #60a5fa;
     background-color: #3d3d3d;
+    transition: border-left-color 0.5s ease-out;
+}
+
+/* Dark mode animation for when new attempt marker is removed */
+.dark .attempt-item.fade-marker {
+    animation: fadeOutMarkerDark 0.6s ease-out forwards;
+}
+
+@keyframes fadeOutMarkerDark {
+    0% {
+        border-left-color: #60a5fa;
+    }
+    100% {
+        border-left-color: transparent;
+    }
 }
 
 /* Dark mode styling for page transitions */

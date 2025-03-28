@@ -1616,7 +1616,16 @@ const uiManager = (function() {
                 // Clean up after animation completes
                 setTimeout(() => {
                     if (newElement.parentNode === attemptsDiv) {
-                        newElement.classList.remove('new-attempt');
+                        // Add fade-marker class to animate the blue marker disappearing
+                        newElement.classList.add('fade-marker');
+                        
+                        // Remove classes after the fade animation completes
+                        setTimeout(() => {
+                            if (newElement.parentNode === attemptsDiv) {
+                                newElement.classList.remove('new-attempt');
+                                newElement.classList.remove('fade-marker');
+                            }
+                        }, 600); // Match the animation duration in the CSS
                     }
                     
                     // Ensure we're at pageSize items
@@ -1695,7 +1704,16 @@ const uiManager = (function() {
                     setTimeout(() => {
                         // Remove page-transition class from new element
                         if (newElement.parentNode === attemptsDiv) {
-                            newElement.classList.remove('page-transition');
+                            // Add fade-marker class for transition
+                            newElement.classList.add('fade-marker');
+                            
+                            // Remove classes after the fade animation completes
+                            setTimeout(() => {
+                                if (newElement.parentNode === attemptsDiv) {
+                                    newElement.classList.remove('page-transition');
+                                    newElement.classList.remove('fade-marker');
+                                }
+                            }, 600); // Match the animation duration in the CSS
                         }
                         
                         // Ensure we have the right number of elements (should be itemsPerPage or less)
