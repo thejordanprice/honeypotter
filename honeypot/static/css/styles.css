@@ -1055,4 +1055,32 @@ body.has-view-footer {
     body.has-view-footer {
         padding-bottom: 7rem;
     }
+}
+
+/* Map popup styling - consistent between light and dark modes */
+.leaflet-popup-content-wrapper {
+    border-radius: 5px;
+}
+
+/* Dark mode map popup styling */
+.dark .leaflet-popup-content-wrapper {
+    background-color: #2d3748;
+    color: #f7fafc;
+}
+
+.dark .leaflet-popup-tip {
+    background-color: #2d3748;
+}
+
+.dark .leaflet-popup-content strong {
+    color: #90cdf4;
+}
+
+.leaflet-popup-close-button {
+    color: #6b7280;
+    transition: color 0.2s ease;
+}
+
+.leaflet-popup-close-button:hover {
+    color: #374151;
 } 
