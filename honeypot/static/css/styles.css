@@ -853,7 +853,7 @@ html, body {
     box-shadow: 0 2px 4px rgba(0,0,0,0.5) !important;
 }
 
-/* Animation for new attempt sliding in */
+/* Animation for attempt items */
 @keyframes slideInFromTop {
     0% {
         transform: translateY(-100%);
@@ -865,34 +865,43 @@ html, body {
     }
 }
 
-@keyframes pushDown {
-    0% {
-        transform: translateY(0);
-    }
-    15% {
-        transform: translateY(5px);
-    }
-    100% {
-        transform: translateY(0);
-    }
-}
-
-.attempt-item {
-    transition: transform 0.3s ease-out;
-}
-
-.attempt-item.new-attempt {
-    animation: slideInFromTop 0.5s ease-out forwards;
+/* Attempts container layout */
+#attempts {
     position: relative;
-    z-index: 2;
 }
 
-.attempt-item.push-down {
-    animation: pushDown 0.5s ease-out forwards;
+/* Base attempt item styles */
+.attempt-item {
+    position: relative;
+    margin-bottom: 1rem;
+    transition: transform 1s cubic-bezier(0.34, 1.56, 0.64, 1), 
+                opacity 0.8s ease;
+    transform: translateY(0);
+    will-change: transform, opacity;
 }
 
-/* Dark mode compatibility for animated attempts */
-.dark .attempt-item.new-attempt,
-.dark .attempt-item.push-down {
-    background-color: #3d3d3d; /* Match the dark mode bg-gray-50 color */
+/* New attempt animation */
+.attempt-item.new-attempt {
+    animation: slideInFromTop 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+    z-index: 10;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+    border-left: 4px solid #3b82f6;
+}
+
+/* Moving element animation - use a larger value so it's more visible */
+.attempt-item.move-down {
+    transform: translateY(150px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+/* Move back animation - applied programmatically */
+.attempt-item.move-back {
+    transform: translate3d(0, 0, 0);
+}
+
+/* Highlight color for dark mode */
+.dark .attempt-item.new-attempt {
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.4);
+    border-left: 4px solid #60a5fa;
+    background-color: #3d3d3d;
 } 
