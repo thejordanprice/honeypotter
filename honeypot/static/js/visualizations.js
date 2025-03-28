@@ -1,13 +1,80 @@
 // Add flag to track initial load
 let isInitialLoad = true;
 
+// Create a visualization utils module to expose functions globally
+window.visualizationUtils = (function() {
+    // Initialize the map with appropriate settings
+    function initMap() {
+        // Create a map instance with specific options
+        const mapInstance = L.map('map', {
+            fullscreenControl: true,
+            fullscreenControlOptions: {
+                position: 'topleft'
+            },
+            center: [30, 10],  // Center on Europe/Africa region
+            zoom: 3,
+            worldCopyJump: true,
+            minZoom: 2,
+            maxBounds: [[-90, -180], [90, 180]]
+        });
+        
+        console.log("Map initialized with center:", mapInstance.getCenter(), "zoom:", mapInstance.getZoom());
+        
+        // Set the initial map position flag to true after creating the map
+        window.initialMapPositionSet = true;
+        
+        // Add the OpenStreetMap tile layer
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(mapInstance);
+    
+        // Create an empty layer group for markers
+        window.markerGroup = L.layerGroup().addTo(mapInstance);
+        
+        // Create an empty layer group for connection lines
+        window.connectionGroup = L.layerGroup().addTo(mapInstance);
+    
+        // Initialize the custom pulse marker icon if available
+        if (typeof initPulseMarker === 'function') {
+            initPulseMarker();
+        }
+        
+        // Add event listener for map zoom to adjust marker sizes
+        mapInstance.on('zoomend', function() {
+            if (typeof adjustMarkerSizes === 'function') {
+                adjustMarkerSizes();
+            }
+        });
+        
+        return mapInstance;
+    }
+    
+    // Expose public functions
+    return {
+        initMap: initMap
+    };
+})();
+
 function updateVisualizations(filteredAttempts) {
     // Map is now updated in the updateMap function in main.js
     
-    // Only center map on initial load
+    // Only center map on initial load if explicitly requested
+    // Commenting this out to prevent automatic centering on Australia
+    /*
     if (isInitialLoad) {
         centerMapOnMostActiveRegion(filteredAttempts);
         isInitialLoad = false;
+    }
+    */
+    
+    // Mark initial load as complete regardless
+    if (isInitialLoad) {
+        isInitialLoad = false;
+        // Force map to the standard world view instead of auto-detecting region
+        if (window.map) {
+            console.log("Initial visualization load - setting standard world view");
+            window.map.setView([30, 10], 3, { animate: false });
+        }
     }
 
     // Get current time and filter value
@@ -401,4 +468,20 @@ function updateCountryChart(filteredAttempts) {
     countriesChart.data.labels = topCountries.map(c => c[0]);
     countriesChart.data.datasets[0].data = topCountries.map(c => c[1]);
     countriesChart.update();
+}
+
+function showAttackVisualization(sourceLatLng, targetLatLng, attack, options = {}) {
+    // ... existing code ...
+    
+    if (isInitialLoad && !window.initialMapPositionSet) {
+        // On initial load, don't automatically center on Australia
+        console.log("Initial visualization load - using standard world view");
+        isInitialLoad = false;
+    } else if (!window.permanentAnimation && !window.initialMapPositionSet) {
+        // Center on the visualization only if we're not in permanent animation mode
+        // and no custom position has been set
+        centerOnVisualization(sourceLatLng, targetLatLng);
+    }
+    
+    // ... existing code ...
 } 
