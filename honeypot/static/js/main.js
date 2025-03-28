@@ -1829,6 +1829,10 @@ const uiManager = (function() {
         // Show the sticky footer for single attack view
         showSingleAttackFooter(attack);
         
+        // Hide the entire grid container of charts instead of individual chart containers
+        // This will eliminate the empty space between map and recent login attempts
+        document.querySelector('.grid.grid-cols-1.md\\:grid-cols-2.gap-6.mb-8').classList.add('hidden');
+        
         // Update UI to show only this attack - this is now handled by updating the class on specific elements
         const attemptsDiv = document.getElementById("attempts");
         
@@ -2004,6 +2008,9 @@ const uiManager = (function() {
         
         // Remove body padding
         document.body.classList.remove('has-view-footer');
+        
+        // Show the entire grid container of charts when returning to full view
+        document.querySelector('.grid.grid-cols-1.md\\:grid-cols-2.gap-6.mb-8').classList.remove('hidden');
         
         // Reset attack highlights in the list
         document.querySelectorAll('.attempt-item').forEach(item => {
