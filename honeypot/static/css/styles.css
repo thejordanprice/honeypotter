@@ -1102,4 +1102,25 @@ body.has-view-footer {
 
 .leaflet-popup-close-button:hover {
     color: #374151;
+}
+
+/* Styles for disabled controls in single attack view */
+#searchInput:disabled,
+#filterSelect:disabled,
+#protocolSelect:disabled,
+#prevPage:disabled,
+#nextPage:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    background-color: #f3f4f6;
+    border-color: #d1d5db;
+}
+
+.dark #searchInput:disabled,
+.dark #filterSelect:disabled,
+.dark #protocolSelect:disabled,
+.dark #prevPage:disabled,
+.dark #nextPage:disabled {
+    background-color: #374151;
+    border-color: #4b5563;
 } 

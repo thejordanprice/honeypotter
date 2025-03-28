@@ -1846,6 +1846,22 @@ const uiManager = (function() {
         // Set flag to prevent animation timeouts in single attack view
         window.permanentAnimation = true;
         
+        // Disable search, filters, and pagination controls
+        const disableControls = () => {
+            const elementsToDisable = [
+                document.getElementById('searchInput'),
+                document.getElementById('filterSelect'),
+                document.getElementById('protocolSelect'),
+                document.getElementById('prevPage'),
+                document.getElementById('nextPage')
+            ];
+            
+            elementsToDisable.forEach(element => {
+                if (element) element.disabled = true;
+            });
+        };
+        disableControls();
+        
         // Show the sticky footer for single attack view
         showSingleAttackFooter(attack);
         
@@ -2042,6 +2058,22 @@ const uiManager = (function() {
         window.singleAttackMode = false;
         window.currentSingleAttack = null;
         window.permanentAnimation = false;
+        
+        // Re-enable search, filters, and pagination controls
+        const enableControls = () => {
+            const elementsToEnable = [
+                document.getElementById('searchInput'),
+                document.getElementById('filterSelect'),
+                document.getElementById('protocolSelect'),
+                document.getElementById('prevPage'),
+                document.getElementById('nextPage')
+            ];
+            
+            elementsToEnable.forEach(element => {
+                if (element) element.disabled = false;
+            });
+        };
+        enableControls();
         
         // Hide the footer
         const footer = document.getElementById('singleAttackViewFooter');
