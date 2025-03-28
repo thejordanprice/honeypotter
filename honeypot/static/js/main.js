@@ -1660,9 +1660,10 @@ const uiManager = (function() {
                 // Get the first element which should be new to this page
                 const newPageElement = updatedPageData[0];
                 
-                // Create the new element
+                // Create the new element - no 'new-attempt' class for pages 2+
+                // since it's not a new attempt, just data shifting from page 1
                 const tempDiv = document.createElement('div');
-                tempDiv.innerHTML = createAttemptElement(newPageElement, 'new-attempt');
+                tempDiv.innerHTML = createAttemptElement(newPageElement, 'page-transition');
                 const newElement = tempDiv.firstElementChild;
                 
                 // Add move-down class to all existing elements
@@ -1692,9 +1693,9 @@ const uiManager = (function() {
                     
                     // Clean up after animation completes
                     setTimeout(() => {
-                        // Remove new-attempt class from new element
+                        // Remove page-transition class from new element
                         if (newElement.parentNode === attemptsDiv) {
-                            newElement.classList.remove('new-attempt');
+                            newElement.classList.remove('page-transition');
                         }
                         
                         // Ensure we have the right number of elements (should be itemsPerPage or less)

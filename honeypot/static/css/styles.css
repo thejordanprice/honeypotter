@@ -896,6 +896,24 @@ html, body {
     border-left: 4px solid #3b82f6;
 }
 
+/* Animation for elements moving between pages - more subtle than new attempts */
+@keyframes subtleSlideIn {
+    0% {
+        transform: translateY(-50px);
+        opacity: 0.7;
+    }
+    100% {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Moving between pages animation class */
+.attempt-item.page-transition {
+    animation: subtleSlideIn 0.5s ease-out forwards;
+    z-index: 5; /* Above regular elements but below new attempts */
+}
+
 /* Moving element animation - use a larger value so it's more visible */
 .attempt-item.move-down {
     transform: translateY(150px);
