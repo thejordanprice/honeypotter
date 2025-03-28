@@ -18,6 +18,11 @@
     overflow: hidden;
 }
 
+/* Hide attribution (OpenStreetMap contributors info) */
+.leaflet-control-attribution {
+    display: none !important;
+}
+
 /* Fullscreen button icon */
 .leaflet-control-fullscreen a {
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='244 4039 20 20' width='20' height='20' fill='%23000000'%3E%3Cpath d='M262.4445,4039 L256.0005,4039 L256.0005,4041 L262.0005,4041 L262.0005,4047 L264.0005,4047 L264.0005,4039.955 L264.0005,4039 L262.4445,4039 Z M262.0005,4057 L256.0005,4057 L256.0005,4059 L262.4445,4059 L264.0005,4059 L264.0005,4055.955 L264.0005,4051 L262.0005,4051 L262.0005,4057 Z M246.0005,4051 L244.0005,4051 L244.0005,4055.955 L244.0005,4059 L246.4445,4059 L252.0005,4059 L252.0005,4057 L246.0005,4057 L246.0005,4051 Z M246.0005,4047 L244.0005,4047 L244.0005,4039.955 L244.0005,4039 L246.4445,4039 L252.0005,4039 L252.0005,4041 L246.0005,4041 L246.0005,4047 Z'%3E%3C/path%3E%3C/svg%3E");
@@ -811,9 +816,6 @@ html, body {
 }
 .leaflet-control-animation a:hover {
     background-color: #f4f4f4;
-}
-.dark .leaflet-control-animation a:hover {
-    background-color: #4b5563;
 }
 .leaflet-control-animation-active {
     background-color: #e5e5e5;
