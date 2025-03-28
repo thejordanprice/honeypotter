@@ -1501,7 +1501,7 @@ const uiManager = (function() {
         animationUtils.updateElementWithAnimation(elementId, newValue);
     }
     
-    function createAttemptElement(attempt) {
+    function createAttemptElement(attempt, animationClass = '') {
         const location = [
             attempt.city,
             attempt.region,
@@ -1513,7 +1513,7 @@ const uiManager = (function() {
                               (attempt.password ? attempt.password : '[Password Null]');
 
         return `
-            <div class="bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition-colors">
+            <div class="bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition-colors attempt-item ${animationClass}">
                 <div class="flex flex-col sm:flex-row justify-between gap-2">
                     <span class="font-semibold break-all">
                         ${usernameDisplay}@${attempt.client_ip}
@@ -1550,6 +1550,75 @@ const uiManager = (function() {
         updateMap({latitude: 0, longitude: 0});
     }
     
+    function updateUIWithAnimation(newAttempt) {
+        const attemptsDiv = document.getElementById("attempts");
+        const attempts = websocketManager.getAttempts();
+        const filteredAttempts = dataModel.filterAttempts(attempts);
+        const totalItems = filteredAttempts.length;
+        
+        paginationUtils.updateControls(totalItems);
+        
+        if (paginationUtils.currentPage === 1) {
+            // We're on the first page, so we should animate the new attempt
+            const paginatedAttempts = paginationUtils.getCurrentPageData(filteredAttempts);
+            
+            // Determine identifier for comparison
+            // Some attempts might not have ID, so use timestamp or IP as a fallback
+            const getAttemptIdentifier = (att) => 
+                att.id || `${att.client_ip}-${att.timestamp}`;
+            
+            const newAttemptId = getAttemptIdentifier(newAttempt);
+            
+            // Check if the new attempt is in the current page
+            if (paginatedAttempts.length > 0 && 
+                getAttemptIdentifier(paginatedAttempts[0]) === newAttemptId) {
+                // Create the new attempt element with animation class
+                const newAttemptHtml = createAttemptElement(newAttempt, 'new-attempt');
+                
+                // If there are existing attempts, add push-down class to them
+                const existingAttempts = Array.from(attemptsDiv.querySelectorAll('.attempt-item'));
+                
+                if (existingAttempts.length > 0) {
+                    // Insert the new attempt at the beginning
+                    attemptsDiv.insertAdjacentHTML('afterbegin', newAttemptHtml);
+                    
+                    // Add push-down class to existing items
+                    existingAttempts.forEach(item => {
+                        item.classList.add('push-down');
+                    });
+                    
+                    // Remove animation classes after animation completes
+                    setTimeout(() => {
+                        const newItems = Array.from(attemptsDiv.querySelectorAll('.new-attempt, .push-down'));
+                        newItems.forEach(item => {
+                            item.classList.remove('new-attempt', 'push-down');
+                        });
+                    }, 600); // slightly longer than animation duration
+                    
+                    // Remove extra items if we exceed the page size
+                    if (existingAttempts.length > paginationUtils.pageSize - 1) {
+                        setTimeout(() => {
+                            const extraItem = attemptsDiv.querySelector('.attempt-item:last-child');
+                            if (extraItem) extraItem.remove();
+                        }, 300);
+                    }
+                } else {
+                    // No existing attempts, just add the new one
+                    attemptsDiv.innerHTML = newAttemptHtml;
+                }
+            } else {
+                // The new attempt isn't in the current page, so do a regular update
+                updateUI();
+            }
+        } else {
+            // Not on first page, do a regular update
+            updateUI();
+        }
+        
+        // Update visualizations with all filtered data
+        updateVisualizations(filteredAttempts);
+    }
+    
     function updateUniqueAttackersCount() {
         const attempts = websocketManager.getAttempts();
         const uniqueCount = dataModel.getUniqueAttackers(attempts);
@@ -1568,6 +1637,7 @@ const uiManager = (function() {
         updateCounterWithAnimation,
         createAttemptElement,
         updateUI,
+        updateUIWithAnimation,
         updateUniqueAttackersCount,
         updateLoadingStatus
     };
@@ -1607,7 +1677,9 @@ const websocketManager = (function() {
             
             // Reset to page 1 when new attempt comes in
             paginationUtils.currentPage = 1;
-            uiManager.updateUI();
+            
+            // Use animated UI update instead of regular update
+            uiManager.updateUIWithAnimation(newAttempt);
             
             const indicator = domUtils.getElement('connectionStatusIndicator');
             if (indicator) {

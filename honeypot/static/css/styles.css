@@ -851,4 +851,48 @@ html, body {
     color: white !important;
     border: none !important;
     box-shadow: 0 2px 4px rgba(0,0,0,0.5) !important;
+}
+
+/* Animation for new attempt sliding in */
+@keyframes slideInFromTop {
+    0% {
+        transform: translateY(-100%);
+        opacity: 0;
+    }
+    100% {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+@keyframes pushDown {
+    0% {
+        transform: translateY(0);
+    }
+    15% {
+        transform: translateY(5px);
+    }
+    100% {
+        transform: translateY(0);
+    }
+}
+
+.attempt-item {
+    transition: transform 0.3s ease-out;
+}
+
+.attempt-item.new-attempt {
+    animation: slideInFromTop 0.5s ease-out forwards;
+    position: relative;
+    z-index: 2;
+}
+
+.attempt-item.push-down {
+    animation: pushDown 0.5s ease-out forwards;
+}
+
+/* Dark mode compatibility for animated attempts */
+.dark .attempt-item.new-attempt,
+.dark .attempt-item.push-down {
+    background-color: #3d3d3d; /* Match the dark mode bg-gray-50 color */
 } 
