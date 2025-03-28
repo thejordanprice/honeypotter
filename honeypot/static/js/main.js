@@ -8,6 +8,10 @@ if (!window.attackAnimations) {
     window.attackAnimations = [];
 }
 
+// Initialize global state variables
+window.singleAttackMode = false;
+window.currentSingleAttack = null;
+
 // Initialize map with light/dark theme support
 const map = L.map('map', {
     fullscreenControl: true,
@@ -353,14 +357,28 @@ const AttackAnimator = {
         // Choose color based on theme - keep line color the same
         const lineColor = isDarkMode ? '#ffffff' : '#3b82f6'; // White for dark mode, blue for light mode
         
-        // Create a curved polyline with animation - start with opacity 0 for fade-in
-        const path = L.polyline(curvePoints, {
+        // For permanent animations in single attack view, create a more prominent path
+        let pathOptions = {
             color: lineColor,
             weight: 2.5,
             opacity: 0, // Start with opacity 0, will be animated in
             smoothFactor: 1,
             className: 'attack-path'
-        }).addTo(window.map);
+        };
+        
+        // Enhanced styling for permanent animations
+        if (window.permanentAnimation) {
+            pathOptions = {
+                ...pathOptions,
+                color: '#ff3333', // Bright red for permanent animations
+                weight: 3.5,
+                dashArray: '7, 10', // Different dash pattern
+                className: 'attack-path attack-path-permanent'
+            };
+        }
+        
+        // Create a curved polyline with animation - start with opacity 0 for fade-in
+        const path = L.polyline(curvePoints, pathOptions).addTo(window.map);
         
         // Add CSS fade-in transition to the path element
         if (path) {
@@ -437,7 +455,9 @@ const AttackAnimator = {
             // Store the configured timeout value at creation time
             timeoutDuration: window.animationMode === 1 ? 5000 : 
                            window.animationMode === 2 ? 15000 : 
-                           window.animationMode === 3 ? 30000 : null
+                           window.animationMode === 3 ? 30000 : null,
+            // Store if this is a permanent animation (for single attack view)
+            isPermanent: window.permanentAnimation || false
         };
         
         // Add to active animations array
@@ -448,7 +468,8 @@ const AttackAnimator = {
         
         // Set timeout for removal based on animation mode
         // Mode 1: 5s, Mode 2: 15s, Mode 3: 30s
-        if (window.animationMode > 0) {
+        // Skip setting timeout if permanentAnimation flag is set
+        if (window.animationMode > 0 && !window.permanentAnimation) {
             const timeout = animation.timeoutDuration;
             
             console.log(`Setting animation timeout: ${timeout}ms (Mode: ${window.animationMode})`);
@@ -456,6 +477,8 @@ const AttackAnimator = {
             animation.timeoutId = setTimeout(() => {
                 this.fadeOutAnimation(animation);
             }, timeout);
+        } else if (window.permanentAnimation) {
+            console.log("In single attack view mode - animation will persist until reset");
         } else {
             console.log("No timeout set: using automatic animation lifecycle");
         }
@@ -598,8 +621,8 @@ const AttackAnimator = {
         // Calculate opacity based on progress
         let opacity;
         
-        // When using timeouts, we keep the opacity fully visible throughout (except for initial fade-in)
-        if (animation.usesTimeouts) {
+        // When using timeouts or permanent mode, keep the opacity fully visible
+        if (animation.usesTimeouts || animation.isPermanent) {
             // When using timeouts, just handle fade-in and then stay at full opacity
             if (animation.progress < 0.2) {
                 // Fade in
@@ -625,21 +648,41 @@ const AttackAnimator = {
         // Apply opacity
         animation.path.setStyle({ opacity: opacity });
         
-        // Pulse the attacker marker - smaller amplitude
-        const markerRadius = 3 + (Math.sin(animation.progress * 10) + 1) * 2;  // Base 3, max +2
+        // Pulse the attacker marker - increase amplitude for permanent animations
+        const pulseMultiplier = animation.isPermanent ? 3 : 2; // Larger pulse when in permanent mode
+        const markerRadius = 3 + (Math.sin(animation.progress * 10) + 1) * pulseMultiplier;
         animation.attackerMarker.setRadius(markerRadius);
         
-        // Pulse the server marker (out of phase with attacker marker) - smaller amplitude
-        const serverMarkerRadius = 3 + (Math.sin((animation.progress * 10) + Math.PI) + 1) * 2;  // Base 3, max +2
+        // Pulse the server marker (out of phase with attacker marker)
+        const serverMarkerRadius = 3 + (Math.sin((animation.progress * 10) + Math.PI) + 1) * pulseMultiplier;
         animation.serverMarker.setRadius(serverMarkerRadius);
         
+        // In permanent mode, make the animation more visible
+        if (animation.isPermanent) {
+            // Apply a stroke color based on the progress for a "rainbow" effect
+            const hue = (animation.progress * 360) % 360;
+            animation.attackerMarker.setStyle({ 
+                color: `hsl(${hue}, 100%, 60%)`,
+                fillColor: `hsl(${hue}, 100%, 70%)`,
+                fillOpacity: 0.7,
+                weight: 2
+            });
+            
+            animation.serverMarker.setStyle({
+                color: `hsl(${(hue + 180) % 360}, 100%, 60%)`,
+                fillColor: `hsl(${(hue + 180) % 360}, 100%, 70%)`,
+                fillOpacity: 0.7,
+                weight: 2
+            });
+        }
+        
         // Continue animation until complete
-        // When using timeouts, we'll let the timeout handle the removal
-        if (animation.usesTimeouts || animation.progress < 1) {
+        // When using timeouts or permanent mode, we'll let the timeout handle the removal
+        if (animation.usesTimeouts || animation.isPermanent || animation.progress < 1) {
             requestAnimationFrame(() => this.animateAttack(animation));
         } else {
             // Mark as finished and remove from map after a delay
-            // This only happens when NOT using timeouts
+            // This only happens when NOT using timeouts or permanent mode
             animation.finished = true;
             setTimeout(() => {
                 window.map.removeLayer(animation.path);
@@ -1034,6 +1077,7 @@ function processNewAttackAnimation(attempt) {
     if (attempt && attempt.latitude && attempt.longitude && window.animationsEnabled) {
         console.log("Processing new attack for animation:", attempt);
         console.log("Current animation mode:", window.animationMode);
+        console.log("Permanent animation mode:", window.permanentAnimation ? "Yes" : "No");
         
         // Ensure the coordinate values are properly parsed as numbers
         let attackerLat = parseFloat(attempt.latitude);
@@ -1046,12 +1090,43 @@ function processNewAttackAnimation(attempt) {
             return;
         }
         
+        // In single attack view, make the animation more prominent
+        if (window.permanentAnimation && window.singleAttackMode) {
+            console.log("In single attack view mode - creating permanent animation");
+            
+            // If we already have animations and we're not looking at the same attack,
+            // clear them before creating a new one
+            if (window.attackAnimations && window.attackAnimations.length > 0) {
+                const shouldClearAnimations = !window.currentSingleAttack || 
+                    window.currentSingleAttack.id !== attempt.id;
+                
+                if (shouldClearAnimations) {
+                    console.log("Clearing existing animations before creating new permanent animation");
+                    window.attackAnimations.forEach(animation => {
+                        if (animation.path && window.map.hasLayer(animation.path)) window.map.removeLayer(animation.path);
+                        if (animation.attackerMarker && window.map.hasLayer(animation.attackerMarker)) window.map.removeLayer(animation.attackerMarker);
+                        if (animation.serverMarker && window.map.hasLayer(animation.serverMarker)) window.map.removeLayer(animation.serverMarker);
+                    });
+                    window.attackAnimations = [];
+                }
+            }
+        }
+        
         const attackerCoords = [attackerLat, attackerLng];
         
         // Ensure we have server coordinates
         if (!window.serverCoordinates || !AttackAnimator.validateCoordinates(window.serverCoordinates)) {
             console.log("No server coordinates available for animation, fetching now");
             
+            // For permanent animations in single view, use a default immediately
+            if (window.permanentAnimation && window.singleAttackMode) {
+                console.log("Using default San Francisco coordinates for permanent animation");
+                window.serverCoordinates = [37.7749, -122.4194]; // Default to San Francisco
+                AttackAnimator.createAttackPath(attackerCoords, window.serverCoordinates);
+                return;
+            }
+            
+            // Regular animation flow for non-permanent animations
             // Request server coordinates via WebSocket if possible
             if (socket && socket.readyState === WebSocket.OPEN) {
                 console.log("Requesting server location via WebSocket");
@@ -1508,27 +1583,231 @@ const uiManager = (function() {
             attempt.country
         ].filter(Boolean).join(', ');
 
+        // Ensure attempt has a unique ID
+        if (!attempt.id) {
+            attempt.id = generateAttemptId(attempt);
+        }
+
         const usernameDisplay = attempt.username ? attempt.username : '[User Null]';
         const passwordDisplay = attempt.protocol === 'rdp' ? '[Password Unavailable]' : 
                               (attempt.password ? attempt.password : '[Password Null]');
 
-        return `
-            <div class="bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition-colors">
-                <div class="flex flex-col sm:flex-row justify-between gap-2">
-                    <span class="font-semibold break-all">
-                        ${usernameDisplay}@${attempt.client_ip}
-                        <span class="inline-block px-2 py-1 text-xs rounded-full ml-2">
-                            ${attempt.protocol.toUpperCase()}
-                        </span>
+        const element = document.createElement('div');
+        element.className = 'bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition-colors cursor-pointer attempt-item';
+        element.dataset.id = attempt.id;
+        element.innerHTML = `
+            <div class="flex flex-col sm:flex-row justify-between gap-2">
+                <span class="font-semibold break-all">
+                    ${usernameDisplay}@${attempt.client_ip}
+                    <span class="inline-block px-2 py-1 text-xs rounded-full ml-2">
+                        ${attempt.protocol.toUpperCase()}
                     </span>
-                    <span class="text-gray-500 text-sm">${formatUtils.formatDateToLocalTime(attempt.timestamp)}</span>
-                </div>
-                <div class="text-gray-600 mt-2">
-                    <div class="break-all">Password: ${passwordDisplay}</div>
-                    ${location ? `<div class="text-sm mt-1">Location: ${location}</div>` : ''}
-                </div>
+                </span>
+                <span class="text-gray-500 text-sm">${formatUtils.formatDateToLocalTime(attempt.timestamp)}</span>
+            </div>
+            <div class="text-gray-600 mt-2">
+                <div class="break-all">Password: ${passwordDisplay}</div>
+                ${location ? `<div class="text-sm mt-1">Location: ${location}</div>` : ''}
             </div>
         `;
+        
+        // Add click event to show single attack
+        element.addEventListener('click', () => {
+            showSingleAttack(attempt);
+        });
+        
+        return element;
+    }
+    
+    // Generate a unique ID for an attempt based on its properties
+    function generateAttemptId(attempt) {
+        // Use timestamp, IP, username and protocol to create a unique string
+        const uniqueStr = `${attempt.timestamp}_${attempt.client_ip}_${attempt.username || 'nouser'}_${attempt.protocol}`;
+        
+        // Create a simple hash of the string
+        let hash = 0;
+        for (let i = 0; i < uniqueStr.length; i++) {
+            const char = uniqueStr.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash; // Convert to 32bit integer
+        }
+        
+        // Return a string version of the hash prefixed with 'a' to ensure it starts with a letter
+        return 'a' + Math.abs(hash).toString(36);
+    }
+    
+    // Flag to track if we're in single attack view mode
+    // This is now handled by window.singleAttackMode
+    
+    function showSingleAttack(attack) {
+        if (!attack) return;
+        
+        // Store current attack and set mode flag
+        window.currentSingleAttack = attack;
+        window.singleAttackMode = true;
+        
+        // Set flag to prevent animation timeouts in single attack view
+        window.permanentAnimation = true;
+        
+        // Show the sticky footer for single attack view
+        showSingleAttackFooter(attack);
+        
+        // Update UI to show only this attack
+        const attemptsDiv = document.getElementById("attempts");
+        
+        // Highlight the selected attack
+        document.querySelectorAll('.attempt-item').forEach(item => {
+            item.classList.remove('selected-attack');
+            if (item.dataset.id === attack.id) {
+                item.classList.add('selected-attack');
+                item.classList.add('bg-blue-100');
+                item.classList.remove('bg-gray-50', 'hover:bg-gray-100');
+            }
+        });
+        
+        // Update the map to focus on this attack
+        updateMap(attack);
+        
+        // Update visualizations with just this one attack
+        updateVisualizations([attack]);
+        
+        // Center the map on the attack location
+        if (attack.latitude && attack.longitude && window.map) {
+            window.map.setView([attack.latitude, attack.longitude], 5);
+            
+            // Create a popup at the attack location
+            L.popup()
+                .setLatLng([attack.latitude, attack.longitude])
+                .setContent(`<strong>${attack.protocol.toUpperCase()} Attack</strong><br>
+                            IP: ${attack.client_ip}<br>
+                            User: ${attack.username || '[None]'}<br>
+                            Time: ${formatUtils.formatDateToLocalTime(attack.timestamp)}`)
+                .openOn(window.map);
+                
+            // Explicitly create an attack animation
+            // First clear any existing animations
+            if (window.attackAnimations && window.attackAnimations.length > 0) {
+                window.attackAnimations.forEach(animation => {
+                    if (animation.path && window.map.hasLayer(animation.path)) window.map.removeLayer(animation.path);
+                    if (animation.attackerMarker && window.map.hasLayer(animation.attackerMarker)) window.map.removeLayer(animation.attackerMarker);
+                    if (animation.serverMarker && window.map.hasLayer(animation.serverMarker)) window.map.removeLayer(animation.serverMarker);
+                });
+                window.attackAnimations = [];
+            }
+            
+            // Wait a moment for the map to settle, then create the animation
+            setTimeout(() => {
+                // Ensure we have server coordinates
+                if (!window.serverCoordinates || !Array.isArray(window.serverCoordinates) || window.serverCoordinates.length !== 2) {
+                    // Default to San Francisco if server coordinates aren't available
+                    window.serverCoordinates = [37.7749, -122.4194];
+                    console.log("Using default server coordinates for animation");
+                }
+                
+                // Create the attack animation
+                console.log("Creating direct attack animation for single view");
+                const attackerCoords = [parseFloat(attack.latitude), parseFloat(attack.longitude)];
+                AttackAnimator.createAttackPath(attackerCoords, window.serverCoordinates);
+                
+            }, 300); // Short delay to ensure map is ready
+        }
+        
+        // Add padding to body to accommodate the footer
+        document.body.classList.add('has-view-footer');
+    }
+    
+    // Show the single attack view footer with attack details
+    function showSingleAttackFooter(attack) {
+        const footer = document.getElementById('singleAttackViewFooter');
+        const detailsElement = document.getElementById('attackDetails');
+        
+        if (footer && detailsElement) {
+            // Update attack details
+            const location = [
+                attack.city,
+                attack.region,
+                attack.country
+            ].filter(Boolean).join(', ');
+            
+            detailsElement.textContent = `${attack.protocol.toUpperCase()} attack from ${attack.client_ip}${location ? ' (' + location + ')' : ''}`;
+            
+            // Make footer visible
+            footer.classList.add('visible');
+            
+            // Ensure the reset button has a click handler
+            const resetButton = footer.querySelector('#resetViewButton');
+            if (resetButton) {
+                // Remove existing handler to avoid duplicates
+                resetButton.removeEventListener('click', resetView);
+                // Add click handler
+                resetButton.addEventListener('click', resetView);
+            }
+        }
+    }
+    
+    function resetView() {
+        // Remove single attack mode flag
+        window.singleAttackMode = false;
+        window.currentSingleAttack = null;
+        window.permanentAnimation = false;
+        
+        // Hide the footer
+        const footer = document.getElementById('singleAttackViewFooter');
+        if (footer) {
+            footer.classList.remove('visible');
+        }
+        
+        // Remove body padding
+        document.body.classList.remove('has-view-footer');
+        
+        // Reset attack highlights in the list
+        document.querySelectorAll('.attempt-item').forEach(item => {
+            item.classList.remove('selected-attack', 'bg-blue-100');
+            item.classList.add('bg-gray-50', 'hover:bg-gray-100');
+        });
+        
+        // Get all attempts and apply current filters
+        const allAttempts = websocketManager.getAttempts();
+        const filteredAttempts = dataModel.filterAttempts(allAttempts);
+        
+        // Reset all visualizations with all data
+        updateVisualizations(filteredAttempts);
+        
+        // Update map with full dataset
+        updateMap(null);
+        
+        // Reset heatmap data
+        updateHeatmapData(null);
+        
+        // Reset the attack list
+        updateUI();
+        
+        // Clear any existing animations after a short delay
+        setTimeout(() => {
+            // Clear any existing animations
+            if (window.attackAnimations && window.attackAnimations.length > 0) {
+                window.attackAnimations.forEach(animation => {
+                    if (animation && animation.path && window.map.hasLayer(animation.path)) {
+                        window.map.removeLayer(animation.path);
+                    }
+                    if (animation && animation.attackerMarker && window.map.hasLayer(animation.attackerMarker)) {
+                        window.map.removeLayer(animation.attackerMarker);
+                    }
+                    if (animation && animation.serverMarker && window.map.hasLayer(animation.serverMarker)) {
+                        window.map.removeLayer(animation.serverMarker);
+                    }
+                });
+                window.attackAnimations = [];
+            }
+        }, 300);
+        
+        // Close any open popups
+        if (window.map) {
+            window.map.closePopup();
+            
+            // Reset zoom and center to show most active areas
+            centerMapOnMostActiveRegion(filteredAttempts);
+        }
     }
     
     function updateUI() {
@@ -1539,15 +1818,38 @@ const uiManager = (function() {
         
         paginationUtils.updateControls(totalItems);
         
-        const paginatedAttempts = paginationUtils.getCurrentPageData(filteredAttempts);
-        attemptsDiv.innerHTML = paginatedAttempts
-            .map(createAttemptElement)
-            .join('');
-
-        updateVisualizations(filteredAttempts);
+        // If in single attack mode, don't refresh the entire list
+        if (window.singleAttackMode && window.currentSingleAttack) {
+            // Just ensure our current attack is visible
+            const attemptsToShow = [window.currentSingleAttack];
+            attemptsDiv.innerHTML = '';
+            
+            // Append the single attack element
+            const singleAttackElement = createAttemptElement(window.currentSingleAttack);
+            attemptsDiv.appendChild(singleAttackElement);
+            
+            // Add selected state
+            singleAttackElement.classList.add('selected-attack', 'bg-blue-100');
+            singleAttackElement.classList.remove('bg-gray-50', 'hover:bg-gray-100');
+            
+            return;
+        }
         
-        // Update map to reflect current filtered data
-        updateMap({latitude: 0, longitude: 0});
+        // Normal list update
+        attemptsDiv.innerHTML = '';
+        const paginatedAttempts = paginationUtils.getCurrentPageData(filteredAttempts);
+        
+        paginatedAttempts.forEach(attempt => {
+            const element = createAttemptElement(attempt);
+            attemptsDiv.appendChild(element);
+        });
+        
+        // Only update visualizations if we're not in single attack mode
+        if (!window.singleAttackMode) {
+            updateVisualizations(filteredAttempts);
+            // Update map to reflect current filtered data
+            updateMap({latitude: 0, longitude: 0});
+        }
     }
     
     function updateUniqueAttackersCount() {
