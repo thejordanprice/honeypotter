@@ -411,7 +411,7 @@ const AttackAnimator = {
         // Add fade-in transition to the server marker
         if (serverMarker) {
             const serverElement = serverMarker._path || 
-                                (serverMarker._renderer && serverMarker._renderer._rootGroup) || 
+                                (serverMarker._renderer && serverMarker._renderer._rootGroup) ||
                                 serverMarker._container;
                                 
             if (serverElement && serverElement.style) {
@@ -1501,7 +1501,7 @@ const uiManager = (function() {
         animationUtils.updateElementWithAnimation(elementId, newValue);
     }
     
-    function createAttemptElement(attempt) {
+    function createAttemptElement(attempt, animationClass = '') {
         const location = [
             attempt.city,
             attempt.region,
@@ -1513,7 +1513,7 @@ const uiManager = (function() {
                               (attempt.password ? attempt.password : '[Password Null]');
 
         return `
-            <div class="bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition-colors">
+            <div class="bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition-colors attempt-item ${animationClass}">
                 <div class="flex flex-col sm:flex-row justify-between gap-2">
                     <span class="font-semibold break-all">
                         ${usernameDisplay}@${attempt.client_ip}
@@ -1541,13 +1541,215 @@ const uiManager = (function() {
         
         const paginatedAttempts = paginationUtils.getCurrentPageData(filteredAttempts);
         attemptsDiv.innerHTML = paginatedAttempts
-            .map(createAttemptElement)
+            .map(attempt => createAttemptElement(attempt, ''))
             .join('');
 
         updateVisualizations(filteredAttempts);
         
         // Update map to reflect current filtered data
         updateMap({latitude: 0, longitude: 0});
+    }
+    
+    function updateUIWithAnimation(newAttempt) {
+        const attemptsDiv = document.getElementById("attempts");
+        const attempts = websocketManager.getAttempts();
+        const filteredAttempts = dataModel.filterAttempts(attempts);
+        const totalItems = filteredAttempts.length;
+        const currentPage = paginationUtils.currentPage;
+        const itemsPerPage = paginationUtils.itemsPerPage;
+        
+        // Calculate an appropriate height if the container is empty or hasn't been sized yet
+        let heightToSet = attemptsDiv.offsetHeight;
+        if (heightToSet < 100) { // If it's too small, use a default value
+            heightToSet = 950; // Default height for full container
+        }
+        
+        // Set a fixed height to prevent layout shifts
+        attemptsDiv.style.height = `${heightToSet}px`;
+        
+        // Update pagination controls
+        paginationUtils.updateControls(totalItems);
+        
+        // Get existing elements
+        const existingElements = Array.from(attemptsDiv.children);
+        
+        // If we're on the first page, show the new element with animation
+        if (currentPage === 1) {
+            // First, remove excess elements
+            while (existingElements.length >= itemsPerPage) {
+                const lastElement = existingElements.pop();
+                if (lastElement && lastElement.parentNode === attemptsDiv) {
+                    attemptsDiv.removeChild(lastElement);
+                }
+            }
+            
+            // Create and animate the new element
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = createAttemptElement(newAttempt, 'new-attempt');
+            const newElement = tempDiv.firstElementChild;
+            
+            // Add transition class to remaining elements
+            existingElements.forEach(el => {
+                el.classList.add('move-down');
+            });
+            
+            // Force reflow to ensure the browser recognizes the style change
+            void attemptsDiv.offsetHeight;
+            
+            // Insert the new element at the top
+            attemptsDiv.insertBefore(newElement, attemptsDiv.firstChild);
+            
+            // Force reflow again to trigger the animation from starting position
+            void attemptsDiv.offsetHeight;
+            
+            // Reset the position of existing elements to create the animation
+            setTimeout(() => {
+                // Add a slight delay before starting the reverse animation
+                setTimeout(() => {
+                    existingElements.forEach(el => {
+                        if (el.parentNode === attemptsDiv) {
+                            el.classList.remove('move-down');
+                        }
+                    });
+                }, 100);
+                
+                // Clean up after animation completes
+                setTimeout(() => {
+                    if (newElement.parentNode === attemptsDiv) {
+                        // Add fade-marker class to animate the blue marker disappearing
+                        newElement.classList.add('fade-marker');
+                        
+                        // Remove classes after the fade animation completes
+                        setTimeout(() => {
+                            if (newElement.parentNode === attemptsDiv) {
+                                newElement.classList.remove('new-attempt');
+                                newElement.classList.remove('fade-marker');
+                            }
+                        }, 600); // Match the animation duration in the CSS
+                    }
+                    
+                    // Ensure we're at pageSize items
+                    const currentCount = attemptsDiv.children.length;
+                    if (currentCount > itemsPerPage) {
+                        for (let i = itemsPerPage; i < currentCount; i++) {
+                            const lastChild = attemptsDiv.lastElementChild;
+                            if (lastChild) {
+                                attemptsDiv.removeChild(lastChild);
+                            }
+                        }
+                    }
+                    
+                    // Restore automatic height
+                    setTimeout(() => {
+                        attemptsDiv.style.height = '';
+                    }, 200);
+                }, 1300);
+            }, 10);
+        } 
+        // For pages other than the first, slide elements down to show new data coming in
+        else {
+            // For pages other than the first, we need to get the data that *should* be on this page
+            // after the new attempt was added to the beginning of the data array
+            
+            // Calculate the updated page data
+            const adjustedStartIndex = (currentPage - 1) * itemsPerPage;
+            const adjustedEndIndex = Math.min(adjustedStartIndex + itemsPerPage, filteredAttempts.length);
+            const updatedPageData = filteredAttempts.slice(adjustedStartIndex, adjustedEndIndex);
+            
+            if (updatedPageData.length > 0) {
+                // First, remove excess elements if we have more than the page size
+                if (existingElements.length >= itemsPerPage) {
+                    // Remove the last element to make room for the new one at the top
+                    const lastElement = existingElements.pop();
+                    if (lastElement && lastElement.parentNode === attemptsDiv) {
+                        attemptsDiv.removeChild(lastElement);
+                    }
+                }
+                
+                // Get the first element which should be new to this page
+                const newPageElement = updatedPageData[0];
+                
+                // Create the new element - no 'new-attempt' class for pages 2+
+                // since it's not a new attempt, just data shifting from page 1
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = createAttemptElement(newPageElement, 'page-transition');
+                const newElement = tempDiv.firstElementChild;
+                
+                // Add move-down class to all existing elements
+                existingElements.forEach(el => {
+                    el.classList.add('move-down');
+                });
+                
+                // Force reflow
+                void attemptsDiv.offsetHeight;
+                
+                // Insert the new element at the top
+                attemptsDiv.insertBefore(newElement, attemptsDiv.firstChild);
+                
+                // Force reflow again to trigger the animation from starting position
+                void attemptsDiv.offsetHeight;
+                
+                // Reset the position of existing elements to create the animation
+                setTimeout(() => {
+                    // Add a slight delay before starting the reverse animation
+                    setTimeout(() => {
+                        existingElements.forEach(el => {
+                            if (el.parentNode === attemptsDiv) {
+                                el.classList.remove('move-down');
+                            }
+                        });
+                    }, 100);
+                    
+                    // Clean up after animation completes
+                    setTimeout(() => {
+                        // Remove page-transition class from new element
+                        if (newElement.parentNode === attemptsDiv) {
+                            // Add fade-marker class for transition
+                            newElement.classList.add('fade-marker');
+                            
+                            // Remove classes after the fade animation completes
+                            setTimeout(() => {
+                                if (newElement.parentNode === attemptsDiv) {
+                                    newElement.classList.remove('page-transition');
+                                    newElement.classList.remove('fade-marker');
+                                }
+                            }, 600); // Match the animation duration in the CSS
+                        }
+                        
+                        // Ensure we have the right number of elements (should be itemsPerPage or less)
+                        const currentCount = attemptsDiv.children.length;
+                        if (currentCount > itemsPerPage) {
+                            // Remove excess elements from the bottom of the list
+                            for (let i = itemsPerPage; i < currentCount; i++) {
+                                const lastChild = attemptsDiv.lastElementChild;
+                                if (lastChild) {
+                                    attemptsDiv.removeChild(lastChild);
+                                }
+                            }
+                        }
+                        
+                        // Restore automatic height
+                        setTimeout(() => {
+                            attemptsDiv.style.height = '';
+                        }, 200);
+                    }, 1300);
+                }, 10);
+            } else {
+                // If there's no data for this page, go to the previous page
+                if (currentPage > 1) {
+                    paginationUtils.currentPage--;
+                    updateUI();
+                }
+                
+                // Restore height
+                setTimeout(() => {
+                    attemptsDiv.style.height = '';
+                }, 200);
+            }
+        }
+        
+        // Update visualizations
+        updateVisualizations(filteredAttempts);
     }
     
     function updateUniqueAttackersCount() {
@@ -1568,6 +1770,7 @@ const uiManager = (function() {
         updateCounterWithAnimation,
         createAttemptElement,
         updateUI,
+        updateUIWithAnimation,
         updateUniqueAttackersCount,
         updateLoadingStatus
     };
@@ -1605,9 +1808,11 @@ const websocketManager = (function() {
             
             updateMap(newAttempt);
             
-            // Reset to page 1 when new attempt comes in
-            paginationUtils.currentPage = 1;
-            uiManager.updateUI();
+            // Get the current page before animation
+            const currentPage = paginationUtils.currentPage;
+            
+            // Use animated UI update - this will handle different page states
+            uiManager.updateUIWithAnimation(newAttempt);
             
             const indicator = domUtils.getElement('connectionStatusIndicator');
             if (indicator) {
