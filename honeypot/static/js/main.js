@@ -2054,6 +2054,19 @@ const uiManager = (function() {
         chartsGrid.style.marginBottom = '2rem'; // 8 in Tailwind equals 2rem
         chartsGrid.style.overflow = 'visible';
         
+        // Scroll the viewport to the map area with a smooth animation after a short delay
+        // This ensures other UI updates have started before scrolling
+        setTimeout(() => {
+            const mapContainer = document.querySelector('.bg-white.dark\\:bg-gray-800.rounded-lg.shadow.p-6.mb-8.overflow-hidden');
+            if (mapContainer) {
+                // Scroll to the map container with a smooth animation
+                mapContainer.scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'start'
+                });
+            }
+        }, 100); // Small delay to ensure UI updates have started
+        
         // Reset attack highlights in the list
         document.querySelectorAll('.attempt-item').forEach(item => {
             item.classList.remove('selected-attack', 'bg-blue-100');
