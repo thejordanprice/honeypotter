@@ -1618,22 +1618,32 @@ const uiManager = (function() {
         const passwordDisplay = attempt.protocol === 'rdp' ? '[Password Unavailable]' : 
                               (attempt.password ? attempt.password : '[Password Null]');
 
+        const isSelected = window.singleAttackMode && window.currentSingleAttack && 
+                         window.currentSingleAttack.id === attempt.id;
+
         const element = document.createElement('div');
         element.className = 'bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition-colors cursor-pointer attempt-item';
+        if (isSelected) {
+            element.classList.add('selected-attack');
+        }
         element.dataset.id = attempt.id;
+        element.title = "Click to focus on this attack";
+        
         element.innerHTML = `
-            <div class="flex flex-col sm:flex-row justify-between gap-2">
-                <span class="font-semibold break-all">
-                    ${usernameDisplay}@${attempt.client_ip}
-                    <span class="inline-block px-2 py-1 text-xs rounded-full ml-2">
-                        ${attempt.protocol.toUpperCase()}
+            <div class="relative">
+                <div class="flex flex-col sm:flex-row justify-between gap-2">
+                    <span class="font-semibold break-all">
+                        ${usernameDisplay}@${attempt.client_ip}
+                        <span class="inline-block px-2 py-1 text-xs rounded-full ml-2">
+                            ${attempt.protocol.toUpperCase()}
+                        </span>
                     </span>
-                </span>
-                <span class="text-gray-500 text-sm">${formatUtils.formatDateToLocalTime(attempt.timestamp)}</span>
-            </div>
-            <div class="text-gray-600 mt-2">
-                <div class="break-all">Password: ${passwordDisplay}</div>
-                ${location ? `<div class="text-sm mt-1">Location: ${location}</div>` : ''}
+                    <span class="text-gray-500 text-sm">${formatUtils.formatDateToLocalTime(attempt.timestamp)}</span>
+                </div>
+                <div class="text-gray-600 mt-2">
+                    <div class="break-all">Password: ${passwordDisplay}</div>
+                    ${location ? `<div class="text-sm mt-1">Location: ${location}</div>` : ''}
+                </div>
             </div>
         `;
         
@@ -1678,18 +1688,40 @@ const uiManager = (function() {
         // Show the sticky footer for single attack view
         showSingleAttackFooter(attack);
         
-        // Update UI to show only this attack
+        // Update UI to show only this attack - this is now handled by updating the class on specific elements
         const attemptsDiv = document.getElementById("attempts");
         
-        // Highlight the selected attack
+        // First, remove selection from all items
         document.querySelectorAll('.attempt-item').forEach(item => {
-            item.classList.remove('selected-attack');
-            if (item.dataset.id === attack.id) {
-                item.classList.add('selected-attack');
-                item.classList.add('bg-blue-100');
-                item.classList.remove('bg-gray-50', 'hover:bg-gray-100');
-            }
+            item.classList.remove('selected-attack', 'bg-blue-100');
+            item.classList.add('bg-gray-50', 'hover:bg-gray-100');
+            
+            // Find and remove any existing "Selected" badges
+            const existingBadges = item.querySelectorAll('.absolute.right-2.top-2');
+            existingBadges.forEach(badge => badge.remove());
         });
+        
+        // Find the specific item with the matching ID if it exists
+        const matchingItem = document.querySelector(`.attempt-item[data-id="${attack.id}"]`);
+        
+        if (matchingItem) {
+            // Add selection styling
+            matchingItem.classList.add('selected-attack', 'bg-blue-100');
+            matchingItem.classList.remove('bg-gray-50', 'hover:bg-gray-100');
+            
+            // Make sure the selected item is visible by scrolling to it if needed
+            setTimeout(() => {
+                const itemRect = matchingItem.getBoundingClientRect();
+                const containerRect = attemptsDiv.getBoundingClientRect();
+                
+                if (itemRect.top < containerRect.top || itemRect.bottom > containerRect.bottom) {
+                    matchingItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }, 100);
+        } else {
+            // If the item isn't in the current view, refresh the UI which will handle selection
+            uiManager.updateUI();
+        }
         
         // Update the map to focus on this attack
         updateMap(attack);
@@ -1851,17 +1883,19 @@ const uiManager = (function() {
         
         // If in single attack mode, don't refresh the entire list
         if (window.singleAttackMode && window.currentSingleAttack) {
-            // Just ensure our current attack is visible
-            const attemptsToShow = [window.currentSingleAttack];
+            // Clear the list first
             attemptsDiv.innerHTML = '';
             
-            // Append the single attack element
+            // Create a new element for the selected attack
             const singleAttackElement = createAttemptElement(window.currentSingleAttack);
             attemptsDiv.appendChild(singleAttackElement);
             
-            // Add selected state
-            singleAttackElement.classList.add('selected-attack', 'bg-blue-100');
-            singleAttackElement.classList.remove('bg-gray-50', 'hover:bg-gray-100');
+            // Add selected state with a small delay to ensure DOM updates
+            setTimeout(() => {
+                singleAttackElement.classList.add('selected-attack');
+                singleAttackElement.classList.add('bg-blue-100');
+                singleAttackElement.classList.remove('bg-gray-50', 'hover:bg-gray-100');
+            }, 50);
             
             return;
         }
@@ -1872,6 +1906,15 @@ const uiManager = (function() {
         
         paginatedAttempts.forEach(attempt => {
             const element = createAttemptElement(attempt);
+            
+            // If we're in single attack mode, check if this is the selected attack
+            if (window.singleAttackMode && window.currentSingleAttack && 
+                attempt.id === window.currentSingleAttack.id) {
+                element.classList.add('selected-attack');
+                element.classList.add('bg-blue-100');
+                element.classList.remove('bg-gray-50', 'hover:bg-gray-100');
+            }
+            
             attemptsDiv.appendChild(element);
         });
         

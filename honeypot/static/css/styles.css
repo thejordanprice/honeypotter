@@ -124,15 +124,34 @@
 }
 
 .attempt-item.selected-attack {
-    background-color: rgba(59, 130, 246, 0.15) !important;
-    border-left: 4px solid #3b82f6;
+    background-color: rgba(59, 130, 246, 0.25) !important;
+    border-left: 6px solid #3b82f6;
     transform: translateY(-2px);
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    box-shadow: 0 8px 15px -1px rgba(0, 0, 0, 0.1), 0 4px 6px -1px rgba(0, 0, 0, 0.06);
+    position: relative;
+    z-index: 2;
+}
+
+.attempt-item.selected-attack::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 100%;
+    background: linear-gradient(90deg, rgba(59, 130, 246, 0.1) 0%, rgba(59, 130, 246, 0) 100%);
+    z-index: -1;
+    pointer-events: none;
 }
 
 .dark .attempt-item.selected-attack {
-    background-color: rgba(59, 130, 246, 0.25) !important;
-    border-left: 4px solid #60a5fa;
+    background-color: rgba(59, 130, 246, 0.35) !important;
+    border-left: 6px solid #60a5fa;
+    box-shadow: 0 8px 15px -1px rgba(0, 0, 0, 0.2), 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.dark .attempt-item.selected-attack::before {
+    background: linear-gradient(90deg, rgba(96, 165, 250, 0.15) 0%, rgba(96, 165, 250, 0) 100%);
 }
 
 /* Reset view button styles */
