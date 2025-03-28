@@ -1966,8 +1966,14 @@ const uiManager = (function() {
                 .setLatLng([attack.latitude, attack.longitude])
                 .setContent(`<strong>${attack.protocol.toUpperCase()} Attack</strong><br>
                             IP: ${attack.client_ip}<br>
+                            ${attack.port ? `Port: ${attack.port}<br>` : ''}
                             User: ${attack.username || '[None]'}<br>
-                            Time: ${formatUtils.formatDateToLocalTime(attack.timestamp)}`)
+                            ${attack.protocol === 'rdp' ? '' : `Password: ${attack.password || '[None]'}<br>`}
+                            Time: ${formatUtils.formatDateToLocalTime(attack.timestamp)}${
+                                attack.city || attack.region || attack.country ? 
+                                `<br>Location: ${[attack.city, attack.region, attack.country].filter(Boolean).join(', ')}` : 
+                                ''
+                            }${attack.os ? `<br>OS: ${attack.os}` : ''}${attack.client ? `<br>Client: ${attack.client}` : ''}`)
                 .openOn(window.map);
                 
             // Explicitly create an attack animation
