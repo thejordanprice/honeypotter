@@ -1555,6 +1555,8 @@ const uiManager = (function() {
         const attempts = websocketManager.getAttempts();
         const filteredAttempts = dataModel.filterAttempts(attempts);
         const totalItems = filteredAttempts.length;
+        const currentPage = paginationUtils.currentPage;
+        const itemsPerPage = paginationUtils.itemsPerPage;
         
         // Calculate an appropriate height if the container is empty or hasn't been sized yet
         let heightToSet = attemptsDiv.offsetHeight;
@@ -1568,48 +1570,31 @@ const uiManager = (function() {
         // Update pagination controls
         paginationUtils.updateControls(totalItems);
         
-        // If not on the first page, do a regular update instead
-        if (paginationUtils.currentPage !== 1) {
-            updateUI();
-            // Don't restore height immediately - let the auto-height happen naturally
-            setTimeout(() => {
-                attemptsDiv.style.height = '';
-            }, 100);
-            return;
-        }
-        
-        // Create the new element
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = createAttemptElement(newAttempt, 'new-attempt');
-        const newElement = tempDiv.firstElementChild;
+        // Calculate the current page's data
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = Math.min(startIndex + itemsPerPage, filteredAttempts.length);
+        const currentPageData = filteredAttempts.slice(startIndex, endIndex);
         
         // Get existing elements
         const existingElements = Array.from(attemptsDiv.children);
         
-        // If there are existing elements
-        if (existingElements.length > 0) {
-            // Remove excess elements if we're at or over the page size limit
-            while (existingElements.length >= paginationUtils.itemsPerPage) {
+        // If we're on the first page, show the new element with animation
+        if (currentPage === 1) {
+            // First, remove excess elements
+            while (existingElements.length >= itemsPerPage) {
                 const lastElement = existingElements.pop();
                 if (lastElement && lastElement.parentNode === attemptsDiv) {
                     attemptsDiv.removeChild(lastElement);
                 }
             }
             
-            // Double-check that we have the correct number of elements
-            if (attemptsDiv.children.length >= paginationUtils.itemsPerPage) {
-                // Safety check - remove any excess elements
-                while (attemptsDiv.children.length >= paginationUtils.itemsPerPage) {
-                    const lastChild = attemptsDiv.lastElementChild;
-                    if (lastChild) {
-                        attemptsDiv.removeChild(lastChild);
-                    }
-                }
-            }
+            // Create and animate the new element
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = createAttemptElement(newAttempt, 'new-attempt');
+            const newElement = tempDiv.firstElementChild;
             
-            // Now add transition class to remaining elements
-            const elementsToAnimate = Array.from(attemptsDiv.children);
-            elementsToAnimate.forEach(el => {
+            // Add transition class to remaining elements
+            existingElements.forEach(el => {
                 el.classList.add('move-down');
             });
             
@@ -1622,31 +1607,27 @@ const uiManager = (function() {
             // Force reflow again to trigger the animation from starting position
             void attemptsDiv.offsetHeight;
             
-            // Reset the position of existing elements to create the animation 
-            // Using setTimeout to ensure this happens in the next repaint
+            // Reset the position of existing elements to create the animation
             setTimeout(() => {
                 // Add a slight delay before starting the reverse animation
-                // This makes the "down" state visible for a moment before elements move back up
                 setTimeout(() => {
-                    elementsToAnimate.forEach(el => {
+                    existingElements.forEach(el => {
                         if (el.parentNode === attemptsDiv) {
                             el.classList.remove('move-down');
                         }
                     });
-                }, 100); // Short delay to make the down movement more visible
+                }, 100);
                 
                 // Clean up after animation completes
                 setTimeout(() => {
-                    // Remove new-attempt class from new element
                     if (newElement.parentNode === attemptsDiv) {
                         newElement.classList.remove('new-attempt');
                     }
                     
-                    // Final check to ensure we don't exceed the item limit
+                    // Ensure we're at pageSize items
                     const currentCount = attemptsDiv.children.length;
-                    if (currentCount > paginationUtils.itemsPerPage) {
-                        console.log(`Removing excess elements: ${currentCount} > ${paginationUtils.itemsPerPage}`);
-                        for (let i = paginationUtils.itemsPerPage; i < currentCount; i++) {
+                    if (currentCount > itemsPerPage) {
+                        for (let i = itemsPerPage; i < currentCount; i++) {
                             const lastChild = attemptsDiv.lastElementChild;
                             if (lastChild) {
                                 attemptsDiv.removeChild(lastChild);
@@ -1654,26 +1635,109 @@ const uiManager = (function() {
                         }
                     }
                     
-                    // Restore automatic height once animation is complete
+                    // Restore automatic height
                     setTimeout(() => {
                         attemptsDiv.style.height = '';
                     }, 200);
-                    
-                }, 1300); // Increased to account for both the transition and the added delay
-            }, 10); // Very small delay to ensure the initial state is properly rendered
-        } else {
-            // No existing elements, just add the new one
-            attemptsDiv.appendChild(newElement);
+                }, 1300);
+            }, 10);
+        } 
+        // For pages other than the first, slide elements down to show new data coming in
+        else {
+            // For pages other than the first, we need to get the data that *should* be on this page
+            // after the new attempt was added to the beginning of the data array
             
-            // Clean up animation class after animation completes
-            setTimeout(() => {
-                if (newElement.parentNode === attemptsDiv) {
-                    newElement.classList.remove('new-attempt');
+            // Calculate the current page's data - offset by 1 to account for the new item at the top
+            const adjustedStartIndex = (currentPage - 1) * itemsPerPage;
+            const adjustedEndIndex = Math.min(adjustedStartIndex + itemsPerPage, filteredAttempts.length);
+            const currentPageData = filteredAttempts.slice(adjustedStartIndex, adjustedEndIndex);
+            
+            // Create elements for the current page data
+            const pageElements = currentPageData.map(attempt => {
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = createAttemptElement(attempt);
+                return tempDiv.firstElementChild;
+            });
+            
+            // For non-first pages, animate only if there's data shifting down from the previous page
+            // The first element in the current page is what used to be the last element of the previous page
+            if (pageElements.length > 0) {
+                // First, get the ID or unique identifier for the top item on the current page
+                // This helps us track which elements are new vs. shifting down
+                const getItemId = item => item.client_ip + item.timestamp;
+                
+                // Store existing element IDs for comparison
+                const existingIds = existingElements.map((el, index) => {
+                    // Try to extract an identifier from the element's content
+                    const ipMatch = el.innerHTML.match(/@([^<]+)/);
+                    const timeMatch = el.innerHTML.match(/(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})/);
+                    if (ipMatch && timeMatch) {
+                        return ipMatch[1] + timeMatch[1];
+                    }
+                    return `element-${index}`;
+                });
+                
+                // Find which elements are new vs. shifting
+                let firstNewElementIndex = -1;
+                for (let i = 0; i < pageElements.length; i++) {
+                    const elementData = currentPageData[i];
+                    const elementId = getItemId(elementData);
+                    
+                    if (!existingIds.includes(elementId)) {
+                        firstNewElementIndex = i;
+                        break;
+                    }
                 }
                 
-                // Restore automatic height
-                attemptsDiv.style.height = '';
-            }, 800);
+                // If we found a new element, mark it for animation
+                if (firstNewElementIndex >= 0) {
+                    pageElements[firstNewElementIndex].classList.add('new-attempt');
+                } else if (pageElements.length > 0) {
+                    // If no new elements found but we have elements, mark the first one
+                    pageElements[0].classList.add('new-attempt');
+                }
+                
+                // Add move-down class to all existing elements
+                existingElements.forEach(el => {
+                    el.classList.add('move-down');
+                });
+                
+                // Force reflow
+                void attemptsDiv.offsetHeight;
+                
+                // Clear the container and add the new elements
+                attemptsDiv.innerHTML = '';
+                pageElements.forEach(el => attemptsDiv.appendChild(el));
+                
+                // After a delay, remove the animation classes
+                setTimeout(() => {
+                    const newElements = Array.from(attemptsDiv.children);
+                    newElements.forEach(el => {
+                        if (el.classList.contains('new-attempt')) {
+                            el.classList.remove('new-attempt');
+                        }
+                        if (el.classList.contains('move-down')) {
+                            el.classList.remove('move-down');
+                        }
+                    });
+                    
+                    // Restore automatic height
+                    setTimeout(() => {
+                        attemptsDiv.style.height = '';
+                    }, 200);
+                }, 1000);
+            } else {
+                // If there's no data for this page, go to the previous page
+                if (currentPage > 1) {
+                    paginationUtils.currentPage--;
+                    updateUI();
+                }
+                
+                // Restore height
+                setTimeout(() => {
+                    attemptsDiv.style.height = '';
+                }, 200);
+            }
         }
         
         // Update visualizations
@@ -1736,10 +1800,10 @@ const websocketManager = (function() {
             
             updateMap(newAttempt);
             
-            // Reset to page 1 when new attempt comes in
-            paginationUtils.currentPage = 1;
+            // Get the current page before animation
+            const currentPage = paginationUtils.currentPage;
             
-            // Use animated UI update instead of regular update
+            // Use animated UI update - this will handle different page states
             uiManager.updateUIWithAnimation(newAttempt);
             
             const indicator = domUtils.getElement('connectionStatusIndicator');
