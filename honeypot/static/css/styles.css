@@ -899,8 +899,8 @@ html, body {
 /* Animation for elements moving between pages - more subtle than new attempts */
 @keyframes subtleSlideIn {
     0% {
-        transform: translateY(-50px);
-        opacity: 0.7;
+        transform: translateY(-100%);
+        opacity: 0;
     }
     100% {
         transform: translateY(0);
@@ -910,8 +910,9 @@ html, body {
 
 /* Moving between pages animation class */
 .attempt-item.page-transition {
-    animation: subtleSlideIn 0.5s ease-out forwards;
+    animation: slideInFromTop 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
     z-index: 5; /* Above regular elements but below new attempts */
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
 }
 
 /* Moving element animation - use a larger value so it's more visible */
@@ -930,5 +931,11 @@ html, body {
 .dark .attempt-item.new-attempt {
     box-shadow: 0 0 15px rgba(0, 0, 0, 0.4);
     border-left: 4px solid #60a5fa;
+    background-color: #3d3d3d;
+}
+
+/* Dark mode styling for page transitions */
+.dark .attempt-item.page-transition {
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.4);
     background-color: #3d3d3d;
 } 
