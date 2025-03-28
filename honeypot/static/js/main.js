@@ -2132,7 +2132,17 @@ const uiManager = (function() {
         paginationUtils.updateControls(totalItems);
         
         // If in single attack mode, don't refresh the entire list
+        // Instead, preserve the current single view state
         if (window.singleAttackMode && window.currentSingleAttack) {
+            // Check if the attempt list is already showing only the selected attack
+            if (attemptsDiv.children.length === 1 && 
+                attemptsDiv.querySelector(`.attempt-item[data-id="${window.currentSingleAttack.id}"]`)) {
+                // The list is already in single attack mode - don't refresh it
+                console.log("Preserving current single attack view");
+                return;
+            }
+            
+            // If we get here, we need to set up the single attack view again
             // Clear the list first
             attemptsDiv.innerHTML = '';
             
@@ -2150,7 +2160,7 @@ const uiManager = (function() {
             return;
         }
         
-        // Normal list update
+        // Normal list update for non-single attack mode
         attemptsDiv.innerHTML = '';
         const paginatedAttempts = paginationUtils.getCurrentPageData(filteredAttempts);
         
@@ -2244,11 +2254,15 @@ const websocketManager = (function() {
                 console.warn("Error updating map with new attempt:", error);
             }
             
-            // Reset to page 1 when new attempt comes in
-            paginationUtils.currentPage = 1;
-            
-            // Skip map update in updateUI since we already did it directly
-            uiManager.updateUI(true);
+            // Only update the UI if we're not in single attack view
+            // This prevents clearing the login attempts list when in single attack view
+            if (!window.singleAttackMode) {
+                // Reset to page 1 when new attempt comes in
+                paginationUtils.currentPage = 1;
+                
+                // Skip map update in updateUI since we already did it directly
+                uiManager.updateUI(true);
+            }
             
             const indicator = domUtils.getElement('connectionStatusIndicator');
             if (indicator) {
