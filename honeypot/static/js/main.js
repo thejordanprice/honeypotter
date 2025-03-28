@@ -289,15 +289,29 @@ window.map.whenReady(function() {
         
         // Initialize empty heat layer if needed
         if (!window.heatLayer) {
-            console.log("Creating initial empty heat layer");
+            console.log("Creating initial empty heat layer with consistent settings");
+            
+            // Use same settings as createNewHeatLayer for consistency
+            const radius = window.innerWidth <= 768 ? 17 : 20;
+            const blur = window.innerWidth <= 768 ? 20 : 25;
+            
             window.heatLayer = L.heatLayer([], {
-                radius: 10,           // Smaller radius for better precision
-                blur: 15,             // Consistent blur setting
-                maxZoom: 10,
-                max: 10,               // Default max value
-                minOpacity: 0.4,       // Ensure low-density areas are visible
-                gradient: {0.4: 'blue', 0.5: 'cyan', 0.6: 'lime', 0.8: 'yellow', 1.0: 'red'}
+                radius: radius,    // Match createNewHeatLayer settings
+                blur: blur,        // Match createNewHeatLayer settings
+                maxZoom: 18,
+                max: 5,           // Match default max value from createNewHeatLayer
+                minOpacity: 0.4,  // Consistent opacity
+                gradient: {
+                    0.0: 'blue',
+                    0.3: 'cyan',
+                    0.5: 'lime',
+                    0.7: 'yellow',
+                    1.0: 'red'
+                },
+                id: 'heatLayer_initial_' + Date.now()
             }).addTo(window.map);
+            
+            console.log("Initial heat layer created with: radius=" + radius + ", blur=" + blur + ", max=5");
         }
     }, 200);
 });
@@ -925,6 +939,11 @@ function updateHeatmapData(attempt) {
         window.heatPoints = {};
         console.log("Created fresh heatPoints data structure");
         
+        // Clear existing heatmap data to prevent accumulation
+        if (window.heatLayer && typeof window.heatLayer.setLatLngs === 'function') {
+            window.heatLayer.setLatLngs([]);
+        }
+        
         // Get all attempts with valid coordinates
         let validAttempts = [];
         try {
@@ -1004,7 +1023,24 @@ function updateHeatmapData(attempt) {
                     
                     // Dynamically update the max value based on current data
                     if (maxFreq > 0) {
-                        const newMaxValue = Math.max(5, Math.ceil(maxFreq * 0.8));
+                        // Use a consistent scaling approach to prevent intensity issues when changing filters
+                        // For small datasets (few points), use a smaller max to make them more visible
+                        // For larger datasets, scale proportionally to prevent overwhelming intensity
+                        let newMaxValue = 5; // Default base value
+                        
+                        if (heatData.length <= 10) {
+                            // For very small datasets, make points more visible with lower max
+                            newMaxValue = Math.max(3, Math.ceil(maxFreq * 0.9));
+                        } else if (heatData.length <= 50) {
+                            // For small datasets, slightly higher max
+                            newMaxValue = Math.max(4, Math.ceil(maxFreq * 0.8));
+                        } else if (heatData.length <= 200) {
+                            // For medium datasets
+                            newMaxValue = Math.max(5, Math.ceil(maxFreq * 0.7));
+                        } else {
+                            // For large datasets, higher max to prevent overwhelming visuals
+                            newMaxValue = Math.max(6, Math.ceil(maxFreq * 0.6));
+                        }
                         
                         // Initialize options object if it doesn't exist
                         if (!window.heatLayer.options) {
@@ -1014,12 +1050,21 @@ function updateHeatmapData(attempt) {
                         
                         // Only update if it's a significant change to avoid flickering
                         if (!window.heatLayer.options.max || Math.abs((window.heatLayer.options.max || 0) - newMaxValue) > 1) {
-                            console.log(`Setting heatmap max intensity from ${window.heatLayer.options.max || "undefined"} to ${newMaxValue}`);
+                            console.log(`Setting heatmap max intensity from ${window.heatLayer.options.max || "undefined"} to ${newMaxValue} (points: ${heatData.length}, max frequency: ${maxFreq})`);
                             window.heatLayer.options.max = newMaxValue;
                             
                             // Also make sure minOpacity is set
                             if (window.heatLayer.options.minOpacity === undefined) {
                                 window.heatLayer.options.minOpacity = 0.4;
+                            }
+                            
+                            // Force the heatmap to redraw after changing its max intensity
+                            if (typeof window.heatLayer._updateOptions === 'function') {
+                                window.heatLayer._updateOptions();
+                            }
+                            // Also force a redraw by resetting the data (though with the same data)
+                            if (typeof window.heatLayer.setLatLngs === 'function') {
+                                window.heatLayer.setLatLngs(heatData);
                             }
                         }
                     }
@@ -1183,7 +1228,7 @@ function processNewAttackAnimation(attempt) {
 // Helper function to create a new heat layer with fade-in effect
 function createNewHeatLayer(attempt) {
     try {
-        console.log("Creating new heat layer");
+        console.log(`Creating new heat layer at ${new Date().toISOString()}`);
         
         if (!window.map || !window.map._loaded) {
             console.warn("Map not fully initialized, deferring heat layer creation");
@@ -1194,18 +1239,36 @@ function createNewHeatLayer(attempt) {
         // Remove existing heat layer if any
         if (window.heatLayer && window.map) {
             try {
+                console.log("Removing existing heat layer");
                 window.map.removeLayer(window.heatLayer);
+                // Explicitly clean up the heat layer to prevent memory leaks
+                if (window.heatLayer._canvas) {
+                    window.heatLayer._canvas.remove();
+                    console.log("Removed heat layer canvas");
+                }
+                window.heatLayer = null;
+                console.log("Heat layer reference cleared");
             } catch (e) {
                 console.warn("Error removing existing heat layer:", e);
             }
         }
+        
+        // Get all attempts from the websocket manager
+        const attempts = websocketManager.getAttempts();
+        console.log(`Total attempts: ${attempts.length}`);
+        
+        const filteredAttempts = dataModel.filterAttempts(attempts);
+        console.log(`Filtered attempts: ${filteredAttempts.length}`);
+        
+        const validAttempts = filteredAttempts.filter(a => a.latitude && a.longitude);
+        console.log(`Valid attempts with coordinates: ${validAttempts.length}`);
         
         // Create basic heatmap configuration with good defaults
         const heatMapConfig = {
             radius: window.innerWidth <= 768 ? 17 : 20, // Smaller radius on mobile
             blur: window.innerWidth <= 768 ? 20 : 25,   // Less blur on mobile
             maxZoom: 18,                                // Maximum zoom level for heatmap
-            max: 5,                                     // Maximum point intensity
+            max: 5,                                     // Default maximum point intensity
             minOpacity: 0.4,                           // Minimum opacity (never fully transparent)
             gradient: {                                 // Custom color gradient
                 0.0: 'blue',
@@ -1213,20 +1276,15 @@ function createNewHeatLayer(attempt) {
                 0.5: 'lime',
                 0.7: 'yellow',
                 1.0: 'red'
-            }
+            },
+            // Add a unique id to prevent potential caching issues
+            id: 'heatLayer_' + Date.now() + '_' + Math.floor(Math.random() * 1000)
         };
         
         // Get heatmap data points to populate the layer
         const heatData = [];
         
         try {
-            // Get all attempts from the websocket manager
-            const attempts = websocketManager.getAttempts();
-            const filteredAttempts = dataModel.filterAttempts(attempts);
-            const validAttempts = filteredAttempts.filter(a => a.latitude && a.longitude);
-            
-            console.log(`Found ${validAttempts.length} valid attempts with coordinates for heat layer`);
-            
             if (validAttempts.length > 0) {
                 // Initialize a frequency map for point intensity
                 const locationFrequency = {};
@@ -1278,11 +1336,31 @@ function createNewHeatLayer(attempt) {
                     heatData.push([lat, lng, count]);
                 }
                 
+                console.log(`Generated ${heatData.length} heat points with max frequency: ${maxFreq}`);
+                
                 // Adjust max value based on data
                 if (maxFreq > 0) {
-                    const newMaxValue = Math.max(5, Math.ceil(maxFreq * 0.8));
+                    // Use a consistent scaling approach to prevent intensity issues when changing filters
+                    // For small datasets (few points), use a smaller max to make them more visible
+                    // For larger datasets, scale proportionally to prevent overwhelming intensity
+                    let newMaxValue = 5; // Default base value
+                    
+                    if (heatData.length <= 10) {
+                        // For very small datasets, make points more visible with lower max
+                        newMaxValue = Math.max(3, Math.ceil(maxFreq * 0.9));
+                    } else if (heatData.length <= 50) {
+                        // For small datasets, slightly higher max
+                        newMaxValue = Math.max(4, Math.ceil(maxFreq * 0.8));
+                    } else if (heatData.length <= 200) {
+                        // For medium datasets
+                        newMaxValue = Math.max(5, Math.ceil(maxFreq * 0.7));
+                    } else {
+                        // For large datasets, higher max to prevent overwhelming visuals
+                        newMaxValue = Math.max(6, Math.ceil(maxFreq * 0.6));
+                    }
+                    
                     heatMapConfig.max = newMaxValue;
-                    console.log(`Setting heat layer max intensity to ${newMaxValue}`);
+                    console.log(`Setting heat layer max intensity to ${newMaxValue} (points: ${heatData.length}, max frequency: ${maxFreq})`);
                 }
             } else {
                 console.log("No valid attempts found, creating empty heat layer");
@@ -1294,15 +1372,26 @@ function createNewHeatLayer(attempt) {
         
         // Create heat layer with our data and config
         window.heatLayer = L.heatLayer(heatData, heatMapConfig);
+        console.log(`Created new heat layer with ${heatData.length} points, config:`, heatMapConfig);
         
         // Only add to map if heatmap is enabled
         if (window.heatmapEnabled && window.map && window.map._loaded) {
             try {
                 window.map.addLayer(window.heatLayer);
+                console.log(`Heat layer added to map at ${new Date().toISOString()}`);
+                
+                // Ensure options are applied immediately
+                if (typeof window.heatLayer._updateOptions === 'function') {
+                    window.heatLayer._updateOptions();
+                    console.log("Updated heat layer options via _updateOptions");
+                }
+                
                 console.log("Heat layer successfully added to map");
             } catch (e) {
                 console.error("Error adding heat layer to map:", e);
             }
+        } else {
+            console.log(`Heatmap enabled: ${window.heatmapEnabled}, map ready: ${window.map && window.map._loaded}`);
         }
         
         // Process new attack animation if there's an attempt
@@ -1723,11 +1812,49 @@ const uiManager = (function() {
             uiManager.updateUI();
         }
         
-        // Update the map to focus on this attack
-        updateMap(attack);
+        // Completely remove the existing heat layer before updating for a single attack
+        if (window.heatLayer && window.map) {
+            window.map.removeLayer(window.heatLayer);
+            if (window.heatLayer._canvas) {
+                window.heatLayer._canvas.remove();
+            }
+            window.heatLayer = null;
+        }
         
         // Update visualizations with just this one attack
         updateVisualizations([attack]);
+        
+        // Create a new heat layer with just this attack after a small delay
+        setTimeout(() => {
+            // Create a very simple heat layer for just one point
+            const heatConfig = {
+                radius: window.innerWidth <= 768 ? 25 : 30, // Slightly larger for single attack
+                blur: window.innerWidth <= 768 ? 30 : 35,   // Slightly more blur for single attack
+                maxZoom: 18,
+                max: 0.5,  // Lower max value for better visibility of a single point
+                minOpacity: 0.6, // Higher minimum opacity for better visibility
+                gradient: {
+                    0.0: 'blue',
+                    0.3: 'cyan',
+                    0.5: 'lime',
+                    0.7: 'yellow',
+                    1.0: 'red'
+                },
+                id: 'heatLayer_single_' + Date.now() + '_' + Math.floor(Math.random() * 1000)
+            };
+            
+            const lat = parseFloat(attack.latitude);
+            const lng = parseFloat(attack.longitude);
+            
+            if (!isNaN(lat) && !isNaN(lng)) {
+                console.log(`Creating single-point heat layer for attack at [${lat}, ${lng}]`);
+                window.heatLayer = L.heatLayer([[lat, lng, 1]], heatConfig);
+                
+                if (window.heatmapEnabled && window.map && window.map._loaded) {
+                    window.map.addLayer(window.heatLayer);
+                }
+            }
+        }, 50);
         
         // Center the map on the attack location
         if (attack.latitude && attack.longitude && window.map) {
@@ -1831,11 +1958,17 @@ const uiManager = (function() {
         // Reset all visualizations with all data
         updateVisualizations(filteredAttempts);
         
-        // Update map with full dataset
-        updateMap(null);
+        // Completely remove the heat layer first
+        if (window.heatLayer && window.map) {
+            window.map.removeLayer(window.heatLayer);
+            if (window.heatLayer._canvas) {
+                window.heatLayer._canvas.remove();
+            }
+            window.heatLayer = null;
+        }
         
-        // Reset heatmap data with all attacks
-        updateHeatmapData(null);
+        // Create a new heat layer after a short delay to ensure complete cleanup
+        setTimeout(() => createNewHeatLayer(null), 50);
         
         // Reset the attack list
         updateUI();
@@ -2985,8 +3118,18 @@ const init = (function() {
             searchInput.addEventListener('input', () => {
                 paginationUtils.currentPage = 1;
                 uiManager.updateUI();
-                // Update map to reflect filtered data
-                updateMap({latitude: 0, longitude: 0});
+                
+                // Completely remove the heat layer first
+                if (window.heatLayer && window.map) {
+                    window.map.removeLayer(window.heatLayer);
+                    if (window.heatLayer._canvas) {
+                        window.heatLayer._canvas.remove();
+                    }
+                    window.heatLayer = null;
+                }
+                
+                // Create a new heat layer after a short delay
+                setTimeout(() => createNewHeatLayer(null), 50);
             });
         }
         
@@ -2994,8 +3137,18 @@ const init = (function() {
             filterSelect.addEventListener('change', () => {
                 paginationUtils.currentPage = 1;
                 uiManager.updateUI();
-                // Update map to reflect filtered data
-                updateMap({latitude: 0, longitude: 0});
+                
+                // Completely remove the heat layer first
+                if (window.heatLayer && window.map) {
+                    window.map.removeLayer(window.heatLayer);
+                    if (window.heatLayer._canvas) {
+                        window.heatLayer._canvas.remove();
+                    }
+                    window.heatLayer = null;
+                }
+                
+                // Create a new heat layer after a short delay
+                setTimeout(() => createNewHeatLayer(null), 50);
             });
         }
         
@@ -3003,8 +3156,18 @@ const init = (function() {
             protocolSelect.addEventListener('change', () => {
                 paginationUtils.currentPage = 1;
                 uiManager.updateUI();
-                // Update map to reflect filtered data
-                updateMap({latitude: 0, longitude: 0});
+                
+                // Completely remove the heat layer first
+                if (window.heatLayer && window.map) {
+                    window.map.removeLayer(window.heatLayer);
+                    if (window.heatLayer._canvas) {
+                        window.heatLayer._canvas.remove();
+                    }
+                    window.heatLayer = null;
+                }
+                
+                // Create a new heat layer after a short delay
+                setTimeout(() => createNewHeatLayer(null), 50);
             });
         }
         
@@ -3216,6 +3379,24 @@ const init = (function() {
                 
                 // Prevent any automatic map centering on initial load
                 window.initialMapPositionSet = true;
+                
+                // Ensure heatmap settings are consistent on initial load
+                // Remove existing heat layer if it exists
+                if (window.heatLayer && window.map) {
+                    try {
+                        window.map.removeLayer(window.heatLayer);
+                        if (window.heatLayer._canvas) {
+                            window.heatLayer._canvas.remove();
+                        }
+                        window.heatLayer = null;
+                        console.log("Removed existing heat layer during startup for clean initialization");
+                    } catch (e) {
+                        console.warn("Error removing heat layer on startup:", e);
+                    }
+                }
+                
+                // Create a fresh heat layer after a delay
+                setTimeout(() => createNewHeatLayer(null), 300);
             }, 500);
         } else {
             console.warn("Map elements not available during startup");
