@@ -284,34 +284,52 @@ window.heatmapToggleControl.addTo(map);
 window.map.whenReady(function() {
     console.log("Map is ready, ensuring proper initialization");
     setTimeout(function() {
-        // Force map to refresh size
-        window.map.invalidateSize();
-        
-        // Initialize empty heat layer if needed
-        if (!window.heatLayer) {
-            console.log("Creating initial empty heat layer with consistent settings");
+        try {
+            // Force map to refresh size
+            window.map.invalidateSize();
             
-            // Use same settings as createNewHeatLayer for consistency
-            const radius = window.innerWidth <= 768 ? 17 : 20;
-            const blur = window.innerWidth <= 768 ? 20 : 25;
-            
-            window.heatLayer = L.heatLayer([], {
-                radius: radius,    // Match createNewHeatLayer settings
-                blur: blur,        // Match createNewHeatLayer settings
-                maxZoom: 18,
-                max: 5,           // Match default max value from createNewHeatLayer
-                minOpacity: 0.4,  // Consistent opacity
-                gradient: {
-                    0.0: 'blue',
-                    0.3: 'cyan',
-                    0.5: 'lime',
-                    0.7: 'yellow',
-                    1.0: 'red'
-                },
-                id: 'heatLayer_initial_' + Date.now()
-            }).addTo(window.map);
-            
-            console.log("Initial heat layer created with: radius=" + radius + ", blur=" + blur + ", max=5");
+            // Initialize empty heat layer if needed
+            if (!window.heatLayer) {
+                console.log("Creating initial empty heat layer with consistent settings");
+                
+                // Use same settings as createNewHeatLayer for consistency
+                const radius = window.innerWidth <= 768 ? 17 : 20;
+                const blur = window.innerWidth <= 768 ? 20 : 25;
+                
+                try {
+                    window.heatLayer = L.heatLayer([], {
+                        radius: radius,    // Match createNewHeatLayer settings
+                        blur: blur,        // Match createNewHeatLayer settings
+                        maxZoom: 18,
+                        max: 5,           // Match default max value from createNewHeatLayer
+                        minOpacity: 0.4,  // Consistent opacity
+                        gradient: {
+                            0.0: 'blue',
+                            0.3: 'cyan',
+                            0.5: 'lime',
+                            0.7: 'yellow',
+                            1.0: 'red'
+                        },
+                        id: 'heatLayer_initial_' + Date.now()
+                    });
+                    
+                    // Only add to map if map is ready
+                    if (window.map && window.map._loaded) {
+                        window.map.addLayer(window.heatLayer);
+                        console.log("Initial heat layer created with: radius=" + radius + ", blur=" + blur + ", max=5");
+                    } else {
+                        console.warn("Map not ready when adding initial heat layer");
+                        // Schedule creation for later
+                        setTimeout(() => createNewHeatLayer(null), 500);
+                    }
+                } catch (e) {
+                    console.error("Error creating initial heat layer:", e);
+                    // Schedule creation for later
+                    setTimeout(() => createNewHeatLayer(null), 500);
+                }
+            }
+        } catch (e) {
+            console.error("Error during map initialization:", e);
         }
     }, 200);
 });
@@ -905,10 +923,17 @@ function updateMap(attempt) {
             return;
         }
 
-        // If the heatLayer exists, update its data instead of removing and recreating it
-        if (window.heatLayer) {
-            // Only update the data without recreating the layer
-            updateHeatmapData(attempt);
+        // If the heatLayer exists and is properly attached to the map, update its data
+        if (window.heatLayer && window.map) {
+            // Check if heat layer is properly attached to map
+            if (window.heatLayer._map) {
+                // Only update the data without recreating the layer
+                updateHeatmapData(attempt);
+            } else {
+                // Heat layer exists but isn't attached to map - recreate it
+                console.warn("Heat layer exists but is not attached to map, recreating it");
+                createNewHeatLayer(attempt);
+            }
         } else {
             // Create new heat layer if it doesn't exist yet
             createNewHeatLayer(attempt);
@@ -939,9 +964,22 @@ function updateHeatmapData(attempt) {
         window.heatPoints = {};
         console.log("Created fresh heatPoints data structure");
         
+        // First check if the heat layer is properly attached to the map
+        if (window.heatLayer && !window.heatLayer._map) {
+            console.warn("Heat layer is not attached to map, creating new one instead of updating");
+            createNewHeatLayer(attempt);
+            return;
+        }
+        
         // Clear existing heatmap data to prevent accumulation
         if (window.heatLayer && typeof window.heatLayer.setLatLngs === 'function') {
-            window.heatLayer.setLatLngs([]);
+            try {
+                window.heatLayer.setLatLngs([]);
+            } catch (error) {
+                console.warn("Error clearing heat layer data, creating new one instead:", error);
+                createNewHeatLayer(attempt);
+                return;
+            }
         }
         
         // Get all attempts with valid coordinates
@@ -1237,19 +1275,21 @@ function createNewHeatLayer(attempt) {
         }
         
         // Remove existing heat layer if any
-        if (window.heatLayer && window.map) {
+        if (window.heatLayer) {
+            console.log("Removing existing heat layer before creating new one");
             try {
-                console.log("Removing existing heat layer");
-                window.map.removeLayer(window.heatLayer);
-                // Explicitly clean up the heat layer to prevent memory leaks
+                if (window.map && window.heatLayer._map) {
+                    window.map.removeLayer(window.heatLayer);
+                }
                 if (window.heatLayer._canvas) {
                     window.heatLayer._canvas.remove();
                     console.log("Removed heat layer canvas");
                 }
-                window.heatLayer = null;
-                console.log("Heat layer reference cleared");
             } catch (e) {
                 console.warn("Error removing existing heat layer:", e);
+            } finally {
+                window.heatLayer = null;
+                console.log("Heat layer reference cleared");
             }
         }
         
@@ -1370,28 +1410,40 @@ function createNewHeatLayer(attempt) {
             // Continue with an empty heatmap
         }
         
-        // Create heat layer with our data and config
-        window.heatLayer = L.heatLayer(heatData, heatMapConfig);
-        console.log(`Created new heat layer with ${heatData.length} points, config:`, heatMapConfig);
+        // Check again if map is available (could have changed during processing)
+        if (!window.map || !window.map._loaded) {
+            console.warn("Map not available after processing heatmap data, aborting");
+            return null;
+        }
         
-        // Only add to map if heatmap is enabled
-        if (window.heatmapEnabled && window.map && window.map._loaded) {
-            try {
-                window.map.addLayer(window.heatLayer);
-                console.log(`Heat layer added to map at ${new Date().toISOString()}`);
-                
-                // Ensure options are applied immediately
-                if (typeof window.heatLayer._updateOptions === 'function') {
-                    window.heatLayer._updateOptions();
-                    console.log("Updated heat layer options via _updateOptions");
+        // Create heat layer with our data and config
+        try {
+            window.heatLayer = L.heatLayer(heatData, heatMapConfig);
+            console.log(`Created new heat layer with ${heatData.length} points, config:`, heatMapConfig);
+            
+            // Only add to map if heatmap is enabled
+            if (window.heatmapEnabled && window.map && window.map._loaded) {
+                try {
+                    window.map.addLayer(window.heatLayer);
+                    console.log(`Heat layer added to map at ${new Date().toISOString()}`);
+                    
+                    // Ensure options are applied immediately
+                    if (typeof window.heatLayer._updateOptions === 'function') {
+                        window.heatLayer._updateOptions();
+                        console.log("Updated heat layer options via _updateOptions");
+                    }
+                    
+                    console.log("Heat layer successfully added to map");
+                } catch (e) {
+                    console.error("Error adding heat layer to map:", e);
+                    return null;
                 }
-                
-                console.log("Heat layer successfully added to map");
-            } catch (e) {
-                console.error("Error adding heat layer to map:", e);
+            } else {
+                console.log(`Heatmap enabled: ${window.heatmapEnabled}, map ready: ${window.map && window.map._loaded}`);
             }
-        } else {
-            console.log(`Heatmap enabled: ${window.heatmapEnabled}, map ready: ${window.map && window.map._loaded}`);
+        } catch (e) {
+            console.error("Error creating heat layer:", e);
+            return null;
         }
         
         // Process new attack animation if there's an attempt
@@ -1813,12 +1865,20 @@ const uiManager = (function() {
         }
         
         // Completely remove the existing heat layer before updating for a single attack
-        if (window.heatLayer && window.map) {
-            window.map.removeLayer(window.heatLayer);
-            if (window.heatLayer._canvas) {
-                window.heatLayer._canvas.remove();
+        if (window.heatLayer) {
+            console.log("Removing heat layer in showSingleAttack");
+            try {
+                if (window.map && window.heatLayer._map) {
+                    window.map.removeLayer(window.heatLayer);
+                }
+                if (window.heatLayer._canvas) {
+                    window.heatLayer._canvas.remove();
+                }
+            } catch (e) {
+                console.warn("Error while removing heat layer in showSingleAttack:", e);
+            } finally {
+                window.heatLayer = null;
             }
-            window.heatLayer = null;
         }
         
         // Update visualizations with just this one attack
@@ -1959,12 +2019,20 @@ const uiManager = (function() {
         updateVisualizations(filteredAttempts);
         
         // Completely remove the heat layer first
-        if (window.heatLayer && window.map) {
-            window.map.removeLayer(window.heatLayer);
-            if (window.heatLayer._canvas) {
-                window.heatLayer._canvas.remove();
+        if (window.heatLayer) {
+            console.log("Removing heat layer in resetView");
+            try {
+                if (window.map && window.heatLayer._map) {
+                    window.map.removeLayer(window.heatLayer);
+                }
+                if (window.heatLayer._canvas) {
+                    window.heatLayer._canvas.remove();
+                }
+            } catch (e) {
+                console.warn("Error while removing heat layer in resetView:", e);
+            } finally {
+                window.heatLayer = null;
             }
-            window.heatLayer = null;
         }
         
         // Create a new heat layer after a short delay to ensure complete cleanup
@@ -2006,7 +2074,7 @@ const uiManager = (function() {
         }
     }
     
-    function updateUI() {
+    function updateUI(skipMapUpdate) {
         const attemptsDiv = document.getElementById("attempts");
         const attempts = websocketManager.getAttempts();
         const filteredAttempts = dataModel.filterAttempts(attempts);
@@ -2054,8 +2122,16 @@ const uiManager = (function() {
         // Only update visualizations if we're not in single attack mode
         if (!window.singleAttackMode) {
             updateVisualizations(filteredAttempts);
-            // Update map to reflect current filtered data
-            updateMap({latitude: 0, longitude: 0});
+            
+            // Skip map update if specified (prevents errors when called during filter changes)
+            if (skipMapUpdate !== true) {
+                try {
+                    // Update map to reflect current filtered data
+                    updateMap({latitude: 0, longitude: 0});
+                } catch (error) {
+                    console.warn("Error updating map during UI update:", error);
+                }
+            }
         }
     }
     
@@ -2112,11 +2188,18 @@ const websocketManager = (function() {
                 uiManager.updateUniqueAttackersCount();
             }
             
-            updateMap(newAttempt);
+            // Update map directly with the new attempt
+            try {
+                updateMap(newAttempt);
+            } catch (error) {
+                console.warn("Error updating map with new attempt:", error);
+            }
             
             // Reset to page 1 when new attempt comes in
             paginationUtils.currentPage = 1;
-            uiManager.updateUI();
+            
+            // Skip map update in updateUI since we already did it directly
+            uiManager.updateUI(true);
             
             const indicator = domUtils.getElement('connectionStatusIndicator');
             if (indicator) {
@@ -3117,15 +3200,24 @@ const init = (function() {
         if (searchInput) {
             searchInput.addEventListener('input', () => {
                 paginationUtils.currentPage = 1;
-                uiManager.updateUI();
+                // Skip map update in updateUI as we'll handle it separately
+                uiManager.updateUI(true);
                 
                 // Completely remove the heat layer first
-                if (window.heatLayer && window.map) {
-                    window.map.removeLayer(window.heatLayer);
-                    if (window.heatLayer._canvas) {
-                        window.heatLayer._canvas.remove();
+                if (window.heatLayer) {
+                    console.log("Removing heat layer due to search input change");
+                    try {
+                        if (window.map && window.heatLayer._map) {
+                            window.map.removeLayer(window.heatLayer);
+                        }
+                        if (window.heatLayer._canvas) {
+                            window.heatLayer._canvas.remove();
+                        }
+                    } catch (e) {
+                        console.warn("Error while removing heat layer on search change:", e);
+                    } finally {
+                        window.heatLayer = null;
                     }
-                    window.heatLayer = null;
                 }
                 
                 // Create a new heat layer after a short delay
@@ -3136,15 +3228,24 @@ const init = (function() {
         if (filterSelect) {
             filterSelect.addEventListener('change', () => {
                 paginationUtils.currentPage = 1;
-                uiManager.updateUI();
+                // Skip map update in updateUI as we'll handle it separately
+                uiManager.updateUI(true);
                 
                 // Completely remove the heat layer first
-                if (window.heatLayer && window.map) {
-                    window.map.removeLayer(window.heatLayer);
-                    if (window.heatLayer._canvas) {
-                        window.heatLayer._canvas.remove();
+                if (window.heatLayer) {
+                    console.log("Removing heat layer due to filter change");
+                    try {
+                        if (window.map && window.heatLayer._map) {
+                            window.map.removeLayer(window.heatLayer);
+                        }
+                        if (window.heatLayer._canvas) {
+                            window.heatLayer._canvas.remove();
+                        }
+                    } catch (e) {
+                        console.warn("Error while removing heat layer on filter change:", e);
+                    } finally {
+                        window.heatLayer = null;
                     }
-                    window.heatLayer = null;
                 }
                 
                 // Create a new heat layer after a short delay
@@ -3155,15 +3256,24 @@ const init = (function() {
         if (protocolSelect) {
             protocolSelect.addEventListener('change', () => {
                 paginationUtils.currentPage = 1;
-                uiManager.updateUI();
+                // Skip map update in updateUI as we'll handle it separately
+                uiManager.updateUI(true);
                 
                 // Completely remove the heat layer first
-                if (window.heatLayer && window.map) {
-                    window.map.removeLayer(window.heatLayer);
-                    if (window.heatLayer._canvas) {
-                        window.heatLayer._canvas.remove();
+                if (window.heatLayer) {
+                    console.log("Removing heat layer due to protocol filter change");
+                    try {
+                        if (window.map && window.heatLayer._map) {
+                            window.map.removeLayer(window.heatLayer);
+                        }
+                        if (window.heatLayer._canvas) {
+                            window.heatLayer._canvas.remove();
+                        }
+                    } catch (e) {
+                        console.warn("Error while removing heat layer on protocol change:", e);
+                    } finally {
+                        window.heatLayer = null;
                     }
-                    window.heatLayer = null;
                 }
                 
                 // Create a new heat layer after a short delay
