@@ -10,6 +10,8 @@ from pathlib import Path
 from honeypot.core.config import TEMPLATE_DIR, STATIC_DIR, HOST, WEB_PORT, SSH_PORT, TELNET_PORT, FTP_PORT, SMTP_PORT, RDP_PORT, SIP_PORT, MYSQL_PORT
 from honeypot.database.models import get_db, LoginAttempt
 from honeypot.core.system_monitor import SystemMonitor
+from honeypot.web.utility import versioned_static
+from honeypot.web.static_handler import VersionedStaticFiles
 import ipaddress
 import logging
 import asyncio
@@ -37,10 +39,12 @@ system_monitor = SystemMonitor(services)
 # Mount static files directory
 static_path = Path(STATIC_DIR)
 if static_path.exists():
-    app.mount("/static", StaticFiles(directory=str(static_path)), name="static")
+    app.mount("/static", VersionedStaticFiles(directory=str(static_path)), name="static")
 
 # Set up templates
 templates = Jinja2Templates(directory=str(TEMPLATE_DIR))
+# Register the versioned_static function with the templates
+templates.env.globals["versioned_static"] = versioned_static
 
 # Enhanced WebSocket connection tracking
 class ConnectionManager:
@@ -1306,3 +1310,15 @@ async def send_specific_batches(websocket: WebSocket, db: Session, batch_numbers
     finally:
         # Clear memory resources
         attempts_data.clear() 
+
+@app.get("/api/clear-static-cache", include_in_schema=False)
+async def clear_static_cache(request: Request):
+    """
+    Clear the static file version cache.
+    This will force new versions to be generated for all static files.
+    Admin use only - should be protected in production.
+    """
+    from honeypot.web.utility import static_versioner
+    static_versioner.clear_cache()
+    logger.info("Static file version cache cleared")
+    return {"status": "success", "message": "Static file version cache cleared"} 

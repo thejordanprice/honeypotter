@@ -214,3 +214,26 @@ MIT License - See [LICENSE](LICENSE) file for details
 - [Tailwind CSS](https://tailwindcss.com/) for styling
 - [psutil](https://psutil.readthedocs.io/) for system monitoring
 - [ip-api.com](https://ip-api.com/) for IP geolocation services
+
+## Static File Versioning
+
+The application implements automatic cache busting for static files by appending a version query parameter 
+to all CSS and JavaScript files. This ensures that when files are updated, browsers will load the latest 
+version rather than using cached copies.
+
+### How it works
+
+1. The versioning system adds a unique identifier to each static file URL:
+   - `/static/js/main.js` becomes `/static/js/main.js?v=a1b2c3d4`
+   - The version identifier changes when the server restarts
+
+2. Usage in templates:
+   - Use the `versioned_static()` function in Jinja2 templates:
+   ```html
+   <link href="{{ versioned_static('css/styles.css') }}" rel="stylesheet">
+   <script src="{{ versioned_static('js/main.js') }}"></script>
+   ```
+
+3. The backend handles stripping the version parameter when serving files, so no changes to the file system are needed.
+
+This system helps ensure users always receive the most up-to-date resources without having to manually clear their browser cache.
