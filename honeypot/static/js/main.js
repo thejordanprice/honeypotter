@@ -411,7 +411,7 @@ const AttackAnimator = {
         // Add fade-in transition to the server marker
         if (serverMarker) {
             const serverElement = serverMarker._path || 
-                                (serverMarker._renderer && serverMarker._renderer._rootGroup) || 
+                                (serverMarker._renderer && serverMarker._renderer._rootGroup) ||
                                 serverMarker._container;
                                 
             if (serverElement && serverElement.style) {
@@ -1541,7 +1541,7 @@ const uiManager = (function() {
         
         const paginatedAttempts = paginationUtils.getCurrentPageData(filteredAttempts);
         attemptsDiv.innerHTML = paginatedAttempts
-            .map(createAttemptElement)
+            .map(attempt => createAttemptElement(attempt, ''))
             .join('');
 
         updateVisualizations(filteredAttempts);
@@ -1569,11 +1569,6 @@ const uiManager = (function() {
         
         // Update pagination controls
         paginationUtils.updateControls(totalItems);
-        
-        // Calculate the current page's data
-        const startIndex = (currentPage - 1) * itemsPerPage;
-        const endIndex = Math.min(startIndex + itemsPerPage, filteredAttempts.length);
-        const currentPageData = filteredAttempts.slice(startIndex, endIndex);
         
         // Get existing elements
         const existingElements = Array.from(attemptsDiv.children);
@@ -1647,55 +1642,28 @@ const uiManager = (function() {
             // For pages other than the first, we need to get the data that *should* be on this page
             // after the new attempt was added to the beginning of the data array
             
-            // Calculate the current page's data - offset by 1 to account for the new item at the top
+            // Calculate the updated page data
             const adjustedStartIndex = (currentPage - 1) * itemsPerPage;
             const adjustedEndIndex = Math.min(adjustedStartIndex + itemsPerPage, filteredAttempts.length);
-            const currentPageData = filteredAttempts.slice(adjustedStartIndex, adjustedEndIndex);
+            const updatedPageData = filteredAttempts.slice(adjustedStartIndex, adjustedEndIndex);
             
-            // Create elements for the current page data
-            const pageElements = currentPageData.map(attempt => {
+            if (updatedPageData.length > 0) {
+                // First, remove excess elements if we have more than the page size
+                if (existingElements.length >= itemsPerPage) {
+                    // Remove the last element to make room for the new one at the top
+                    const lastElement = existingElements.pop();
+                    if (lastElement && lastElement.parentNode === attemptsDiv) {
+                        attemptsDiv.removeChild(lastElement);
+                    }
+                }
+                
+                // Get the first element which should be new to this page
+                const newPageElement = updatedPageData[0];
+                
+                // Create the new element
                 const tempDiv = document.createElement('div');
-                tempDiv.innerHTML = createAttemptElement(attempt);
-                return tempDiv.firstElementChild;
-            });
-            
-            // For non-first pages, animate only if there's data shifting down from the previous page
-            // The first element in the current page is what used to be the last element of the previous page
-            if (pageElements.length > 0) {
-                // First, get the ID or unique identifier for the top item on the current page
-                // This helps us track which elements are new vs. shifting down
-                const getItemId = item => item.client_ip + item.timestamp;
-                
-                // Store existing element IDs for comparison
-                const existingIds = existingElements.map((el, index) => {
-                    // Try to extract an identifier from the element's content
-                    const ipMatch = el.innerHTML.match(/@([^<]+)/);
-                    const timeMatch = el.innerHTML.match(/(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})/);
-                    if (ipMatch && timeMatch) {
-                        return ipMatch[1] + timeMatch[1];
-                    }
-                    return `element-${index}`;
-                });
-                
-                // Find which elements are new vs. shifting
-                let firstNewElementIndex = -1;
-                for (let i = 0; i < pageElements.length; i++) {
-                    const elementData = currentPageData[i];
-                    const elementId = getItemId(elementData);
-                    
-                    if (!existingIds.includes(elementId)) {
-                        firstNewElementIndex = i;
-                        break;
-                    }
-                }
-                
-                // If we found a new element, mark it for animation
-                if (firstNewElementIndex >= 0) {
-                    pageElements[firstNewElementIndex].classList.add('new-attempt');
-                } else if (pageElements.length > 0) {
-                    // If no new elements found but we have elements, mark the first one
-                    pageElements[0].classList.add('new-attempt');
-                }
+                tempDiv.innerHTML = createAttemptElement(newPageElement, 'new-attempt');
+                const newElement = tempDiv.firstElementChild;
                 
                 // Add move-down class to all existing elements
                 existingElements.forEach(el => {
@@ -1705,27 +1673,48 @@ const uiManager = (function() {
                 // Force reflow
                 void attemptsDiv.offsetHeight;
                 
-                // Clear the container and add the new elements
-                attemptsDiv.innerHTML = '';
-                pageElements.forEach(el => attemptsDiv.appendChild(el));
+                // Insert the new element at the top
+                attemptsDiv.insertBefore(newElement, attemptsDiv.firstChild);
                 
-                // After a delay, remove the animation classes
+                // Force reflow again to trigger the animation from starting position
+                void attemptsDiv.offsetHeight;
+                
+                // Reset the position of existing elements to create the animation
                 setTimeout(() => {
-                    const newElements = Array.from(attemptsDiv.children);
-                    newElements.forEach(el => {
-                        if (el.classList.contains('new-attempt')) {
-                            el.classList.remove('new-attempt');
-                        }
-                        if (el.classList.contains('move-down')) {
-                            el.classList.remove('move-down');
-                        }
-                    });
-                    
-                    // Restore automatic height
+                    // Add a slight delay before starting the reverse animation
                     setTimeout(() => {
-                        attemptsDiv.style.height = '';
-                    }, 200);
-                }, 1000);
+                        existingElements.forEach(el => {
+                            if (el.parentNode === attemptsDiv) {
+                                el.classList.remove('move-down');
+                            }
+                        });
+                    }, 100);
+                    
+                    // Clean up after animation completes
+                    setTimeout(() => {
+                        // Remove new-attempt class from new element
+                        if (newElement.parentNode === attemptsDiv) {
+                            newElement.classList.remove('new-attempt');
+                        }
+                        
+                        // Ensure we have the right number of elements (should be itemsPerPage or less)
+                        const currentCount = attemptsDiv.children.length;
+                        if (currentCount > itemsPerPage) {
+                            // Remove excess elements from the bottom of the list
+                            for (let i = itemsPerPage; i < currentCount; i++) {
+                                const lastChild = attemptsDiv.lastElementChild;
+                                if (lastChild) {
+                                    attemptsDiv.removeChild(lastChild);
+                                }
+                            }
+                        }
+                        
+                        // Restore automatic height
+                        setTimeout(() => {
+                            attemptsDiv.style.height = '';
+                        }, 200);
+                    }, 1300);
+                }, 10);
             } else {
                 // If there's no data for this page, go to the previous page
                 if (currentPage > 1) {

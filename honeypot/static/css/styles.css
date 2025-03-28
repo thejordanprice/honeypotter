@@ -869,7 +869,7 @@ html, body {
 #attempts {
     position: relative;
     min-height: 950px; /* Approximate height for 10 items */
-    overflow: hidden; /* Prevent content from affecting container size */
+    overflow: visible; /* Allow animated elements to overflow during animation */
     contain: layout; /* Improve performance by isolating the container's layout */
 }
 
@@ -885,12 +885,13 @@ html, body {
     min-height: 90px; /* Ensure consistent height */
     box-sizing: border-box; /* Include padding in the height calculation */
     contain: content; /* Improve performance */
+    z-index: 1; /* Base z-index for normal elements */
 }
 
 /* New attempt animation */
 .attempt-item.new-attempt {
     animation: slideInFromTop 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
-    z-index: 10;
+    z-index: 10; /* Higher z-index to appear above others */
     box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
     border-left: 4px solid #3b82f6;
 }
@@ -899,6 +900,7 @@ html, body {
 .attempt-item.move-down {
     transform: translateY(150px);
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    z-index: 2; /* Above regular elements but below new ones */
 }
 
 /* Move back animation - applied programmatically */
