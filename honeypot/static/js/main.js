@@ -1556,12 +1556,25 @@ const uiManager = (function() {
         const filteredAttempts = dataModel.filterAttempts(attempts);
         const totalItems = filteredAttempts.length;
         
+        // Calculate an appropriate height if the container is empty or hasn't been sized yet
+        let heightToSet = attemptsDiv.offsetHeight;
+        if (heightToSet < 100) { // If it's too small, use a default value
+            heightToSet = 950; // Default height for full container
+        }
+        
+        // Set a fixed height to prevent layout shifts
+        attemptsDiv.style.height = `${heightToSet}px`;
+        
         // Update pagination controls
         paginationUtils.updateControls(totalItems);
         
         // If not on the first page, do a regular update instead
         if (paginationUtils.currentPage !== 1) {
             updateUI();
+            // Don't restore height immediately - let the auto-height happen naturally
+            setTimeout(() => {
+                attemptsDiv.style.height = '';
+            }, 100);
             return;
         }
         
@@ -1640,6 +1653,12 @@ const uiManager = (function() {
                             }
                         }
                     }
+                    
+                    // Restore automatic height once animation is complete
+                    setTimeout(() => {
+                        attemptsDiv.style.height = '';
+                    }, 200);
+                    
                 }, 1300); // Increased to account for both the transition and the added delay
             }, 10); // Very small delay to ensure the initial state is properly rendered
         } else {
@@ -1651,6 +1670,9 @@ const uiManager = (function() {
                 if (newElement.parentNode === attemptsDiv) {
                     newElement.classList.remove('new-attempt');
                 }
+                
+                // Restore automatic height
+                attemptsDiv.style.height = '';
             }, 800);
         }
         

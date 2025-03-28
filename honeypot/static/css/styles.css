@@ -868,6 +868,9 @@ html, body {
 /* Attempts container layout */
 #attempts {
     position: relative;
+    min-height: 950px; /* Approximate height for 10 items */
+    overflow: hidden; /* Prevent content from affecting container size */
+    contain: layout; /* Improve performance by isolating the container's layout */
 }
 
 /* Base attempt item styles */
@@ -878,6 +881,10 @@ html, body {
                 opacity 0.8s ease;
     transform: translateY(0);
     will-change: transform, opacity;
+    height: auto;
+    min-height: 90px; /* Ensure consistent height */
+    box-sizing: border-box; /* Include padding in the height calculation */
+    contain: content; /* Improve performance */
 }
 
 /* New attempt animation */
