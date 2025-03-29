@@ -480,7 +480,7 @@ const AttackAnimator = {
         // Add fade-in transition to the server marker
         if (serverMarker) {
             const serverElement = serverMarker._path || 
-                                (serverMarker._renderer && serverMarker._renderer._rootGroup) || 
+                                (serverMarker._renderer && serverMarker._renderer._rootGroup) ||
                                 serverMarker._container;
                                 
             if (serverElement && serverElement.style) {
@@ -1846,47 +1846,23 @@ const uiManager = (function() {
         // Set flag to prevent animation timeouts in single attack view
         window.permanentAnimation = true;
         
-        // Disable search, filters, and pagination controls
-        const disableControls = () => {
-            const elementsToDisable = [
-                document.getElementById('searchInput'),
-                document.getElementById('filterSelect'),
-                document.getElementById('protocolSelect'),
-                document.getElementById('prevPage'),
-                document.getElementById('nextPage')
-            ];
-            
-            elementsToDisable.forEach(element => {
-                if (element) element.disabled = true;
-            });
-        };
-        disableControls();
-        
         // Show the sticky footer for single attack view
         showSingleAttackFooter(attack);
         
-        // Hide the entire grid container of charts with a smooth animation
-        const chartsGrid = document.querySelector('.grid.grid-cols-1.md\\:grid-cols-2.gap-6.mb-8');
-        chartsGrid.style.transition = 'opacity 0.4s ease, max-height 0.4s ease, margin-bottom 0.4s ease';
-        chartsGrid.style.opacity = '0';
-        chartsGrid.style.maxHeight = '0px';
-        chartsGrid.style.marginBottom = '0';
-        chartsGrid.style.overflow = 'hidden';
+        // Disable search, filters, and pagination controls immediately
+        const elementsToDisable = [
+            document.getElementById('searchInput'),
+            document.getElementById('filterSelect'),
+            document.getElementById('protocolSelect'),
+            document.getElementById('prevPage'),
+            document.getElementById('nextPage')
+        ];
         
-        // Scroll the viewport to the map area with a smooth animation after a short delay
-        // This ensures other UI updates have started before scrolling
-        setTimeout(() => {
-            const mapContainer = document.querySelector('.bg-white.dark\\:bg-gray-800.rounded-lg.shadow.p-6.mb-8.overflow-hidden');
-            if (mapContainer) {
-                // Scroll to the map container with a smooth animation
-                mapContainer.scrollIntoView({ 
-                    behavior: 'smooth', 
-                    block: 'start'
-                });
-            }
-        }, 100); // Small delay to ensure UI updates have started
+        elementsToDisable.forEach(element => {
+            if (element) element.disabled = true;
+        });
         
-        // Update UI to show only this attack - this is now handled by updating the class on specific elements
+        // Update selection in the attack list first, but don't scroll to it
         const attemptsDiv = document.getElementById("attempts");
         
         // First, remove selection from all items
@@ -1899,29 +1875,28 @@ const uiManager = (function() {
             existingBadges.forEach(badge => badge.remove());
         });
         
-        // Find the specific item with the matching ID if it exists
+        // Find the specific item with the matching ID if it exists and mark it selected
         const matchingItem = document.querySelector(`.attempt-item[data-id="${attack.id}"]`);
-        
         if (matchingItem) {
             // Add selection styling
             matchingItem.classList.add('selected-attack', 'bg-blue-100');
             matchingItem.classList.remove('bg-gray-50', 'hover:bg-gray-100');
-            
-            // Make sure the selected item is visible by scrolling to it if needed
-            setTimeout(() => {
-                const itemRect = matchingItem.getBoundingClientRect();
-                const containerRect = attemptsDiv.getBoundingClientRect();
-                
-                if (itemRect.top < containerRect.top || itemRect.bottom > containerRect.bottom) {
-                    matchingItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }
-            }, 100);
         } else {
             // If the item isn't in the current view, refresh the UI which will handle selection
             uiManager.updateUI();
         }
         
-        // Completely remove the existing heat layer before updating for a single attack
+        // Hide the entire grid container of charts with a smooth animation
+        const chartsGrid = document.querySelector('.grid.grid-cols-1.md\\:grid-cols-2.gap-6.mb-8');
+        if (chartsGrid) {
+            chartsGrid.style.transition = 'opacity 0.4s ease, max-height 0.4s ease, margin-bottom 0.4s ease';
+            chartsGrid.style.opacity = '0';
+            chartsGrid.style.maxHeight = '0px';
+            chartsGrid.style.marginBottom = '0';
+            chartsGrid.style.overflow = 'hidden';
+        }
+        
+        // Remove existing heat layer before continuing
         if (window.heatLayer) {
             console.log("Removing heat layer in showSingleAttack");
             try {
@@ -1938,87 +1913,98 @@ const uiManager = (function() {
             }
         }
         
-        // Update visualizations with just this one attack
-        updateVisualizations([attack]);
-        
-        // Create a new heat layer with just this attack after a small delay
+        // PRIORITY: Scroll to the map with a brief delay to ensure DOM operations above finish
         setTimeout(() => {
-            // Create a very simple heat layer for just one point
-            const heatConfig = {
-                radius: window.innerWidth <= 768 ? 25 : 30, // Slightly larger for single attack
-                blur: window.innerWidth <= 768 ? 30 : 35,   // Slightly more blur for single attack
-                maxZoom: 18,
-                max: 0.5,  // Lower max value for better visibility of a single point
-                minOpacity: 0.6, // Higher minimum opacity for better visibility
-                gradient: {
-                    0.0: 'blue',
-                    0.3: 'cyan',
-                    0.5: 'lime',
-                    0.7: 'yellow',
-                    1.0: 'red'
-                },
-                id: 'heatLayer_single_' + Date.now() + '_' + Math.floor(Math.random() * 1000)
-            };
-            
-            const lat = parseFloat(attack.latitude);
-            const lng = parseFloat(attack.longitude);
-            
-            if (!isNaN(lat) && !isNaN(lng)) {
-                console.log(`Creating single-point heat layer for attack at [${lat}, ${lng}]`);
-                window.heatLayer = L.heatLayer([[lat, lng, 1]], heatConfig);
+            const mapContainer = document.querySelector('.bg-white.dark\\:bg-gray-800.rounded-lg.shadow.p-6.mb-8.overflow-hidden');
+            if (mapContainer) {
+                // Use scrollIntoView with a properly specified block position that won't cause frequent adjustments
+                mapContainer.scrollIntoView({ 
+                    behavior: 'smooth',
+                    block: 'start'
+                });
                 
-                if (window.heatmapEnabled && window.map && window.map._loaded) {
-                    window.map.addLayer(window.heatLayer);
-                }
+                // After scrolling to map is initiated, update the visualizations
+                updateVisualizations([attack]);
+                
+                // Handle all map-related operations after the scroll
+                setTimeout(() => {
+                    // Create heat layer and center map
+                    if (attack.latitude && attack.longitude && window.map) {
+                        // Create heat layer
+                        const heatConfig = {
+                            radius: window.innerWidth <= 768 ? 25 : 30,
+                            blur: window.innerWidth <= 768 ? 30 : 35,
+                            maxZoom: 18,
+                            max: 0.5,
+                            minOpacity: 0.6,
+                            gradient: {
+                                0.0: 'blue',
+                                0.3: 'cyan',
+                                0.5: 'lime',
+                                0.7: 'yellow',
+                                1.0: 'red'
+                            },
+                            id: 'heatLayer_single_' + Date.now() + '_' + Math.floor(Math.random() * 1000)
+                        };
+                        
+                        const lat = parseFloat(attack.latitude);
+                        const lng = parseFloat(attack.longitude);
+                        
+                        if (!isNaN(lat) && !isNaN(lng)) {
+                            console.log(`Creating single-point heat layer for attack at [${lat}, ${lng}]`);
+                            window.heatLayer = L.heatLayer([[lat, lng, 1]], heatConfig);
+                            
+                            if (window.heatmapEnabled && window.map && window.map._loaded) {
+                                window.map.addLayer(window.heatLayer);
+                            }
+                            
+                            // Center map after heat layer is added
+                            window.map.setView([lat, lng], 5);
+                            
+                            // Create popup at attack location
+                            L.popup()
+                                .setLatLng([lat, lng])
+                                .setContent(`<strong>${attack.protocol.toUpperCase()} Attack</strong><br>
+                                            IP: ${attack.client_ip}<br>
+                                            ${attack.port ? `Port: ${attack.port}<br>` : ''}
+                                            User: ${attack.username || '[None]'}<br>
+                                            ${attack.protocol === 'rdp' ? '' : `Password: ${attack.password || '[None]'}<br>`}
+                                            Time: ${formatUtils.formatDateToLocalTime(attack.timestamp)}${
+                                                attack.city || attack.region || attack.country ? 
+                                                `<br>Location: ${[attack.city, attack.region, attack.country].filter(Boolean).join(', ')}` : 
+                                                ''
+                                            }${attack.os ? `<br>OS: ${attack.os}` : ''}${attack.client ? `<br>Client: ${attack.client}` : ''}`)
+                                .openOn(window.map);
+                            
+                            // Create attack animation after a delay to ensure map view is stable
+                            setTimeout(() => {
+                                // Clear any existing animations first
+                                if (window.attackAnimations && window.attackAnimations.length > 0) {
+                                    window.attackAnimations.forEach(animation => {
+                                        if (animation.path && window.map.hasLayer(animation.path)) window.map.removeLayer(animation.path);
+                                        if (animation.attackerMarker && window.map.hasLayer(animation.attackerMarker)) window.map.removeLayer(animation.attackerMarker);
+                                        if (animation.serverMarker && window.map.hasLayer(animation.serverMarker)) window.map.removeLayer(animation.serverMarker);
+                                    });
+                                    window.attackAnimations = [];
+                                }
+                                
+                                // Ensure we have server coordinates
+                                if (!window.serverCoordinates || !Array.isArray(window.serverCoordinates) || window.serverCoordinates.length !== 2) {
+                                    // Default to San Francisco if server coordinates aren't available
+                                    window.serverCoordinates = [37.7749, -122.4194];
+                                    console.log("Using default server coordinates for animation");
+                                }
+                                
+                                // Create the attack animation
+                                console.log("Creating direct attack animation for single view");
+                                const attackerCoords = [parseFloat(attack.latitude), parseFloat(attack.longitude)];
+                                AttackAnimator.createAttackPath(attackerCoords, window.serverCoordinates);
+                            }, 300);
+                        }
+                    }
+                }, 400);
             }
         }, 50);
-        
-        // Center the map on the attack location
-        if (attack.latitude && attack.longitude && window.map) {
-            window.map.setView([attack.latitude, attack.longitude], 5);
-            
-            // Create a popup at the attack location
-            L.popup()
-                .setLatLng([attack.latitude, attack.longitude])
-                .setContent(`<strong>${attack.protocol.toUpperCase()} Attack</strong><br>
-                            IP: ${attack.client_ip}<br>
-                            ${attack.port ? `Port: ${attack.port}<br>` : ''}
-                            User: ${attack.username || '[None]'}<br>
-                            ${attack.protocol === 'rdp' ? '' : `Password: ${attack.password || '[None]'}<br>`}
-                            Time: ${formatUtils.formatDateToLocalTime(attack.timestamp)}${
-                                attack.city || attack.region || attack.country ? 
-                                `<br>Location: ${[attack.city, attack.region, attack.country].filter(Boolean).join(', ')}` : 
-                                ''
-                            }${attack.os ? `<br>OS: ${attack.os}` : ''}${attack.client ? `<br>Client: ${attack.client}` : ''}`)
-                .openOn(window.map);
-                
-            // Explicitly create an attack animation
-            // First clear any existing animations
-            if (window.attackAnimations && window.attackAnimations.length > 0) {
-                window.attackAnimations.forEach(animation => {
-                    if (animation.path && window.map.hasLayer(animation.path)) window.map.removeLayer(animation.path);
-                    if (animation.attackerMarker && window.map.hasLayer(animation.attackerMarker)) window.map.removeLayer(animation.attackerMarker);
-                    if (animation.serverMarker && window.map.hasLayer(animation.serverMarker)) window.map.removeLayer(animation.serverMarker);
-                });
-                window.attackAnimations = [];
-            }
-            
-            // Wait a moment for the map to settle, then create the animation
-            setTimeout(() => {
-                // Ensure we have server coordinates
-                if (!window.serverCoordinates || !Array.isArray(window.serverCoordinates) || window.serverCoordinates.length !== 2) {
-                    // Default to San Francisco if server coordinates aren't available
-                    window.serverCoordinates = [37.7749, -122.4194];
-                    console.log("Using default server coordinates for animation");
-                }
-                
-                // Create the attack animation
-                console.log("Creating direct attack animation for single view");
-                const attackerCoords = [parseFloat(attack.latitude), parseFloat(attack.longitude)];
-                AttackAnimator.createAttackPath(attackerCoords, window.serverCoordinates);
-                
-            }, 300); // Short delay to ensure map is ready
-        }
         
         // Add padding to body to accommodate the footer
         document.body.classList.add('has-view-footer');
