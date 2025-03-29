@@ -913,6 +913,18 @@ function updateMap(attempt) {
     try {
         console.log("Updating heatmap...");
         
+        // Skip heatmap updates when in single attack view
+        if (window.singleAttackMode) {
+            console.log("In single attack view - skipping heatmap update");
+            
+            // Still process animation if this is the current single attack
+            if (attempt && window.currentSingleAttack && 
+                attempt.id === window.currentSingleAttack.id) {
+                processNewAttackAnimation(attempt);
+            }
+            return;
+        }
+        
         // Make sure map is properly initialized
         const mapInitialized = dataModel.ensureMapInitialized();
         
@@ -1286,7 +1298,18 @@ function processNewAttackAnimation(attempt) {
 // Helper function to create a new heat layer with fade-in effect
 function createNewHeatLayer(attempt) {
     try {
-        console.log(`Creating new heat layer at ${new Date().toISOString()}`);
+        // Skip creating a new heat layer if in single attack view and this is not coming from showSingleAttack
+        if (window.singleAttackMode && attempt) {
+            console.log("In single attack view - skipping heat layer creation for new attempt");
+            
+            // Still process the animation if this is the current single attack
+            if (window.currentSingleAttack && attempt.id === window.currentSingleAttack.id) {
+                processNewAttackAnimation(attempt);
+            }
+            return null;
+        }
+
+        console.log("Creating new heat layer...");
         
         if (!window.map || !window.map._loaded) {
             console.warn("Map not fully initialized, deferring heat layer creation");
@@ -1885,18 +1908,32 @@ const uiManager = (function() {
             // If the item isn't in the current view, refresh the UI which will handle selection
             uiManager.updateUI();
         }
+
+        // Add padding to body to accommodate the footer
+        document.body.classList.add('has-view-footer');
         
-        // Hide the entire grid container of charts with a smooth animation
+        // Use a cleaner sequence to avoid multiple DOM recalculations
+        // Step 1: Hide charts first - complete this animation
         const chartsGrid = document.querySelector('.grid.grid-cols-1.md\\:grid-cols-2.gap-6.mb-8');
         if (chartsGrid) {
-            chartsGrid.style.transition = 'opacity 0.4s ease, max-height 0.4s ease, margin-bottom 0.4s ease';
+            // First hide it immediately to prevent layout shifts
+            chartsGrid.style.display = 'none';
+            
+            // Then setup for transition
+            chartsGrid.style.transition = 'none';
             chartsGrid.style.opacity = '0';
             chartsGrid.style.maxHeight = '0px';
             chartsGrid.style.marginBottom = '0';
             chartsGrid.style.overflow = 'hidden';
+            
+            // Force a reflow
+            void chartsGrid.offsetHeight;
+            
+            // Then make it visible again but still hidden
+            chartsGrid.style.display = '';
         }
         
-        // Remove existing heat layer before continuing
+        // Step 2: Remove existing heat layer
         if (window.heatLayer) {
             console.log("Removing heat layer in showSingleAttack");
             try {
@@ -1913,101 +1950,126 @@ const uiManager = (function() {
             }
         }
         
-        // PRIORITY: Scroll to the map with a brief delay to ensure DOM operations above finish
-        setTimeout(() => {
-            const mapContainer = document.querySelector('.bg-white.dark\\:bg-gray-800.rounded-lg.shadow.p-6.mb-8.overflow-hidden');
-            if (mapContainer) {
-                // Use scrollIntoView with a properly specified block position that won't cause frequent adjustments
-                mapContainer.scrollIntoView({ 
-                    behavior: 'smooth',
-                    block: 'start'
-                });
-                
-                // After scrolling to map is initiated, update the visualizations
-                updateVisualizations([attack]);
-                
-                // Handle all map-related operations after the scroll
-                setTimeout(() => {
-                    // Create heat layer and center map
-                    if (attack.latitude && attack.longitude && window.map) {
-                        // Create heat layer
-                        const heatConfig = {
-                            radius: window.innerWidth <= 768 ? 25 : 30,
-                            blur: window.innerWidth <= 768 ? 30 : 35,
-                            maxZoom: 18,
-                            max: 0.5,
-                            minOpacity: 0.6,
-                            gradient: {
-                                0.0: 'blue',
-                                0.3: 'cyan',
-                                0.5: 'lime',
-                                0.7: 'yellow',
-                                1.0: 'red'
-                            },
-                            id: 'heatLayer_single_' + Date.now() + '_' + Math.floor(Math.random() * 1000)
-                        };
-                        
-                        const lat = parseFloat(attack.latitude);
-                        const lng = parseFloat(attack.longitude);
-                        
-                        if (!isNaN(lat) && !isNaN(lng)) {
-                            console.log(`Creating single-point heat layer for attack at [${lat}, ${lng}]`);
-                            window.heatLayer = L.heatLayer([[lat, lng, 1]], heatConfig);
-                            
-                            if (window.heatmapEnabled && window.map && window.map._loaded) {
-                                window.map.addLayer(window.heatLayer);
-                            }
-                            
-                            // Center map after heat layer is added
-                            window.map.setView([lat, lng], 5);
-                            
-                            // Create popup at attack location
-                            L.popup()
-                                .setLatLng([lat, lng])
-                                .setContent(`<strong>${attack.protocol.toUpperCase()} Attack</strong><br>
-                                            IP: ${attack.client_ip}<br>
-                                            ${attack.port ? `Port: ${attack.port}<br>` : ''}
-                                            User: ${attack.username || '[None]'}<br>
-                                            ${attack.protocol === 'rdp' ? '' : `Password: ${attack.password || '[None]'}<br>`}
-                                            Time: ${formatUtils.formatDateToLocalTime(attack.timestamp)}${
-                                                attack.city || attack.region || attack.country ? 
-                                                `<br>Location: ${[attack.city, attack.region, attack.country].filter(Boolean).join(', ')}` : 
-                                                ''
-                                            }${attack.os ? `<br>OS: ${attack.os}` : ''}${attack.client ? `<br>Client: ${attack.client}` : ''}`)
-                                .openOn(window.map);
-                            
-                            // Create attack animation after a delay to ensure map view is stable
-                            setTimeout(() => {
-                                // Clear any existing animations first
-                                if (window.attackAnimations && window.attackAnimations.length > 0) {
-                                    window.attackAnimations.forEach(animation => {
-                                        if (animation.path && window.map.hasLayer(animation.path)) window.map.removeLayer(animation.path);
-                                        if (animation.attackerMarker && window.map.hasLayer(animation.attackerMarker)) window.map.removeLayer(animation.attackerMarker);
-                                        if (animation.serverMarker && window.map.hasLayer(animation.serverMarker)) window.map.removeLayer(animation.serverMarker);
-                                    });
-                                    window.attackAnimations = [];
-                                }
-                                
-                                // Ensure we have server coordinates
-                                if (!window.serverCoordinates || !Array.isArray(window.serverCoordinates) || window.serverCoordinates.length !== 2) {
-                                    // Default to San Francisco if server coordinates aren't available
-                                    window.serverCoordinates = [37.7749, -122.4194];
-                                    console.log("Using default server coordinates for animation");
-                                }
-                                
-                                // Create the attack animation
-                                console.log("Creating direct attack animation for single view");
-                                const attackerCoords = [parseFloat(attack.latitude), parseFloat(attack.longitude)];
-                                AttackAnimator.createAttackPath(attackerCoords, window.serverCoordinates);
-                            }, 300);
-                        }
-                    }
-                }, 400);
-            }
-        }, 50);
+        // Step 3: Update visualizations with minimal data
+        updateVisualizations([attack]);
         
-        // Add padding to body to accommodate the footer
-        document.body.classList.add('has-view-footer');
+        // Step 4: Use direct scrolling without relying on scrollIntoView
+        // This is the key change to fix the scroll anchoring issue
+        const scrollToMap = () => {
+            const mapContainer = document.querySelector('.bg-white.dark\\:bg-gray-800.rounded-lg.shadow.p-6.mb-8.overflow-hidden');
+            if (!mapContainer) return;
+            
+            // Absolute positioning - doesn't depend on current scroll position
+            const mapPosition = mapContainer.getBoundingClientRect();
+            const absoluteScrollTarget = window.pageYOffset + mapPosition.top - 20;
+            
+            // Implement smooth scrolling manually to avoid scroll anchoring issues
+            const startPosition = window.pageYOffset;
+            const distance = absoluteScrollTarget - startPosition;
+            const duration = 500; // ms
+            let startTime = null;
+            
+            // Easing function for smooth animation
+            const easeInOutQuad = (t) => t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+            
+            // Animation function
+            const animateScroll = (currentTime) => {
+                if (startTime === null) startTime = currentTime;
+                const timeElapsed = currentTime - startTime;
+                const progress = Math.min(timeElapsed / duration, 1);
+                const easedProgress = easeInOutQuad(progress);
+                
+                window.scrollTo(0, startPosition + distance * easedProgress);
+                
+                if (timeElapsed < duration) {
+                    requestAnimationFrame(animateScroll);
+                } else {
+                    // Animation complete - setup heat layer and animations
+                    if (!attack.latitude || !attack.longitude || !window.map) return;
+                    
+                    // Create heat layer
+                    const heatConfig = {
+                        radius: window.innerWidth <= 768 ? 25 : 30,
+                        blur: window.innerWidth <= 768 ? 30 : 35,
+                        maxZoom: 18,
+                        max: 0.5,
+                        minOpacity: 0.6,
+                        gradient: {
+                            0.0: 'blue',
+                            0.3: 'cyan',
+                            0.5: 'lime',
+                            0.7: 'yellow',
+                            1.0: 'red'
+                        },
+                        id: 'heatLayer_single_' + Date.now() + '_' + Math.floor(Math.random() * 1000)
+                    };
+                    
+                    const lat = parseFloat(attack.latitude);
+                    const lng = parseFloat(attack.longitude);
+                    
+                    if (isNaN(lat) || isNaN(lng)) return;
+                    
+                    console.log(`Creating single-point heat layer for attack at [${lat}, ${lng}]`);
+                    window.heatLayer = L.heatLayer([[lat, lng, 1]], heatConfig);
+                    
+                    if (window.heatmapEnabled && window.map && window.map._loaded) {
+                        window.map.addLayer(window.heatLayer);
+                    }
+                    
+                    // Center map after heat layer is added
+                    window.map.setView([lat, lng], 5);
+                    
+                    // Create popup at attack location
+                    L.popup()
+                        .setLatLng([lat, lng])
+                        .setContent(`<strong>${attack.protocol.toUpperCase()} Attack</strong><br>
+                                    IP: ${attack.client_ip}<br>
+                                    ${attack.port ? `Port: ${attack.port}<br>` : ''}
+                                    User: ${attack.username || '[None]'}<br>
+                                    ${attack.protocol === 'rdp' ? '' : `Password: ${attack.password || '[None]'}<br>`}
+                                    Time: ${formatUtils.formatDateToLocalTime(attack.timestamp)}${
+                                        attack.city || attack.region || attack.country ? 
+                                        `<br>Location: ${[attack.city, attack.region, attack.country].filter(Boolean).join(', ')}` : 
+                                        ''
+                                    }${attack.os ? `<br>OS: ${attack.os}` : ''}${attack.client ? `<br>Client: ${attack.client}` : ''}`)
+                        .openOn(window.map);
+                    
+                    // Create attack animation with a delay
+                    setTimeout(() => {
+                        // Clear any existing animations first
+                        if (window.attackAnimations && window.attackAnimations.length > 0) {
+                            window.attackAnimations.forEach(animation => {
+                                if (animation.path && window.map.hasLayer(animation.path)) window.map.removeLayer(animation.path);
+                                if (animation.attackerMarker && window.map.hasLayer(animation.attackerMarker)) window.map.removeLayer(animation.attackerMarker);
+                                if (animation.serverMarker && window.map.hasLayer(animation.serverMarker)) window.map.removeLayer(animation.serverMarker);
+                            });
+                            window.attackAnimations = [];
+                        }
+                        
+                        // Ensure we have server coordinates
+                        if (!window.serverCoordinates || !Array.isArray(window.serverCoordinates) || window.serverCoordinates.length !== 2) {
+                            // Default to San Francisco if server coordinates aren't available
+                            window.serverCoordinates = [37.7749, -122.4194];
+                            console.log("Using default server coordinates for animation");
+                        }
+                        
+                        // Create the attack animation
+                        console.log("Creating direct attack animation for single view");
+                        const attackerCoords = [parseFloat(attack.latitude), parseFloat(attack.longitude)];
+                        AttackAnimator.createAttackPath(attackerCoords, window.serverCoordinates);
+                    }, 300);
+                }
+            };
+            
+            // Start the animation
+            requestAnimationFrame(animateScroll);
+        };
+        
+        // Use requestAnimationFrame to ensure we're not fighting with browser rendering
+        requestAnimationFrame(() => {
+            // Then use a timeout to ensure DOM updates are processed
+            setTimeout(scrollToMap, 250);
+        });
     }
     
     // Show the single attack view footer with attack details
@@ -2070,41 +2132,50 @@ const uiManager = (function() {
         // Remove body padding
         document.body.classList.remove('has-view-footer');
         
-        // Show the entire grid container of charts with a smooth animation
+        // Process DOM updates in sequence to avoid multiple layout recalculations
+        
+        // Step 1: Show the charts with proper timing
         const chartsGrid = document.querySelector('.grid.grid-cols-1.md\\:grid-cols-2.gap-6.mb-8');
-        chartsGrid.style.transition = 'opacity 0.4s ease, max-height 0.4s ease, margin-bottom 0.4s ease';
-        chartsGrid.style.opacity = '1';
-        chartsGrid.style.maxHeight = '2000px'; // A value large enough to fit all content
-        chartsGrid.style.marginBottom = '2rem'; // 8 in Tailwind equals 2rem
-        chartsGrid.style.overflow = 'visible';
+        if (chartsGrid) {
+            // First set properties without transition
+            chartsGrid.style.transition = 'none';
+            chartsGrid.style.opacity = '0';
+            chartsGrid.style.maxHeight = '2000px';
+            chartsGrid.style.marginBottom = '2rem';
+            chartsGrid.style.overflow = 'hidden';
+            
+            // Force reflow
+            void chartsGrid.offsetHeight;
+            
+            // Then add transition and animate in
+            chartsGrid.style.transition = 'opacity 0.4s ease';
+            chartsGrid.style.opacity = '1';
+            
+            // After transition, make overflow visible
+            setTimeout(() => {
+                chartsGrid.style.overflow = 'visible';
+            }, 400);
+        }
         
-        // Scroll the viewport to the map area with a smooth animation after a short delay
-        // This ensures other UI updates have started before scrolling
-        setTimeout(() => {
-            const mapContainer = document.querySelector('.bg-white.dark\\:bg-gray-800.rounded-lg.shadow.p-6.mb-8.overflow-hidden');
-            if (mapContainer) {
-                // Scroll to the map container with a smooth animation
-                mapContainer.scrollIntoView({ 
-                    behavior: 'smooth', 
-                    block: 'start'
-                });
-            }
-        }, 100); // Small delay to ensure UI updates have started
-        
-        // Reset attack highlights in the list
+        // Step 2: Reset the attack list before removing heat layer
+        // Prevents multiple reflow issues
         document.querySelectorAll('.attempt-item').forEach(item => {
             item.classList.remove('selected-attack', 'bg-blue-100');
             item.classList.add('bg-gray-50', 'hover:bg-gray-100');
         });
         
-        // Get all attempts and apply current filters
+        // Step 3: Get data ready for visualization updates
         const allAttempts = websocketManager.getAttempts();
         const filteredAttempts = dataModel.filterAttempts(allAttempts);
         
-        // Reset all visualizations with all data
+        // Step 4: Update UI excluding heat map
+        updateUI();
+        
+        // Step 5: Reset visualizations with all data
         updateVisualizations(filteredAttempts);
         
-        // Completely remove the heat layer first
+        // Step 6: Handle map operations
+        // Remove heat layer
         if (window.heatLayer) {
             console.log("Removing heat layer in resetView");
             try {
@@ -2120,12 +2191,6 @@ const uiManager = (function() {
                 window.heatLayer = null;
             }
         }
-        
-        // Create a new heat layer after a short delay to ensure complete cleanup
-        setTimeout(() => createNewHeatLayer(null), 50);
-        
-        // Reset the attack list
-        updateUI();
         
         // Clear any existing animations
         if (window.attackAnimations && window.attackAnimations.length > 0) {
@@ -2146,18 +2211,60 @@ const uiManager = (function() {
         // Close any open popups
         if (window.map) {
             window.map.closePopup();
-            
-            // Reset to a standard view centered on European/African continent for better map balance
-            // Zoom level 3 shows good detail while maintaining global context
-            console.log("Resetting map to standard world view");
-            setTimeout(() => {
-                window.map.setView([30, 10], 3, { 
-                    animate: true,
-                    duration: 1.0 // 1 second animation
-                });
-                console.log("Map view reset complete");
-            }, 300);
         }
+        
+        // Use requestAnimationFrame to avoid fighting with browser rendering
+        requestAnimationFrame(() => {
+            // Scroll to map
+            const scrollToMap = () => {
+                const mapContainer = document.querySelector('.bg-white.dark\\:bg-gray-800.rounded-lg.shadow.p-6.mb-8.overflow-hidden');
+                if (!mapContainer) return;
+                
+                // Use absolute positioning
+                const mapPosition = mapContainer.getBoundingClientRect();
+                const absoluteScrollTarget = window.pageYOffset + mapPosition.top - 20;
+                
+                // Implement smooth scrolling manually to avoid scroll anchoring issues
+                const startPosition = window.pageYOffset;
+                const distance = absoluteScrollTarget - startPosition;
+                const duration = 500; // ms
+                let startTime = null;
+                
+                // Easing function for smooth animation
+                const easeInOutQuad = (t) => t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+                
+                // Animation function
+                const animateScroll = (currentTime) => {
+                    if (startTime === null) startTime = currentTime;
+                    const timeElapsed = currentTime - startTime;
+                    const progress = Math.min(timeElapsed / duration, 1);
+                    const easedProgress = easeInOutQuad(progress);
+                    
+                    window.scrollTo(0, startPosition + distance * easedProgress);
+                    
+                    if (timeElapsed < duration) {
+                        requestAnimationFrame(animateScroll);
+                    } else {
+                        // Animation complete - create new heat layer
+                        createNewHeatLayer(null);
+                        
+                        // Reset to a standard view centered on European/African continent
+                        if (window.map) {
+                            window.map.setView([30, 10], 3, { 
+                                animate: true,
+                                duration: 1.0
+                            });
+                        }
+                    }
+                };
+                
+                // Start the animation
+                requestAnimationFrame(animateScroll);
+            };
+            
+            // Give DOM time to update before scrolling
+            setTimeout(scrollToMap, 250);
+        });
     }
     
     function updateUI(skipMapUpdate) {
@@ -2284,21 +2391,22 @@ const websocketManager = (function() {
                 uiManager.updateUniqueAttackersCount();
             }
             
-            // Update map directly with the new attempt
-            try {
-                updateMap(newAttempt);
-            } catch (error) {
-                console.warn("Error updating map with new attempt:", error);
-            }
-            
-            // Only update the UI if we're not in single attack view
-            // This prevents clearing the login attempts list when in single attack view
+            // Only update map if not in single attack view
             if (!window.singleAttackMode) {
+                try {
+                    updateMap(newAttempt);
+                } catch (error) {
+                    console.warn("Error updating map with new attempt:", error);
+                }
+                
                 // Reset to page 1 when new attempt comes in
                 paginationUtils.currentPage = 1;
                 
                 // Skip map update in updateUI since we already did it directly
                 uiManager.updateUI(true);
+            } else if (window.currentSingleAttack && newAttempt.id === window.currentSingleAttack.id) {
+                // Only process animation if this is the current single attack
+                processNewAttackAnimation(newAttempt);
             }
             
             const indicator = domUtils.getElement('connectionStatusIndicator');
