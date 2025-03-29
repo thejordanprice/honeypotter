@@ -51,7 +51,7 @@ let heatLayer;
 let heatmapEnabled = true; // Track if heatmap is enabled
 let animationsEnabled = true; // Track if attack animations are enabled
 // Define animation modes: 0=off, 1=fade after 5s, 2=fade after 15s, 3=fade after 30s
-window.animationMode = 1; // Default to 5s timeout
+window.animationMode = 2; // Default to 15s timeout
 
 // Make map variables accessible globally
 window.map = map;
