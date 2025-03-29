@@ -1873,9 +1873,18 @@ const uiManager = (function() {
         chartsGrid.style.marginBottom = '0';
         chartsGrid.style.overflow = 'hidden';
         
-        // Flag to track if we need to scroll to the selected item
-        let needToScrollToItem = false;
-        let matchingItem = null;
+        // Scroll the viewport to the map area with a smooth animation after a short delay
+        // This ensures other UI updates have started before scrolling
+        setTimeout(() => {
+            const mapContainer = document.querySelector('.bg-white.dark\\:bg-gray-800.rounded-lg.shadow.p-6.mb-8.overflow-hidden');
+            if (mapContainer) {
+                // Scroll to the map container with a smooth animation
+                mapContainer.scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'start'
+                });
+            }
+        }, 100); // Small delay to ensure UI updates have started
         
         // Update UI to show only this attack - this is now handled by updating the class on specific elements
         const attemptsDiv = document.getElementById("attempts");
@@ -1891,20 +1900,22 @@ const uiManager = (function() {
         });
         
         // Find the specific item with the matching ID if it exists
-        matchingItem = document.querySelector(`.attempt-item[data-id="${attack.id}"]`);
+        const matchingItem = document.querySelector(`.attempt-item[data-id="${attack.id}"]`);
         
         if (matchingItem) {
             // Add selection styling
             matchingItem.classList.add('selected-attack', 'bg-blue-100');
             matchingItem.classList.remove('bg-gray-50', 'hover:bg-gray-100');
             
-            // Check if we need to scroll to the item
-            const itemRect = matchingItem.getBoundingClientRect();
-            const containerRect = attemptsDiv.getBoundingClientRect();
-            
-            if (itemRect.top < containerRect.top || itemRect.bottom > containerRect.bottom) {
-                needToScrollToItem = true;
-            }
+            // Make sure the selected item is visible by scrolling to it if needed
+            setTimeout(() => {
+                const itemRect = matchingItem.getBoundingClientRect();
+                const containerRect = attemptsDiv.getBoundingClientRect();
+                
+                if (itemRect.top < containerRect.top || itemRect.bottom > containerRect.bottom) {
+                    matchingItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }, 100);
         } else {
             // If the item isn't in the current view, refresh the UI which will handle selection
             uiManager.updateUI();
@@ -2011,26 +2022,6 @@ const uiManager = (function() {
         
         // Add padding to body to accommodate the footer
         document.body.classList.add('has-view-footer');
-        
-        // Handle scrolling - use a sequence of timeouts to avoid multiple scrolls at the same time
-        // First scroll to the map container after a short delay
-        setTimeout(() => {
-            const mapContainer = document.querySelector('.bg-white.dark\\:bg-gray-800.rounded-lg.shadow.p-6.mb-8.overflow-hidden');
-            if (mapContainer) {
-                // Scroll to the map container with a smooth animation
-                mapContainer.scrollIntoView({ 
-                    behavior: 'smooth', 
-                    block: 'start'
-                });
-                
-                // Only scroll to the item if needed, and do it after the map scroll completes
-                if (needToScrollToItem && matchingItem) {
-                    setTimeout(() => {
-                        matchingItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    }, 750); // Wait longer to ensure the map scroll is complete
-                }
-            }
-        }, 150);
     }
     
     // Show the single attack view footer with attack details
@@ -2097,8 +2088,90 @@ const uiManager = (function() {
         const chartsGrid = document.querySelector('.grid.grid-cols-1.md\\:grid-cols-2.gap-6.mb-8');
         chartsGrid.style.transition = 'opacity 0.4s ease, max-height 0.4s ease, margin-bottom 0.4s ease';
         chartsGrid.style.opacity = '1';
-        chartsGrid.style.maxHeight = '100%';
-        chartsGrid.style.marginBottom = '20px';
+        chartsGrid.style.maxHeight = '2000px'; // A value large enough to fit all content
+        chartsGrid.style.marginBottom = '2rem'; // 8 in Tailwind equals 2rem
+        chartsGrid.style.overflow = 'visible';
+        
+        // Scroll the viewport to the map area with a smooth animation after a short delay
+        // This ensures other UI updates have started before scrolling
+        setTimeout(() => {
+            const mapContainer = document.querySelector('.bg-white.dark\\:bg-gray-800.rounded-lg.shadow.p-6.mb-8.overflow-hidden');
+            if (mapContainer) {
+                // Scroll to the map container with a smooth animation
+                mapContainer.scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'start'
+                });
+            }
+        }, 100); // Small delay to ensure UI updates have started
+        
+        // Reset attack highlights in the list
+        document.querySelectorAll('.attempt-item').forEach(item => {
+            item.classList.remove('selected-attack', 'bg-blue-100');
+            item.classList.add('bg-gray-50', 'hover:bg-gray-100');
+        });
+        
+        // Get all attempts and apply current filters
+        const allAttempts = websocketManager.getAttempts();
+        const filteredAttempts = dataModel.filterAttempts(allAttempts);
+        
+        // Reset all visualizations with all data
+        updateVisualizations(filteredAttempts);
+        
+        // Completely remove the heat layer first
+        if (window.heatLayer) {
+            console.log("Removing heat layer in resetView");
+            try {
+                if (window.map && window.heatLayer._map) {
+                    window.map.removeLayer(window.heatLayer);
+                }
+                if (window.heatLayer._canvas) {
+                    window.heatLayer._canvas.remove();
+                }
+            } catch (e) {
+                console.warn("Error while removing heat layer in resetView:", e);
+            } finally {
+                window.heatLayer = null;
+            }
+        }
+        
+        // Create a new heat layer after a short delay to ensure complete cleanup
+        setTimeout(() => createNewHeatLayer(null), 50);
+        
+        // Reset the attack list
+        updateUI();
+        
+        // Clear any existing animations
+        if (window.attackAnimations && window.attackAnimations.length > 0) {
+            window.attackAnimations.forEach(animation => {
+                if (animation && animation.path && window.map.hasLayer(animation.path)) {
+                    window.map.removeLayer(animation.path);
+                }
+                if (animation && animation.attackerMarker && window.map.hasLayer(animation.attackerMarker)) {
+                    window.map.removeLayer(animation.attackerMarker);
+                }
+                if (animation && animation.serverMarker && window.map.hasLayer(animation.serverMarker)) {
+                    window.map.removeLayer(animation.serverMarker);
+                }
+            });
+            window.attackAnimations = [];
+        }
+        
+        // Close any open popups
+        if (window.map) {
+            window.map.closePopup();
+            
+            // Reset to a standard view centered on European/African continent for better map balance
+            // Zoom level 3 shows good detail while maintaining global context
+            console.log("Resetting map to standard world view");
+            setTimeout(() => {
+                window.map.setView([30, 10], 3, { 
+                    animate: true,
+                    duration: 1.0 // 1 second animation
+                });
+                console.log("Map view reset complete");
+            }, 300);
+        }
     }
     
     function updateUI(skipMapUpdate) {
