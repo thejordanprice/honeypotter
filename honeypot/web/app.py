@@ -1121,8 +1121,11 @@ async def send_data_in_batches(websocket: WebSocket, db: Session):
             batch_size = 100
         elif total_attempts <= 10000:
             batch_size = 500
-        else:
+        elif total_attempts <= 30000:
             batch_size = 1000
+        else:
+            # Use smaller batches for very large datasets (30k+ records)
+            batch_size = 500
         
         # Calculate number of batches
         total_batches = (total_attempts + batch_size - 1) // batch_size
@@ -1159,7 +1162,13 @@ async def send_data_in_batches(websocket: WebSocket, db: Session):
             
             # Add small delay between batches to avoid overwhelming client
             if i > 0:
-                await asyncio.sleep(0.05)
+                # Use longer delay for larger batch sizes
+                if total_attempts > 30000:
+                    await asyncio.sleep(0.2)  # 200ms delay for very large datasets
+                elif total_attempts > 10000:
+                    await asyncio.sleep(0.1)  # 100ms delay for large datasets
+                else:
+                    await asyncio.sleep(0.05)  # 50ms delay for smaller datasets
             
             # Send the batch with retry logic
             success = False
@@ -1262,8 +1271,11 @@ async def send_specific_batches(websocket: WebSocket, db: Session, batch_numbers
             batch_size = 100
         elif total_attempts <= 10000:
             batch_size = 500
-        else:
+        elif total_attempts <= 30000:
             batch_size = 1000
+        else:
+            # Use smaller batches for very large datasets (30k+ records)
+            batch_size = 500
         
         # Calculate number of batches
         total_batches = (total_attempts + batch_size - 1) // batch_size
@@ -1285,7 +1297,12 @@ async def send_specific_batches(websocket: WebSocket, db: Session, batch_numbers
                 }
                 
                 # Add small delay between batches
-                await asyncio.sleep(0.05)
+                if total_attempts > 30000:
+                    await asyncio.sleep(0.2)  # 200ms delay for very large datasets
+                elif total_attempts > 10000:
+                    await asyncio.sleep(0.1)  # 100ms delay for large datasets
+                else:
+                    await asyncio.sleep(0.05)  # 50ms delay for smaller datasets
                 
                 success = await connection_manager.send_text(websocket, json.dumps(batch_message))
                 if success:

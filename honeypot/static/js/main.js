@@ -2747,9 +2747,9 @@ const websocketManager = (function() {
                                 reconnect();
                             }
                         }
-                    }, 10000);
+                    }, 15000);
                 }
-            }, 5000);
+            }, 15000);
             
             // Explicitly request external IP data to make sure it's available
             if (socket.readyState === WebSocket.OPEN) {
