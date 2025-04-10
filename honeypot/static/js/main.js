@@ -2421,11 +2421,14 @@ const websocketManager = (function() {
         batch_start: function(data) {
             console.log('Starting batch data transfer', data);
             isReceivingBatches = true;
-            window.isReceivingBatches = true; // Update window variable
+            window.isReceivingBatches = true;
             totalBatches = data.total_batches;
             batchesReceived = 0;
             batchesPending = totalBatches;
             attempts = [];
+            
+            // Initialize batch tracking
+            window.batchTracking = new Array(totalBatches + 1).fill(false);
             
             // Update loading progress to indicate batch transfer is starting
             uiManager.updateLoadingPercentageWithDelay(35).then(() => {
@@ -2442,7 +2445,7 @@ const websocketManager = (function() {
                         `Data transfer stalled at ${batchesReceived}/${totalBatches} batches`);
                     requestMissingBatches();
                 }
-            }, 10000); // 10 second timeout
+            }, 15000); // Increased timeout to 15 seconds for parallel processing
         },
         
         // New message handlers for heartbeat mechanism
@@ -2486,7 +2489,7 @@ const websocketManager = (function() {
                 indicator.style.transform = 'scale(1.1)';
                 setTimeout(() => {
                     indicator.style.transform = 'scale(1)';
-                }, 150);
+                }, 1500);
             }
         },
         
@@ -2524,72 +2527,86 @@ const websocketManager = (function() {
         },
         
         batch_data: function(data) {
-            console.log(`Received batch ${data.batch_number}/${totalBatches}`);
-            
-            // Reset timeout on receiving batch data
-            clearTimeout(window.batchTimeout);
-            window.batchTimeout = setTimeout(() => {
-                if (isReceivingBatches && batchesPending > 0) {
-                    console.warn(`Batch transfer stalled at ${batchesReceived}/${totalBatches} batches`);
-                    uiManager.updateLoadingStatus('Transfer Stalled', 
-                        `Data transfer stalled at ${batchesReceived}/${totalBatches} batches`);
-                    requestMissingBatches();
-                }
-            }, 10000); // 10 second timeout
-            
-            // Validate batch data
-            if (!Array.isArray(data.attempts)) {
-                console.error('Received invalid batch data structure');
-                uiManager.updateLoadingStatus('Error', 'Error: Received invalid data structure from server');
+            if (!isReceivingBatches) {
+                console.warn('Received batch data when not expecting batches');
                 return;
             }
+
+            const batchNumber = data.batch_number;
+            const batchAttempts = data.attempts;
             
-            // Add the batch data to our attempts array
-            attempts.push(...data.attempts);
-            
-            batchesReceived++;
-            batchesPending--;
-            
-            // Calculate progress percentage (35-70% range)
-            const progressPercent = (batchesReceived / totalBatches) * 100;
-            const scaledProgress = 35 + (progressPercent * 0.35);
-            
-            // Update UI with progress but only update the loading bar, not status via updateLoadingPercentage
-            const percentageElement = domUtils.getElement('loadingPercentage');
-            const loadingBar = domUtils.getElement('loadingBar');
-            if (percentageElement) percentageElement.textContent = `${Math.round(scaledProgress)}%`;
-            if (loadingBar) loadingBar.style.width = `${Math.round(scaledProgress)}%`;
-            
-            // Directly update loading status text without triggering automatic status changes
-            uiManager.updateLoadingStatus('Loading Data...', 
-                `Receiving data: ${batchesReceived}/${totalBatches} batches (${Math.round(progressPercent)}%)`);
-            
-            // Send acknowledgment to server that we received this batch
-            sendMessage('batch_ack', { batch_number: data.batch_number });
+            // Track received batch
+            if (!window.batchTracking[batchNumber]) {
+                window.batchTracking[batchNumber] = true;
+                batchesReceived++;
+                batchesPending--;
+                
+                // Add attempts to our collection
+                attempts.push(...batchAttempts);
+                
+                // Update loading progress
+                const progress = Math.min(35 + Math.floor((batchesReceived / totalBatches) * 60), 95);
+                uiManager.updateLoadingPercentageWithDelay(progress);
+                uiManager.updateLoadingStatus('Loading Data...', 
+                    `Received batch ${batchNumber}/${totalBatches} (${batchesPending} remaining)`);
+                
+                // Clear the stall timeout since we're making progress
+                clearTimeout(window.batchTimeout);
+                
+                // Set a new timeout for the next batch
+                window.batchTimeout = setTimeout(() => {
+                    if (isReceivingBatches && batchesPending > 0) {
+                        console.warn(`Batch transfer stalled at ${batchesReceived}/${totalBatches} batches`);
+                        uiManager.updateLoadingStatus('Transfer Stalled', 
+                            `Data transfer stalled at ${batchesReceived}/${totalBatches} batches`);
+                        requestMissingBatches();
+                    }
+                }, 15000);
+            }
         },
         
         batch_complete: function(data) {
-            console.log('Batch transfer complete');
+            if (!isReceivingBatches) {
+                console.warn('Received batch complete when not expecting batches');
+                return;
+            }
+
+            console.log('Batch transfer complete', data);
             isReceivingBatches = false;
-            window.isReceivingBatches = false; // Update window variable
+            window.isReceivingBatches = false;
             
-            // Clear batch timeout
+            // Clear any pending timeouts
             clearTimeout(window.batchTimeout);
             
-            // Verify we received all batches
-            if (batchesReceived !== totalBatches) {
-                console.warn(`Batch transfer completed but only received ${batchesReceived}/${totalBatches} batches`);
-                // Request missing batches if any
-                uiManager.updateLoadingStatus('Transfer Stalled', 
-                    `Transfer incomplete, requesting missing data`);
-                requestMissingBatches();
-            } else {
-                console.log(`Successfully received all ${totalBatches} batches with ${attempts.length} total attempts`);
-                // Skip the transfer complete message and go straight to processing
-                uiManager.updateLoadingStatus('Processing...', 
-                    `Processing ${attempts.length} login attempts`);
-                finalizeBatchLoading();
+            // Update UI to show completion
+            uiManager.updateLoadingPercentageWithDelay(100);
+            uiManager.updateLoadingStatus('Complete', 'Data transfer complete');
+            
+            // Process the received data
+            if (attempts.length > 0) {
+                console.log(`Processing ${attempts.length} login attempts`);
+                // Initialize the counters with animation
+                uiManager.updateCounterWithAnimation('totalAttempts', attempts.length);
+                uiManager.updateUniqueAttackersCount();
+                
+                // Initialize UI with the data
+                uiManager.updateUI();
+                
+                // Only center map on most active region if we haven't set a custom position
+                if (!window.initialMapPositionSet) {
+                    console.log("Using data-driven map positioning - centering on attack hotspot");
+                    dataModel.centerMapOnMostActiveRegion(attempts);
+                } else {
+                    console.log("Using pre-set map position - keeping standard world view");
+                }
             }
+            
+            // Clear tracking data
+            window.batchTracking = null;
+            attempts = [];
+            
+            // Hide loading overlay after a short delay
+            setTimeout(() => uiManager.toggleLoadingOverlay(false), 800);
         },
         
         batch_error: function(data) {
@@ -3108,17 +3125,12 @@ const websocketManager = (function() {
         
         console.log(`Requesting ${batchesPending} missing batches`);
         isReceivingBatches = true;
-        window.isReceivingBatches = true; // Update window variable
+        window.isReceivingBatches = true;
         
         // Calculate which batches we're missing
-        const receivedBatchNumbers = new Set();
-        for (let i = 0; i < batchesReceived; i++) {
-            receivedBatchNumbers.add(i + 1);
-        }
-        
         const missingBatches = [];
         for (let i = 1; i <= totalBatches; i++) {
-            if (!receivedBatchNumbers.has(i)) {
+            if (!window.batchTracking[i]) {
                 missingBatches.push(i);
             }
         }
@@ -3128,58 +3140,13 @@ const websocketManager = (function() {
             ? missingBatches.join(', ') 
             : `${missingBatches.slice(0, 3).join(', ')}... (${missingBatches.length} total)`;
         
-        uiManager.updateLoadingStatus('Recovery Mode', `Requesting missing batches`);
+        uiManager.updateLoadingStatus('Recovery Mode', `Requesting missing batches: ${batchesStr}`);
         
         // Request missing batches
         const success = sendMessage('request_missing_batches', { batch_numbers: missingBatches });
-        
-        // Set a timeout to detect if we don't receive the missing batches
-        if (success) {
-            clearTimeout(window.batchTimeout);
-            window.batchTimeout = setTimeout(() => {
-                if (isReceivingBatches && batchesPending > 0) {
-                    console.warn('Did not receive missing batches in time, forcing reconnection');
-                    
-                    uiManager.updateLoadingStatus('Recovery Failed', 
-                        'Missing batches timeout, reconnecting');
-                    
-                    // Reset the receiving batches state
-                    isReceivingBatches = false;
-                    window.isReceivingBatches = false;
-                    
-                    // Force a reconnection instead of falling back to HTTP
-                    if (!window.isReconnecting) {
-                        if (socket) {
-                            socket.close();
-                        } else {
-                            reconnect();
-                        }
-                    } else {
-                        console.log('Batch recovery reconnection skipped - reconnection already in progress');
-                    }
-                }
-            }, 15000); // 15 second timeout for missing batches
-        } else {
-            // If we couldn't even send the request, force reconnection
-            console.warn('Failed to request missing batches, forcing reconnection');
-            
-            uiManager.updateLoadingStatus('Recovery Failed', 
-                'Unable to request missing data, reconnecting');
-            
-            // Reset the receiving batches state
-            isReceivingBatches = false;
-            window.isReceivingBatches = false;
-            
-            // Force a reconnection instead of falling back to HTTP
-            if (!window.isReconnecting) {
-                if (socket) {
-                    socket.close();
-                } else {
-                    reconnect();
-                }
-            } else {
-                console.log('Batch failure reconnection skipped - reconnection already in progress');
-            }
+        if (!success) {
+            console.error('Failed to send missing batches request');
+            uiManager.updateLoadingStatus('Error', 'Failed to request missing batches');
         }
     }
     
