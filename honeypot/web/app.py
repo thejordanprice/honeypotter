@@ -1023,180 +1023,127 @@ async def send_data_in_batches(websocket: WebSocket, db: Session):
     attempts_data = []
     
     try:
-        # Use a dedicated transaction for the database query
-        # and close it as soon as possible
         logger.info(f"Retrieving data for batch transmission to {client_info}")
-        
-        # Execute the query with a reasonable fetch size
-        # to avoid potential memory issues with large datasets
-        attempts = []
         
         # Use a transaction with explicit commit to ensure clean closure
         db.begin()
-        query = db.query(LoginAttempt).order_by(LoginAttempt.timestamp.desc())
+        
+        # Optimize the query by selecting only needed columns and using a more efficient ordering
+        query = db.query(
+            LoginAttempt.id,
+            LoginAttempt.timestamp,
+            LoginAttempt.username,
+            LoginAttempt.password,
+            LoginAttempt.client_ip,
+            LoginAttempt.protocol,
+            LoginAttempt.latitude,
+            LoginAttempt.longitude,
+            LoginAttempt.country,
+            LoginAttempt.city,
+            LoginAttempt.region
+        ).order_by(LoginAttempt.timestamp.desc())
         
         # Set a statement timeout to prevent long-running queries
-        # This requires a raw SQL execution first
         try:
             db.execute("SET statement_timeout = '30s'")
         except Exception as e:
             logger.debug(f"Failed to set query timeout (expected for non-PostgreSQL DBs): {str(e)}")
         
-        # Execute query with chunking for very large datasets
-        try:
-            # First get total count
-            total_count = query.count()
-            
-            if total_count == 0:
-                logger.info(f"No login attempts found in database for {client_info}")
-                # Send empty batch start message with 1 batch (empty batch)
-                start_message = {
-                    'type': 'batch_start',
-                    'data': {
-                        'total_attempts': 0,
-                        'total_batches': 1  # Changed from 0 to 1
-                    }
-                }
-                await connection_manager.send_text(websocket, json.dumps(start_message))
-                
-                # Send empty batch data message
-                batch_message = {
-                    'type': 'batch_data',
-                    'data': {
-                        'batch_number': 1,
-                        'total_batches': 1,  # Changed from 0 to 1
-                        'attempts': []
-                    }
-                }
-                await connection_manager.send_text(websocket, json.dumps(batch_message))
-                
-                # Send completion message
-                complete_message = {
-                    'type': 'batch_complete',
-                    'data': {
-                        'total_attempts': 0,
-                        'total_batches': 1  # Changed from 0 to 1
-                    }
-                }
-                await connection_manager.send_text(websocket, json.dumps(complete_message))
-                return
-            
-            # Use batched fetching for large datasets to reduce memory pressure
-            CHUNK_SIZE = 5000  # Process 5000 records at a time
-            
-            if total_count > CHUNK_SIZE:
-                logger.info(f"Large dataset detected ({total_count} records), using chunked fetching")
-                
-                # Process in chunks to avoid loading everything into memory at once
-                for offset in range(0, total_count, CHUNK_SIZE):
-                    chunk = query.limit(CHUNK_SIZE).offset(offset).all()
-                    attempts.extend(chunk)
-                    
-                    # Convert chunk to dictionaries
-                    for attempt in chunk:
-                        attempts_data.append(attempt.to_dict())
-                    
-                    # Clear SQLAlchemy's identity map to free memory
-                    db.expire_all()
-            else:
-                # Small enough dataset to load all at once
-                attempts = query.all()
-                attempts_data = [attempt.to_dict() for attempt in attempts]
-                
-        except Exception as query_err:
-            logger.error(f"Error executing login attempts query: {str(query_err)}")
-            raise
-        finally:
-            # End transaction explicitly
-            db.commit()
-            
-        # Determine batch size based on total data
-        # Smaller batches for larger datasets
+        # Execute the query and fetch all results at once
+        attempts = query.all()
+        
+        # Convert to dictionaries immediately to avoid repeated conversion
+        attempts_data = [
+            {
+                'id': attempt.id,
+                'timestamp': attempt.timestamp.isoformat(),
+                'username': attempt.username,
+                'password': attempt.password,
+                'client_ip': attempt.client_ip,
+                'protocol': attempt.protocol.value if attempt.protocol else None,
+                'latitude': attempt.latitude,
+                'longitude': attempt.longitude,
+                'country': attempt.country,
+                'city': attempt.city,
+                'region': attempt.region
+            }
+            for attempt in attempts
+        ]
+        
+        # Commit and clear session as soon as possible
+        db.commit()
+        db.expire_all()
+        
+        # Calculate batch size based on data size
         total_attempts = len(attempts_data)
-        logger.info(f"Total attempts to send to {client_info}: {total_attempts}")
-        
-        if total_attempts <= 100:
-            batch_size = total_attempts  # Send all at once if small dataset
-        elif total_attempts <= 1000:
-            batch_size = 100
-        elif total_attempts <= 10000:
-            batch_size = 500
-        elif total_attempts <= 30000:
-            batch_size = 1000
-        else:
-            # Use smaller batches for very large datasets (30k+ records)
-            batch_size = 500
-        
-        # Calculate number of batches
+        batch_size = min(1000, max(100, total_attempts // 10))  # Dynamic batch size
         total_batches = (total_attempts + batch_size - 1) // batch_size
-        logger.info(f"Sending {total_attempts} attempts in {total_batches} batches to {client_info}")
         
         # Send batch start message
         start_message = {
             'type': 'batch_start',
             'data': {
+                'total_batches': total_batches,
                 'total_attempts': total_attempts,
-                'total_batches': total_batches
+                'batch_size': batch_size
             }
         }
         await connection_manager.send_text(websocket, json.dumps(start_message))
         
-        # Send each batch
-        for i in range(total_batches):
-            start_idx = i * batch_size
-            end_idx = min(start_idx + batch_size, total_attempts)
-            
-            # Track batch start time
-            batch_num = i + 1
-            batch_tracking[batch_num] = {'start_time': asyncio.get_event_loop().time()}
-            
-            batch_data = attempts_data[start_idx:end_idx]
-            batch_message = {
-                'type': 'batch_data',
-                'data': {
-                    'batch_number': batch_num,
-                    'total_batches': total_batches,
-                    'attempts': batch_data
+        # Create a semaphore to limit concurrent batch sends
+        semaphore = asyncio.Semaphore(3)  # Allow 3 concurrent batch sends
+        
+        async def send_batch(batch_num):
+            async with semaphore:
+                start_idx = (batch_num - 1) * batch_size
+                end_idx = min(start_idx + batch_size, total_attempts)
+                batch_data = attempts_data[start_idx:end_idx]
+                
+                batch_message = {
+                    'type': 'batch_data',
+                    'data': {
+                        'batch_number': batch_num,
+                        'total_batches': total_batches,
+                        'attempts': batch_data
+                    }
                 }
-            }
-            
-            # Add small delay between batches to avoid overwhelming client
-            if i > 0:
-                # Use longer delay for larger batch sizes
-                if total_attempts > 30000:
-                    await asyncio.sleep(0.2)  # 200ms delay for very large datasets
-                elif total_attempts > 10000:
-                    await asyncio.sleep(0.1)  # 100ms delay for large datasets
-                else:
-                    await asyncio.sleep(0.05)  # 50ms delay for smaller datasets
-            
-            # Send the batch with retry logic
-            success = False
-            retry_count = 0
-            max_retries = 3
-            
-            while not success and retry_count < max_retries:
-                try:
-                    success = await connection_manager.send_text(websocket, json.dumps(batch_message))
-                    if success:
-                        # Track batch completion time
-                        batch_tracking[batch_num]['end_time'] = asyncio.get_event_loop().time()
-                        batch_tracking[batch_num]['status'] = 'sent'
-                        batch_size_kb = len(json.dumps(batch_message)) / 1024
-                        
-                        logger.info(f"Sent batch {batch_num}/{total_batches} with {len(batch_data)} attempts ({batch_size_kb:.2f} KB) to {client_info}")
-                    else:
-                        raise Exception("Failed to send message")
-                except Exception as e:
-                    retry_count += 1
-                    if retry_count < max_retries:
-                        logger.warning(f"Failed to send batch {batch_num}/{total_batches} to {client_info}, retrying ({retry_count}/{max_retries}): {str(e)}")
-                        await asyncio.sleep(0.5)  # Wait before retry
-                    else:
-                        logger.error(f"Failed to send batch {batch_num}/{total_batches} to {client_info} after {max_retries} attempts: {str(e)}")
-                        batch_tracking[batch_num]['status'] = 'failed'
-                        # If we can't send a batch, the client might have disconnected
-                        raise
+                
+                # Track batch start time
+                batch_tracking[batch_num] = {
+                    'start_time': asyncio.get_event_loop().time(),
+                    'status': 'pending'
+                }
+                
+                retry_count = 0
+                max_retries = 3
+                success = False
+                
+                while not success and retry_count < max_retries:
+                    try:
+                        success = await connection_manager.send_text(websocket, json.dumps(batch_message))
+                        if success:
+                            batch_tracking[batch_num]['end_time'] = asyncio.get_event_loop().time()
+                            batch_tracking[batch_num]['status'] = 'sent'
+                            batch_size_kb = len(json.dumps(batch_message)) / 1024
+                            
+                            logger.info(f"Sent batch {batch_num}/{total_batches} with {len(batch_data)} attempts ({batch_size_kb:.2f} KB) to {client_info}")
+                        else:
+                            raise Exception("Failed to send message")
+                    except Exception as e:
+                        retry_count += 1
+                        if retry_count < max_retries:
+                            logger.warning(f"Failed to send batch {batch_num}/{total_batches} to {client_info}, retrying ({retry_count}/{max_retries}): {str(e)}")
+                            await asyncio.sleep(0.5)
+                        else:
+                            logger.error(f"Failed to send batch {batch_num}/{total_batches} to {client_info} after {max_retries} attempts: {str(e)}")
+                            batch_tracking[batch_num]['status'] = 'failed'
+                            raise
+        
+        # Create tasks for all batches
+        batch_tasks = [send_batch(i + 1) for i in range(total_batches)]
+        
+        # Wait for all batches to complete
+        await asyncio.gather(*batch_tasks, return_exceptions=True)
         
         # Send completion message
         complete_message = {
@@ -1219,7 +1166,6 @@ async def send_data_in_batches(websocket: WebSocket, db: Session):
         
     except Exception as e:
         logger.error(f"Error sending data in batches to {client_info}: {str(e)}")
-        # If there was an error during batch send, try to send a failure message to the client
         try:
             error_message = {
                 'type': 'batch_error',
@@ -1232,7 +1178,6 @@ async def send_data_in_batches(websocket: WebSocket, db: Session):
         except:
             pass
     finally:
-        # Ensure memory is freed
         attempts_data.clear()
         batch_tracking.clear()
         # No need to close db session as it's passed in by FastAPI dependency injection
