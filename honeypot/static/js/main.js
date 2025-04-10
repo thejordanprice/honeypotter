@@ -2383,7 +2383,9 @@ const websocketManager = (function() {
             // Check if this IP is new before adding the attempt
             const isNewAttacker = !attempts.some(attempt => attempt.client_ip === newAttempt.client_ip);
             
+            // Add new attempt to the beginning of the array
             attempts.unshift(newAttempt);
+            
             uiManager.updateCounterWithAnimation('totalAttempts', attempts.length);
             
             // Only update unique attackers if this is a new IP
@@ -2601,9 +2603,8 @@ const websocketManager = (function() {
                 }
             }
             
-            // Clear tracking data
+            // Clear tracking data but keep the attempts array
             window.batchTracking = null;
-            attempts = [];
             
             // Hide loading overlay after a short delay
             setTimeout(() => uiManager.toggleLoadingOverlay(false), 800);
